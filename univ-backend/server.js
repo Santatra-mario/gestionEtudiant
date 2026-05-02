@@ -1,0 +1,56 @@
+// server.js – Point d'entrée principal de l'API UniGest
+require('dotenv').config();
+const express = require('express');
+const cors    = require('cors');
+const path    = require('path');
+const fs      = require('fs');
+
+const app = express();
+
+// ── Dossier uploads ───────────────────────────────────────────────────────────
+const uploadDir = process.env.UPLOAD_DIR || 'uploads/photos';
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+// ── Middlewares globaux ───────────────────────────────────────────────────────
+app.use(cors({
+    origin: process.env.CORS_ORIGIN || '*',
+    methods: ['GET','POST','PUT','PATCH','DELETE'],
+    allowedHeaders: ['Content-Type','Authorization']
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Servir les photos uploadées
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// ── Routes ────────────────────────────────────────────────────────────────────
+app.use('/api/auth',         require('./routes/auth'));
+app.use('/api/etudiants',    require('./routes/etudiants'));
+app.use('/api/inscriptions', require('./routes/inscriptions'));
+app.use('/api/notes',        require('./routes/notes'));
+app.use('/api/filieres',     require('./routes/filieres'));
+app.use('/api/dashboard',    require('./routes/dashboard'));
+
+// ── Route de santé ────────────────────────────────────────────────────────────
+app.get('/api/health', (req, res) => {
+    res.json({ success: true, message: 'UniGest API opérationnelle', version: '1.0.0' });
+});
+
+// ── Gestion 404 ───────────────────────────────────────────────────────────────
+app.use((req, res) => {
+    res.status(404).json({ success: false, message: `Route ${req.method} ${req.path} introuvable.` });
+});
+
+// ── Gestion erreurs globales ──────────────────────────────────────────────────
+app.use((err, req, res, next) => {
+    console.error('Erreur non gérée :', err.stack);
+    res.status(500).json({ success: false, message: 'Erreur interne du serveur.' });
+});
+
+// ── Démarrage ─────────────────────────────────────────────────────────────────
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`\n🎓 UniGest API démarrée sur http://localhost:${PORT}`);
+    console.log(`   Environnement : ${process.env.NODE_ENV || 'development'}`);
+    console.log(`   Health check  : http://localhost:${PORT}/api/health\n`);
+});
