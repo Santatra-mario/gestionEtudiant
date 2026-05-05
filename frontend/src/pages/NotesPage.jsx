@@ -166,7 +166,7 @@ export default function NotesPage() {
     loadBulletin(selectedInscription);
   }, [selectedInscription]);
 
-  // Enregistrement des notes (bouton "Reçu")
+  // Enregistrement des notes
   const handleSave = async () => {
     setSaving(true);
     setMsg({ text: "", type: "" });
@@ -235,7 +235,6 @@ export default function NotesPage() {
     if (!bulletin) return;
     setPdfGenerating(true);
     try {
-      // Créer un élément temporaire pour le contenu du PDF
       const pdfContent = document.createElement('div');
       pdfContent.style.width = '800px';
       pdfContent.style.padding = '20px';
@@ -256,7 +255,6 @@ export default function NotesPage() {
         </div>
       `;
 
-      // Parcourir chaque semestre pour construire un tableau
       const bulletinObj = bulletin.bulletin || {};
       for (const [semestre, data] of Object.entries(bulletinObj)) {
         const table = document.createElement('table');
@@ -293,7 +291,6 @@ export default function NotesPage() {
         `;
       }
 
-      // Ajouter moyenne générale si disponible
       if (bulletin.moyenne_generale !== undefined) {
         pdfContent.innerHTML += `
           <div style="text-align: right; margin-top: 20px;">
@@ -319,6 +316,10 @@ export default function NotesPage() {
     }
   };
 
+  // ── Permissions selon le rôle ──────────────────────────────────────────────
+  const canDelete = user?.role === 'administrateur' || user?.role === 'secretaire';
+  const canEdit   = user?.role === 'administrateur' || user?.role === 'secretaire' || user?.role === 'enseignant';
+
   // Rendu d'un semestre
   const renderSemestre = (semestre, data) => (
     <Card key={semestre}>
@@ -339,7 +340,7 @@ export default function NotesPage() {
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
         <thead>
           <tr>
-            {["Matière", "Coefficient", "Note /20", "Pondérée", "Action"].map((h) => (
+            {["Matière", "Coefficient", "Note /20", "Pondérée", ...(canDelete ? ["Action"] : [])].map((h) => (
               <th key={h} style={{ padding: "8px 12px", textAlign: "left", color: "var(--text-muted)", fontSize: 12, borderBottom: "1px solid var(--border)", textTransform: "uppercase" }}>
                 {h}
               </th>
@@ -355,27 +356,33 @@ export default function NotesPage() {
                 <td style={{ padding: "10px 12px", color: "var(--text)" }}>{n.matiere}</td>
                 <td style={{ padding: "10px 12px", color: "var(--text-muted)" }}>{n.coefficient}</td>
                 <td style={{ padding: "10px 12px" }}>
-                  <input
-                    type="number"
-                    min="0"
-                    max="20"
-                    step="0.5"
-                    value={currentNote}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setEditNotes((prev) => ({ ...prev, [key]: val === "" ? "" : parseFloat(val) }));
-                    }}
-                    style={{ width: 70, background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text)", padding: "4px 8px", fontSize: 14, outline: "none" }}
-                  />
-                </td>
-                <td style={{ padding: "10px 12px", color: "var(--text-muted)" }}>{(parseFloat(currentNote || 0) * parseFloat(n.coefficient)).toFixed(2)}</td>
-                <td style={{ padding: "10px 12px", verticalAlign: "middle" }}>
-                  {n.note_id && (
-                    <Btn small variant="danger" onClick={() => openConfirm(n.note_id, key, "Supprimer cette note ? Cette action est irréversible.")}>
-                      <Trash2 size={14} style={{ marginRight: 4 }} /> Supprimer
-                    </Btn>
+                  {canEdit ? (
+                    <input
+                      type="number"
+                      min="0"
+                      max="20"
+                      step="0.5"
+                      value={currentNote}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setEditNotes((prev) => ({ ...prev, [key]: val === "" ? "" : parseFloat(val) }));
+                      }}
+                      style={{ width: 70, background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text)", padding: "4px 8px", fontSize: 14, outline: "none" }}
+                    />
+                  ) : (
+                    <span style={{ fontWeight: 600, color: "var(--text)" }}>{currentNote}</span>
                   )}
                 </td>
+                <td style={{ padding: "10px 12px", color: "var(--text-muted)" }}>{(parseFloat(currentNote || 0) * parseFloat(n.coefficient)).toFixed(2)}</td>
+                {canDelete && (
+                  <td style={{ padding: "10px 12px", verticalAlign: "middle" }}>
+                    {n.note_id && (
+                      <Btn small variant="danger" onClick={() => openConfirm(n.note_id, key, "Supprimer cette note ? Cette action est irréversible.")}>
+                        <Trash2 size={14} style={{ marginRight: 4 }} /> Supprimer
+                      </Btn>
+                    )}
+                  </td>
+                )}
               </tr>
             );
           })}
@@ -412,18 +419,22 @@ export default function NotesPage() {
                   <td style={{ padding: "10px 12px", color: "var(--text)" }}>{m.nom}</td>
                   <td style={{ padding: "10px 12px", color: "var(--text-muted)" }}>{m.coefficient}</td>
                   <td style={{ padding: "10px 12px" }}>
-                    <input
-                      type="number"
-                      min="0"
-                      max="20"
-                      step="0.5"
-                      value={editNotes[String(m.id)] ?? 0}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setEditNotes((prev) => ({ ...prev, [String(m.id)]: val === "" ? "" : parseFloat(val) }));
-                      }}
-                      style={{ width: 70, background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text)", padding: "4px 8px", fontSize: 14, outline: "none" }}
-                    />
+                    {canEdit ? (
+                      <input
+                        type="number"
+                        min="0"
+                        max="20"
+                        step="0.5"
+                        value={editNotes[String(m.id)] ?? 0}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setEditNotes((prev) => ({ ...prev, [String(m.id)]: val === "" ? "" : parseFloat(val) }));
+                        }}
+                        style={{ width: 70, background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text)", padding: "4px 8px", fontSize: 14, outline: "none" }}
+                      />
+                    ) : (
+                      <span style={{ color: "var(--text-muted)", fontSize: 13 }}>—</span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -519,9 +530,11 @@ export default function NotesPage() {
             {/* Boutons d'action */}
             {Object.keys(editNotes).length > 0 && (
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }} className="no-print">
-                <Btn onClick={handleSave} disabled={saving}>
-                  {saving ? "Enregistrement…" : "Reçu"}
-                </Btn>
+                {canEdit && (
+                  <Btn onClick={handleSave} disabled={saving}>
+                    {saving ? "Enregistrement…" : "💾 Enregistrer les notes"}
+                  </Btn>
+                )}
                 <Btn variant="secondary" onClick={generatePDF} disabled={pdfGenerating || !hasNotes}>
                   {pdfGenerating ? "Génération..." : "📄 Télécharger PDF"}
                 </Btn>

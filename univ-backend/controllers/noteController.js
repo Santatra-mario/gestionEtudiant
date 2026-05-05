@@ -155,7 +155,24 @@ const batchUpsertNotes = async (req, res) => {
     }
 
     try {
-        // ✅ Tous les rôles peuvent saisir — pas de filtre par enseignant_id
+        // ✅ Vérifier que toutes les matières appartiennent bien à la filière de l'inscription
+        const matiereIds = notesValidees.map(n => n.matiere_id);
+        const placeholders = matiereIds.map(() => '?').join(',');
+        const [checkRows] = await db.query(
+            `SELECT m.id FROM matieres m
+             JOIN inscriptions i ON i.filiere_id = m.filiere_id
+             WHERE m.id IN (${placeholders}) AND i.id = ?`,
+            [...matiereIds, inscId]
+        );
+        const validMatiereIds = new Set(checkRows.map(r => r.id));
+        const invalides = matiereIds.filter(id => !validMatiereIds.has(id));
+        if (invalides.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: `Matière(s) incompatible(s) avec la filière de l'inscription : ${invalides.join(', ')}.`
+            });
+        }
+
         const conn = await db.getConnection();
         try {
             await conn.beginTransaction();
