@@ -39,15 +39,17 @@ CREATE TABLE IF NOT EXISTS filieres (
 -- TABLE : matieres
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS matieres (
-    id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    filiere_id  INT UNSIGNED NOT NULL,
-    code        VARCHAR(20) NOT NULL UNIQUE,
-    nom         VARCHAR(150) NOT NULL,
-    coefficient DECIMAL(4,2) NOT NULL DEFAULT 1.00,
-    semestre    ENUM('S1','S2') NOT NULL DEFAULT 'S1',
-    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (filiere_id) REFERENCES filieres(id) ON DELETE CASCADE
+    id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    filiere_id     INT UNSIGNED NOT NULL,
+    enseignant_id  INT UNSIGNED NULL,
+    code           VARCHAR(20) NOT NULL UNIQUE,
+    nom            VARCHAR(150) NOT NULL,
+    coefficient    DECIMAL(4,2) NOT NULL DEFAULT 1.00,
+    semestre       ENUM('S1','S2') NOT NULL DEFAULT 'S1',
+    created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at     DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (filiere_id)    REFERENCES filieres(id) ON DELETE CASCADE,
+    FOREIGN KEY (enseignant_id) REFERENCES users(id)    ON DELETE SET NULL
 );
 
 -- ------------------------------------------------------------
@@ -131,9 +133,10 @@ GROUP BY i.id, m.semestre;
 -- ============================================================
 
 -- Utilisateur admin par défaut  (password: Admin1234)
+-- Hash bcrypt généré avec 10 rounds
 INSERT INTO users (nom, prenom, email, password, role) VALUES
 ('Admin', 'Système', 'admin@univ.mg',
- 'Admin1234', 'administrateur');
+ '$2b$10$TAVelWAmoTn7Tk0LoAglsOXx4/paSeCq37vPOnghgce.pL21imYU.', 'administrateur');
 
 -- Filières
 INSERT INTO filieres (code, nom, description) VALUES
