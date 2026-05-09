@@ -244,7 +244,18 @@ function EtudiantModal({ onClose, onSaved, initial }) {
     setPhotoPreview(url);
   };
 
-  const isValid = form.nom.trim() && form.prenom.trim() && form.date_naissance;
+  // Validation téléphone Madagascar : 10 chiffres (ex: 0341234567 ou +261341234567)
+  const phoneDigits = form.telephone.replace(/[\s\-\+]/g, "");
+  // Accepter: 034... (10 chiffres) OU 261... (12 chiffres avec indicatif)
+  const phoneValid =
+    !form.telephone.trim() ||
+    /^0[23][0-9]{8}$/.test(phoneDigits) ||
+    /^261[23][0-9]{8}$/.test(phoneDigits);
+  const phoneError = form.telephone.trim() && !phoneValid
+    ? "Numéro invalide — 10 chiffres ex: 034 12 345 67"
+    : "";
+
+  const isValid = form.nom.trim() && form.prenom.trim() && form.date_naissance && !phoneError;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -370,9 +381,16 @@ function EtudiantModal({ onClose, onSaved, initial }) {
               <Input
                 label="Téléphone"
                 value={form.telephone}
-                onChange={set("telephone")}
-                placeholder="+261 34 00 000 00"
+                onChange={(e) => {
+                  // Autoriser chiffres, espaces, +, tirets uniquement
+                  const val = e.target.value.replace(/[^\d\s\+\-]/g, "");
+                  setForm(f => ({ ...f, telephone: val }));
+                }}
+                placeholder="034 12 345 67"
                 icon={Phone}
+                maxLength={15}
+                error={phoneError}
+                hint="Format Madagascar : 034 XX XXX XX (10 chiffres)"
               />
               <Input
                 label="Adresse"
@@ -704,9 +722,10 @@ export default function EtudiantsPage() {
               "",
               "Matricule",
               "Étudiant",
-              "Filière",
-              "Niveau",
-              "Statut",
+              "Date naiss.",
+              "Sexe",
+              "Téléphone",
+              "Adresse",
               "Actions",
             ]}
           >
@@ -714,7 +733,7 @@ export default function EtudiantsPage() {
               Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)
             ) : etudiants.length === 0 ? (
               <tr>
-                <td colSpan={7}>
+                <td colSpan={8}>
                   <EmptyState
                     icon={GraduationCap}
                     title="Aucun étudiant trouvé"
@@ -792,31 +811,34 @@ export default function EtudiantsPage() {
                     )}
                   </Td>
 
-                  {/* Filière */}
+                  {/* Date de naissance */}
                   <Td>
-                    <span style={{ color: "var(--text-muted)", fontSize: 13 }}>
-                      {e.filiere_nom || "—"}
+                    <span style={{ color: "var(--text-muted)", fontSize: 13, whiteSpace: "nowrap" }}>
+                      {e.date_naissance
+                        ? new Date(e.date_naissance).toLocaleDateString("fr-FR")
+                        : "—"}
                     </span>
                   </Td>
 
-                  {/* Niveau */}
+                  {/* Sexe */}
                   <Td>
-                    {e.niveau ? (
-                      <Badge color="info">{e.niveau}</Badge>
-                    ) : (
-                      <span style={{ color: "var(--text-muted)" }}>—</span>
-                    )}
+                    <span style={{ fontSize: 13 }}>
+                      {e.sexe === "M" ? "👦 M" : e.sexe === "F" ? "👧 F" : "—"}
+                    </span>
                   </Td>
 
-                  {/* Statut */}
+                  {/* Téléphone */}
                   <Td>
-                    {e.statut ? (
-                      <Badge color={STATUT_COLOR[e.statut] || "muted"} dot>
-                        {e.statut}
-                      </Badge>
-                    ) : (
-                      <span style={{ color: "var(--text-muted)" }}>—</span>
-                    )}
+                    <span style={{ color: "var(--text-muted)", fontSize: 13, whiteSpace: "nowrap" }}>
+                      {e.telephone || "—"}
+                    </span>
+                  </Td>
+
+                  {/* Adresse */}
+                  <Td>
+                    <span style={{ color: "var(--text-muted)", fontSize: 13 }}>
+                      {e.adresse || "—"}
+                    </span>
                   </Td>
 
                   {/* Actions */}

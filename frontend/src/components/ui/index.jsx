@@ -311,6 +311,11 @@ export function Input({
 /* ═══════════════════════════════════════════════════
    SELECT
 ═══════════════════════════════════════════════════ */
+/*
+ * Select — dropdown 100 % custom (aucun panel navigateur)
+ * Le fond du menu, le hover et la couleur respectent toujours
+ * les variables CSS du thème actif (dark ou light).
+ */
 export function Select({
   label,
   error,
@@ -318,107 +323,202 @@ export function Select({
   children,
   icon: Icon,
   required: req,
+  value,
+  onChange,
+  style: outerStyle = {},
+  disabled = false,
   ...props
 }) {
+  const [open, setOpen]       = useState(false);
   const [focused, setFocused] = useState(false);
+  const [hovered, setHovered] = useState(null); // index de l'option survolée
+  const containerRef = useState(null);          // [ref, _] — on utilise une ref mutable
+  let _ref = null;
+
+  // Fermer si clic extérieur
+  useEffect(() => {
+    if (!open) return;
+    const handle = (e) => {
+      if (_ref && !_ref.contains(e.target)) {
+        setOpen(false);
+        setFocused(false);
+      }
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [open]);
+
+  // Extraire les <option> de children (récursif)
+  const options = [];
+  const extractOptions = (nodes) => {
+    if (!nodes) return;
+    (Array.isArray(nodes) ? nodes : [nodes]).forEach((child) => {
+      if (!child) return;
+      if (child.type === "option") {
+        options.push({
+          value:    child.props.value,
+          label:    child.props.children,
+          disabled: !!child.props.disabled,
+        });
+      } else if (child.props?.children) {
+        extractOptions(child.props.children);
+      }
+    });
+  };
+  extractOptions(children);
+
+  const selectedOpt   = options.find((o) => String(o.value) === String(value ?? ""));
+  const displayLabel  = selectedOpt ? selectedOpt.label : (options[0]?.label ?? "");
+
+  const pick = (val) => {
+    onChange?.({ target: { value: val } });
+    setOpen(false);
+    setFocused(false);
+    setHovered(null);
+  };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, ...outerStyle }}>
       {label && (
-        <label
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: error
-              ? "var(--danger)"
-              : focused
-                ? "var(--accent-light)"
-                : "var(--text-soft)",
-            transition: "color var(--transition)",
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-          }}
-        >
+        <label style={{
+          fontSize: 13, fontWeight: 600,
+          color: error ? "var(--danger)" : focused ? "var(--accent-light)" : "var(--text-soft)",
+          transition: "color var(--transition)",
+          display: "flex", alignItems: "center", gap: 4,
+        }}>
           {label}
           {req && <span style={{ color: "var(--danger)" }}>*</span>}
         </label>
       )}
-      <div style={{ position: "relative" }}>
-        {Icon && (
-          <Icon
-            size={15}
-            style={{
-              position: "absolute",
-              left: 11,
-              top: "50%",
-              transform: "translateY(-50%)",
-              color: focused ? "var(--accent-light)" : "var(--text-muted)",
-              transition: "color var(--transition)",
-              pointerEvents: "none",
-              zIndex: 1,
-            }}
-          />
-        )}
-        <select
-          {...props}
-          onFocus={(e) => {
-            setFocused(true);
-            props.onFocus?.(e);
-          }}
+
+      {/* Wrapper — capture la ref pour fermeture externe */}
+      <div ref={(el) => { _ref = el; }} style={{ position: "relative" }}>
+
+        {/* ── Bouton trigger ── */}
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => { if (!disabled) { setOpen((o) => !o); setFocused(true); } }}
           onBlur={(e) => {
-            setFocused(false);
-            props.onBlur?.(e);
+            // Ne pas fermer si le focus passe à un enfant (ex: option)
+            if (_ref && !_ref.contains(e.relatedTarget)) {
+              setFocused(false);
+            }
           }}
           style={{
-            background: focused ? "rgba(79,142,247,0.06)" : "var(--surface2)",
-            border: `1.5px solid ${error ? "var(--danger)" : focused ? "var(--accent)" : "var(--border)"}`,
+            width: "100%",
+            background: open ? "rgba(79,142,247,0.08)" : "var(--surface2)",
+            border: `1.5px solid ${error ? "var(--danger)" : open ? "var(--accent)" : "var(--border)"}`,
             borderRadius: "var(--radius-sm)",
             color: "var(--text)",
             padding: `10px 36px 10px ${Icon ? "34px" : "13px"}`,
             fontSize: 14,
-            width: "100%",
+            textAlign: "left",
+            cursor: disabled ? "not-allowed" : "pointer",
             outline: "none",
-            appearance: "none",
-            cursor: "pointer",
             transition: "all var(--transition)",
-            boxShadow: focused ? "0 0 0 3px rgba(79,142,247,0.18)" : "none",
+            boxShadow: open ? "0 0 0 3px rgba(79,142,247,0.18)" : "none",
+            fontFamily: "var(--font-body)",
+            display: "flex", alignItems: "center",
+            opacity: disabled ? 0.5 : 1,
+            position: "relative",
           }}
         >
-          {children}
-        </select>
-        {/* Flèche custom */}
-        <div
-          style={{
-            position: "absolute",
-            right: 11,
-            top: "50%",
-            transform: "translateY(-50%)",
-            pointerEvents: "none",
-            color: "var(--text-muted)",
-          }}
-        >
+          {Icon && (
+            <Icon size={15} style={{
+              position: "absolute", left: 11, top: "50%",
+              transform: "translateY(-50%)",
+              color: open ? "var(--accent-light)" : "var(--text-muted)",
+              pointerEvents: "none",
+            }} />
+          )}
+          <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {displayLabel}
+          </span>
+        </button>
+
+        {/* ── Flèche animée ── */}
+        <div style={{
+          position: "absolute", right: 11, top: "50%",
+          transform: open ? "translateY(-50%) rotate(180deg)" : "translateY(-50%) rotate(0deg)",
+          pointerEvents: "none",
+          color: "var(--text-muted)",
+          transition: "transform 0.2s ease",
+        }}>
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path
-              d="M2 4l4 4 4-4"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
+            <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
+
+        {/* ── Panel dropdown ─────────────────────────────────────────────
+            Fond = var(--bg) → même couleur que le body.
+            Quand le thème change (dark↔light), --bg change automatiquement
+            et le panel suit sans aucun JS supplémentaire.
+        ─────────────────────────────────────────────────────────────── */}
+        {open && (
+          <div style={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            left: 0, right: 0,
+            background: "var(--bg)",           /* ← couleur body, respecte le thème */
+            border: "1.5px solid var(--border)",
+            borderRadius: "var(--radius-sm)",
+            boxShadow: "var(--shadow-lg)",
+            zIndex: 9999,
+            animation: "slideDown 0.15s ease",
+            maxHeight: 260,
+            overflowY: "auto",
+            overflowX: "hidden",
+          }}>
+            {options.map((opt, i) => {
+              const isSel  = String(opt.value) === String(value ?? "");
+              const isHov  = hovered === i;
+              const isDis  = opt.disabled;
+
+              let bg = "transparent";
+              if (isSel)      bg = "rgba(79,142,247,0.13)";
+              else if (isHov) bg = "var(--surface2)";
+
+              return (
+                <div
+                  key={i}
+                  onMouseDown={(e) => { e.preventDefault(); if (!isDis) pick(opt.value); }}
+                  onMouseEnter={() => { if (!isDis) setHovered(i); }}
+                  onMouseLeave={() => setHovered(null)}
+                  style={{
+                    padding: "9px 13px",
+                    fontSize: 14,
+                    cursor: isDis ? "not-allowed" : "pointer",
+                    color: isDis
+                      ? "var(--text-muted)"
+                      : isSel
+                        ? "var(--accent)"
+                        : "var(--text)",
+                    background: bg,
+                    fontWeight: isSel ? 600 : 400,
+                    display: "flex", alignItems: "center", gap: 8,
+                    transition: "background 0.1s",
+                    userSelect: "none",
+                  }}
+                >
+                  {/* Coche si sélectionné, espace sinon pour aligner */}
+                  <span style={{ width: 14, flexShrink: 0, display: "flex", alignItems: "center" }}>
+                    {isSel && (
+                      <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                        <path d="M2 6.5l3.5 3.5L11 3" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </span>
+                  {opt.label}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
+
       {error && (
-        <span
-          style={{
-            fontSize: 12,
-            color: "var(--danger)",
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-          }}
-        >
+        <span style={{ fontSize: 12, color: "var(--danger)", display: "flex", alignItems: "center", gap: 4 }}>
           <AlertCircle size={12} /> {error}
         </span>
       )}
