@@ -201,9 +201,14 @@ export default function NotesSaisiePage() {
         try {
           const mRes = await api.get(`/filieres/${insc.filiere_id}/matieres`);
           matList = extractArray(mRes.data); // mRes.data = { success, data: [...] }
+          console.log("Matières chargées depuis FilièresPage:", matList.length, "matières");
         } catch (e) {
-          console.warn("Impossible de charger les matières:", e);
+          console.warn("Impossible de charger les matières depuis FilièresPage:", e);
+          setMsg({ text: "Impossible de charger les matières de cette filière.", type: "warning" });
         }
+      } else {
+        console.warn("Aucun filiere_id trouvé pour l'inscription:", insc);
+        setMsg({ text: "Cette inscription n'est associée à aucune filière.", type: "warning" });
       }
       setMatieres(matList);
 
@@ -389,7 +394,7 @@ export default function NotesSaisiePage() {
     return null;
   };
 
-  // Grouper les matières par semestre (S1, S2 selon DB)
+  // Grouper les matières par semestre (compatible avec FilieresPage)
   const matieresBySemestre = matieres.reduce((acc, m) => {
     const sem = m.semestre || "S1";
     if (!acc[sem]) acc[sem] = [];
@@ -771,6 +776,14 @@ export default function NotesSaisiePage() {
                   Allez dans <strong>Filières &amp; Matières</strong> pour ajouter
                   les matières avant de saisir des notes.
                 </p>
+                <div style={{ marginTop: 16 }}>
+                  <Btn 
+                    variant="secondary" 
+                    onClick={() => window.location.href = "/filieres"}
+                  >
+                    → Gérer les filières et matières
+                  </Btn>
+                </div>
               </div>
             </Card>
           ) : (
