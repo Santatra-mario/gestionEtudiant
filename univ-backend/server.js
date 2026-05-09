@@ -44,6 +44,7 @@ app.use("/api/etudiants", require("./routes/etudiants"));
 app.use("/api/inscriptions", require("./routes/inscriptions"));
 app.use("/api/notes", require("./routes/notes"));
 app.use("/api/filieres", require("./routes/filieres"));
+app.use("/api/matieres", require("./routes/matieres"));
 app.use("/api/dashboard", require("./routes/dashboard"));
 app.use("/api/users", require("./routes/users"));
 
@@ -58,12 +59,10 @@ app.get("/api/health", (req, res) => {
 
 // ── Gestion 404 ───────────────────────────────────────────────────────────────
 app.use((req, res) => {
-  res
-    .status(404)
-    .json({
-      success: false,
-      message: `Route ${req.method} ${req.path} introuvable.`,
-    });
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.method} ${req.path} introuvable.`,
+  });
 });
 
 // ── Gestion erreurs globales ──────────────────────────────────────────────────
@@ -74,10 +73,32 @@ app.use((err, req, res, next) => {
     .json({ success: false, message: "Erreur interne du serveur." });
 });
 
-// ── Démarrage ─────────────────────────────────────────────────────────────────
+// ── Démarrage ───────────────────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+
+const server = app.listen(PORT, () => {
   console.log(`\n🎓 UniGest API démarrée sur http://localhost:${PORT}`);
   console.log(`   Environnement : ${process.env.NODE_ENV || "development"}`);
   console.log(`   Health check  : http://localhost:${PORT}/api/health\n`);
+});
+
+// Gestion propre de l'erreur EADDRINUSE (port déjà utilisé)
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(
+      `\n❌ Erreur : le port ${PORT} est déjà utilisé par un autre processus.`,
+    );
+    console.error(`   → Sur Windows : ouvrez un terminal CMD et tapez :\n`);
+    console.error(
+      `       FOR /F "tokens=5" %P IN ('netstat -ano ^| findstr :${PORT}') DO taskkill /F /PID %P\n`,
+    );
+    console.error(`   → Sur PowerShell :\n`);
+    console.error(
+      `       Stop-Process -Id (Get-NetTCPConnection -LocalPort ${PORT}).OwningProcess -Force\n`,
+    );
+    process.exit(1);
+  } else {
+    console.error("Erreur serveur inattendue :", err);
+    process.exit(1);
+  }
 });

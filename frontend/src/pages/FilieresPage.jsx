@@ -59,11 +59,17 @@ function FiliereModal({ onClose, onSaved, initial }) {
     setError("");
     setLoading(true);
     try {
-      if (initial?.id) await api.put(`/filieres/${initial.id}`, form);
-      else await api.post("/filieres", form);
+      if (initial?.id) {
+        await api.put(`/filieres/${initial.id}`, form);
+      } else {
+        await api.post("/filieres", form);
+      }
       onSaved();
     } catch (err) {
-      setError(err.response?.data?.message || "Erreur.");
+      console.error("Erreur création/modification filière:", err);
+      setError(
+        err.response?.data?.message || "Erreur lors de l'enregistrement.",
+      );
     } finally {
       setLoading(false);
     }
@@ -166,8 +172,9 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
     const codeOk = form.code.trim() !== "";
     const nomOk = form.nom.trim() !== "";
     const coeff = parseFloat(form.coefficient);
-    const coeffOk = !isNaN(coeff) && coeff >= 1 && coeff <= 10;
-    return codeOk && nomOk && coeffOk;
+    const coeffOk = !isNaN(coeff) && coeff >= 0.5 && coeff <= 10;
+    const semestreOk = ["S1", "S2"].includes(form.semestre);
+    return codeOk && nomOk && coeffOk && semestreOk;
   };
 
   const handleSubmit = async (e) => {
@@ -181,12 +188,18 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
         enseignant_id:
           form.enseignant_id === "" ? null : parseInt(form.enseignant_id, 10),
       };
-      if (initial?.id)
+      if (initial?.id) {
         await api.put(`/filieres/matieres/${initial.id}`, payload);
-      else await api.post("/filieres/matieres", payload);
+      } else {
+        await api.post("/filieres/matieres", payload);
+      }
       onSaved();
     } catch (err) {
-      setError(err.response?.data?.message || "Erreur.");
+      console.error("Erreur création/modification matière:", err);
+      setError(
+        err.response?.data?.message ||
+          "Erreur lors de l'enregistrement de la matière.",
+      );
     } finally {
       setLoading(false);
     }
@@ -276,23 +289,30 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
             >
               Semestre *
             </label>
-           <select
-  value={form.semestre}
-  onChange={set('semestre')}
-  style={{
-    background: 'var(--surface2)', border: '1px solid var(--border)',
-    borderRadius: 8, color: 'var(--text)', padding: '9px 12px',
-    fontSize: 14, outline: 'none', width: '100%'
-  }}
->
-  {Object.entries(NIVEAU_SEMESTRES).map(([niveau, sems]) => (
-    <optgroup key={niveau} label={`── ${niveau}`}>
-      {sems.map(s => (
-        <option key={s} value={s}>{s}</option>
-      ))}
-    </optgroup>
-  ))}
-</select>
+            <select
+              value={form.semestre}
+              onChange={set("semestre")}
+              style={{
+                background: "var(--surface2)",
+                border: "1px solid var(--border)",
+                borderRadius: 8,
+                color: "var(--text)",
+                padding: "9px 12px",
+                fontSize: 14,
+                outline: "none",
+                width: "100%",
+              }}
+            >
+              {Object.entries(NIVEAU_SEMESTRES).map(([niveau, sems]) => (
+                <optgroup key={niveau} label={`── ${niveau}`}>
+                  {sems.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -364,6 +384,10 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
 
 export default function FilieresPage() {
   const { user } = useAuth();
+  // Créer et modifier : admin + secrétaire
+  const canManageFilieres =
+    user?.role === "administrateur" || user?.role === "secretaire";
+  // Désactiver filière / supprimer matière : admin uniquement
   const isAdmin = user?.role === "administrateur";
 
   const [filieres, setFilieres] = useState([]);
@@ -505,7 +529,7 @@ export default function FilieresPage() {
         title="Filières & Matières"
         subtitle={`${filieres.length} filière(s) active(s)`}
         action={
-          isAdmin && (
+          canManageFilieres && (
             <Btn onClick={() => setModal("create")}>+ Nouvelle filière</Btn>
           )
         }
@@ -525,7 +549,7 @@ export default function FilieresPage() {
                 }}
               >
                 Aucune filière active.{" "}
-                {isAdmin &&
+                {canManageFilieres &&
                   "Créez la première filière avec le bouton ci-dessus."}
               </p>
             </Card>
@@ -564,33 +588,35 @@ export default function FilieresPage() {
                   )}
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  {/* Modifier : admin + secrétaire */}
+                  {canManageFilieres && (
+                    <Btn
+                      small
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setModal(f);
+                      }}
+                    >
+                      Modifier
+                    </Btn>
+                  )}
+                  {/* Désactiver : admin uniquement */}
                   {isAdmin && (
-                    <>
-                      <Btn
-                        small
-                        variant="ghost"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setModal(f);
-                        }}
-                      >
-                        Modifier
-                      </Btn>
-                      <Btn
-                        small
-                        variant="danger"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openConfirm(
-                            "Désactiver cette filière ?",
-                            () => handleDeleteFiliere(f.id),
-                            "Désactivation",
-                          );
-                        }}
-                      >
-                        Désactiver
-                      </Btn>
-                    </>
+                    <Btn
+                      small
+                      variant="danger"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openConfirm(
+                          "Désactiver cette filière ?",
+                          () => handleDeleteFiliere(f.id),
+                          "Désactivation",
+                        );
+                      }}
+                    >
+                      Désactiver
+                    </Btn>
                   )}
                   <span
                     style={{
@@ -628,7 +654,7 @@ export default function FilieresPage() {
                     >
                       Matières
                     </span>
-                    {isAdmin && (
+                    {canManageFilieres && (
                       <Btn
                         small
                         onClick={() =>
@@ -724,8 +750,9 @@ export default function FilieresPage() {
                               </span>
                             )}
                           </div>
-                          {isAdmin && (
+                          {canManageFilieres && (
                             <div style={{ display: "flex", gap: 6 }}>
+                              {/* Modifier : admin + secrétaire */}
                               <Btn
                                 small
                                 variant="ghost"
@@ -738,19 +765,22 @@ export default function FilieresPage() {
                               >
                                 Modifier
                               </Btn>
-                              <Btn
-                                small
-                                variant="danger"
-                                onClick={() =>
-                                  openConfirm(
-                                    "Supprimer cette matière ? Cette action est irréversible.",
-                                    () => handleDeleteMatiere(m.id, f.id),
-                                    "Suppression",
-                                  )
-                                }
-                              >
-                                Suppr.
-                              </Btn>
+                              {/* Supprimer : admin uniquement */}
+                              {isAdmin && (
+                                <Btn
+                                  small
+                                  variant="danger"
+                                  onClick={() =>
+                                    openConfirm(
+                                      "Supprimer cette matière ? Cette action est irréversible.",
+                                      () => handleDeleteMatiere(m.id, f.id),
+                                      "Suppression",
+                                    )
+                                  }
+                                >
+                                  Suppr.
+                                </Btn>
+                              )}
                             </div>
                           )}
                         </div>

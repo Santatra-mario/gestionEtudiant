@@ -2,13 +2,21 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search,
-  ChevronLeft,
-  ChevronRight,
   UserPlus,
   Edit,
   Trash2,
   X,
   Save,
+  User,
+  Phone,
+  Mail,
+  MapPin,
+  Calendar,
+  Camera,
+  ChevronLeft,
+  ChevronRight,
+  AlertTriangle,
+  GraduationCap,
 } from "lucide-react";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
@@ -23,35 +31,49 @@ import {
   Input,
   Select,
   FormRow,
+  FormSection,
   Alert,
   Spinner,
+  EmptyState,
+  Tooltip,
 } from "../components/ui";
 
-const NIVEAUX = ["L1", "L2", "L3", "M1", "M2"];
-
-// Palette de couleurs pour les avatars sans photo
-const AVATAR_COLORS = [
-  ["#4f8ef7", "#2d6ee0"],
+// ─── Palette de couleurs avatar ───────────────────────────────────────────
+const PALETTE = [
+  ["#6366f1", "#4f46e5"],
   ["#22c55e", "#16a34a"],
-  ["#a78bfa", "#7c3aed"],
   ["#f59e0b", "#d97706"],
   ["#ec4899", "#be185d"],
   ["#14b8a6", "#0d9488"],
   ["#ef4444", "#dc2626"],
+  ["#8b5cf6", "#7c3aed"],
+  ["#0ea5e9", "#0284c7"],
 ];
 
-// Avatar circulaire : photo ou initiales
-function Avatar({ photo, prenom, nom, size = 40 }) {
-  // Couleur déterministe basée sur la première lettre
-  const idx = (prenom?.charCodeAt(0) || 0) % AVATAR_COLORS.length;
-  const [from, to] = AVATAR_COLORS[idx];
-  const initiales = `${(prenom?.[0] || "").toUpperCase()}${(nom?.[0] || "").toUpperCase()}`;
+function getColors(seed) {
+  // Sécurité : charCodeAt("") retourne NaN → on force 0
+  const code =
+    typeof seed === "string" && seed.length > 0
+      ? seed.charCodeAt(0)
+      : typeof seed === "number"
+        ? seed
+        : 0;
+  const idx = (isNaN(code) ? 0 : Math.abs(code)) % PALETTE.length;
+  return PALETTE[idx] || PALETTE[0]; // fallback garanti
+}
 
-  if (photo) {
+// ─── Composant Avatar ─────────────────────────────────────────────────────
+function Avatar({ photo, prenom, nom, size = 40 }) {
+  const [imgError, setImgError] = useState(false);
+  const [from, to] = getColors(prenom);
+  const initials = `${(prenom?.[0] || "").toUpperCase()}${(nom?.[0] || "").toUpperCase()}`;
+
+  if (photo && !imgError) {
     return (
       <img
         src={`/uploads/${photo}`}
         alt={`${prenom} ${nom}`}
+        onError={() => setImgError(true)}
         style={{
           width: size,
           height: size,
@@ -61,15 +83,9 @@ function Avatar({ photo, prenom, nom, size = 40 }) {
           display: "block",
           flexShrink: 0,
         }}
-        onError={(e) => {
-          // Si l'image est cassée → afficher les initiales
-          e.currentTarget.style.display = "none";
-          e.currentTarget.nextSibling.style.display = "flex";
-        }}
       />
     );
   }
-
   return (
     <div
       style={{
@@ -86,48 +102,160 @@ function Avatar({ photo, prenom, nom, size = 40 }) {
         letterSpacing: "0.03em",
         flexShrink: 0,
         userSelect: "none",
+        boxShadow: `0 2px 8px ${from}55`,
       }}
     >
-      {initiales}
+      {initials || "?"}
     </div>
   );
 }
 
-// --- MODAL ÉTUDIANT (style compact et centré) ---
-function EtudiantModal({ onClose, onSaved, initial }) {
-  const [form, setForm] = useState(
-    initial || {
-      nom: "",
-      prenom: "",
-      date_naissance: "",
-      sexe: "M",
-      adresse: "",
-      telephone: "",
-      email: "",
-    },
+// ─── Sélecteur de photo ───────────────────────────────────────────────────
+function PhotoPicker({ photo, preview, prenom, nom, onFileChange }) {
+  const [from, to] = getColors(prenom);
+  const src = preview || (photo ? `/uploads/${photo}` : null);
+  const initials = `${(prenom?.[0] || "").toUpperCase()}${(nom?.[0] || "").toUpperCase()}`;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 14,
+        padding: "20px 0 8px",
+      }}
+    >
+      {/* Cercle avatar / aperçu photo */}
+      <div style={{ position: "relative", display: "inline-flex" }}>
+        {src ? (
+          <img
+            src={src}
+            alt="Aperçu"
+            style={{
+              width: 96,
+              height: 96,
+              borderRadius: "50%",
+              objectFit: "cover",
+              border: "3px solid var(--accent)",
+              boxShadow:
+                "0 0 0 5px rgba(99,102,241,0.18), 0 4px 20px rgba(0,0,0,0.25)",
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              width: 96,
+              height: 96,
+              borderRadius: "50%",
+              background: `linear-gradient(135deg, ${from}, ${to})`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 32,
+              fontWeight: 700,
+              color: "#fff",
+              border: "3px solid var(--border)",
+              boxShadow: `0 4px 20px ${from}44`,
+            }}
+          >
+            {initials || <User size={34} color="#fff" />}
+          </div>
+        )}
+        {/* Bouton caméra overlay */}
+        <label
+          style={{
+            position: "absolute",
+            bottom: 0,
+            right: 0,
+            width: 30,
+            height: 30,
+            borderRadius: "50%",
+            background: "var(--accent)",
+            border: "2.5px solid var(--surface)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            transition: "transform 0.2s",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+          }}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.transform = "scale(1.12)")
+          }
+          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+          title={src ? "Changer la photo" : "Ajouter une photo"}
+        >
+          <Camera size={14} color="#fff" />
+          <input
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={onFileChange}
+          />
+        </label>
+      </div>
+      <span
+        style={{
+          fontSize: 11,
+          color: "var(--text-muted)",
+          letterSpacing: "0.02em",
+        }}
+      >
+        JPG, PNG · max 2 Mo
+      </span>
+    </div>
   );
+}
+
+// ─── Badge statut ────────────────────────────────────────────────────────
+const STATUT_COLOR = {
+  actif: "success",
+  suspendu: "warning",
+  diplome: "accent",
+  abandonne: "danger",
+};
+
+// ─── Modal étudiant (création / édition) ─────────────────────────────────
+function EtudiantModal({ onClose, onSaved, initial }) {
+  const isEdit = !!initial?.id;
+
+  const [form, setForm] = useState({
+    nom: initial?.nom || "",
+    prenom: initial?.prenom || "",
+    date_naissance: initial?.date_naissance?.split("T")[0] || "",
+    sexe: initial?.sexe || "M",
+    adresse: initial?.adresse || "",
+    telephone: initial?.telephone || "",
+    email: initial?.email || "",
+  });
   const [photo, setPhoto] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  // Validation simple
-  const isFormValid =
-    form.nom.trim() !== "" &&
-    form.prenom.trim() !== "" &&
-    form.date_naissance !== "";
+  const handlePhoto = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setPhoto(file);
+    const url = URL.createObjectURL(file);
+    setPhotoPreview(url);
+  };
+
+  const isValid = form.nom.trim() && form.prenom.trim() && form.date_naissance;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!isFormValid) return;
+    if (!isValid) return;
     setError("");
     setLoading(true);
     try {
       const fd = new FormData();
       Object.entries(form).forEach(([k, v]) => v && fd.append(k, v));
       if (photo) fd.append("photo", photo);
-      if (initial?.id) {
+      if (isEdit) {
         await api.put(`/etudiants/${initial.id}`, fd, {
           headers: { "Content-Type": "multipart/form-data" },
         });
@@ -138,7 +266,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
       }
       onSaved();
     } catch (err) {
-      setError(err.response?.data?.message || "Erreur.");
+      setError(err.response?.data?.message || "Une erreur est survenue.");
     } finally {
       setLoading(false);
     }
@@ -146,118 +274,138 @@ function EtudiantModal({ onClose, onSaved, initial }) {
 
   return (
     <Modal
-      title={initial ? "Modifier étudiant" : "Nouvel étudiant"}
+      title={isEdit ? "Modifier l'étudiant" : "Nouvel étudiant"}
+      subtitle={
+        isEdit
+          ? `Matricule : ${initial.matricule}`
+          : "Remplissez les informations ci-dessous"
+      }
       onClose={onClose}
-      width={520}
-      top={90}
+      width={580}
     >
       <form
         onSubmit={handleSubmit}
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-          alignItems: "center",
-        }}
+        style={{ display: "flex", flexDirection: "column", gap: 0 }}
       >
-        {error && <Alert style={{ width: "100%" }}>{error}</Alert>}
+        {/* Photo */}
+        <PhotoPicker
+          photo={initial?.photo}
+          preview={photoPreview}
+          prenom={form.prenom}
+          nom={form.nom}
+          onFileChange={handlePhoto}
+        />
 
-        <div style={{ width: "100%", maxWidth: 360 }}>
-          <FormRow style={{ gap: 12 }}>
-            <Input
-              label="Nom *"
-              value={form.nom}
-              onChange={set("nom")}
-              required
-            />
-            <Input
-              label="Prénom *"
-              value={form.prenom}
-              onChange={set("prenom")}
-              required
-            />
-          </FormRow>
-        </div>
+        {error && (
+          <div style={{ margin: "12px 0 4px" }}>
+            <Alert type="danger">{error}</Alert>
+          </div>
+        )}
 
-        <div style={{ width: "100%", maxWidth: 360 }}>
-          <FormRow style={{ gap: 12 }}>
-            <Input
-              label="Date naissance *"
-              type="date"
-              value={form.date_naissance}
-              onChange={set("date_naissance")}
-              required
-            />
-            <Select
-              label="Sexe *"
-              value={form.sexe}
-              onChange={set("sexe")}
-              required
-            >
-              <option value="M">Masculin</option>
-              <option value="F">Féminin</option>
-            </Select>
-          </FormRow>
-        </div>
+        {/* Séparateur décoratif */}
+        <div
+          style={{
+            height: 1,
+            background:
+              "linear-gradient(to right, transparent, var(--border), transparent)",
+            margin: "16px 0",
+          }}
+        />
 
-        <div style={{ width: "100%", maxWidth: 360 }}>
-          <FormRow style={{ gap: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+          {/* Section Identité */}
+          <FormSection title="Identité" icon={User}>
+            <FormRow>
+              <Input
+                label="Prénom"
+                required
+                value={form.prenom}
+                onChange={set("prenom")}
+                placeholder="Jean"
+                icon={User}
+                hint="Prénom(s) de l'étudiant"
+              />
+              <Input
+                label="Nom"
+                required
+                value={form.nom}
+                onChange={set("nom")}
+                placeholder="Rakoto"
+                icon={User}
+                hint="Nom de famille"
+              />
+            </FormRow>
+            <FormRow>
+              <Input
+                label="Date de naissance"
+                required
+                type="date"
+                value={form.date_naissance}
+                onChange={set("date_naissance")}
+                icon={Calendar}
+              />
+              <Select
+                label="Sexe"
+                required
+                value={form.sexe}
+                onChange={set("sexe")}
+              >
+                <option value="M">👦 Masculin</option>
+                <option value="F">👧 Féminin</option>
+              </Select>
+            </FormRow>
+          </FormSection>
+
+          {/* Section Contact */}
+          <FormSection title="Contact" icon={Phone}>
             <Input
-              label="Téléphone"
-              value={form.telephone}
-              onChange={set("telephone")}
-            />
-            <Input
-              label="Email"
+              label="Adresse e-mail"
               type="email"
               value={form.email}
               onChange={set("email")}
+              placeholder="jean.rakoto@email.com"
+              icon={Mail}
             />
-          </FormRow>
+            <FormRow>
+              <Input
+                label="Téléphone"
+                value={form.telephone}
+                onChange={set("telephone")}
+                placeholder="+261 34 00 000 00"
+                icon={Phone}
+              />
+              <Input
+                label="Adresse"
+                value={form.adresse}
+                onChange={set("adresse")}
+                placeholder="Antananarivo"
+                icon={MapPin}
+              />
+            </FormRow>
+          </FormSection>
         </div>
 
-        <div style={{ width: "100%", maxWidth: 360 }}>
-          <Input
-            label="Adresse"
-            value={form.adresse}
-            onChange={set("adresse")}
-          />
-        </div>
-
-        <div style={{ width: "100%", maxWidth: 360 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-            <label
-              style={{
-                fontSize: 13,
-                color: "var(--text-muted)",
-                fontWeight: 500,
-              }}
-            >
-              Photo (JPG/PNG, max 2Mo)
-            </label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setPhoto(e.target.files[0])}
-              style={{ fontSize: 13, color: "var(--text-muted)" }}
-            />
-          </div>
-        </div>
-
+        {/* Actions */}
         <div
           style={{
             display: "flex",
-            gap: 16,
-            justifyContent: "center",
-            marginTop: 8,
+            gap: 10,
+            justifyContent: "flex-end",
+            marginTop: 28,
+            paddingTop: 20,
+            borderTop: "1px solid var(--border)",
           }}
         >
-          <Btn variant="ghost" onClick={onClose}>
-            <X size={16} style={{ marginRight: 6 }} /> Annuler
+          <Btn variant="ghost" onClick={onClose} icon={<X size={15} />}>
+            Annuler
           </Btn>
-          <Btn type="submit" disabled={loading || !isFormValid}>
-            <Save size={16} style={{ marginRight: 6 }} />{" "}
-            {loading ? "Enregistrement…" : "Enregistrer"}
+          <Btn
+            type="submit"
+            loading={loading}
+            disabled={!isValid}
+            icon={<Save size={15} />}
+          >
+            {isEdit ? "Enregistrer les modifications" : "Créer l'étudiant"}
           </Btn>
         </div>
       </form>
@@ -265,36 +413,131 @@ function EtudiantModal({ onClose, onSaved, initial }) {
   );
 }
 
-// --- MODAL DE CONFIRMATION STYLISÉE ---
-function ConfirmModal({
-  open,
-  title,
-  message,
-  onConfirm,
-  onCancel,
-  loading = false,
-}) {
-  if (!open) return null;
+// ─── Modal de confirmation de suppression ─────────────────────────────────
+function DeleteModal({ student, onConfirm, onCancel, loading }) {
+  if (!student) return null;
   return (
-    <Modal title={title || "Confirmation"} onClose={onCancel} width={420}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <p style={{ fontSize: 14, color: "var(--text)", marginBottom: 8 }}>
-          {message}
-        </p>
-        <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
-          <Btn variant="ghost" onClick={onCancel} disabled={loading}>
-            Annuler
-          </Btn>
-          <Btn variant="danger" onClick={onConfirm} disabled={loading}>
-            {loading ? "Suppression..." : "Confirmer"}
-          </Btn>
+    <Modal title="Confirmer la suppression" onClose={onCancel} width={440}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 16,
+          padding: "8px 0 24px",
+        }}
+      >
+        {/* Icône d'avertissement */}
+        <div
+          style={{
+            width: 64,
+            height: 64,
+            borderRadius: "50%",
+            background: "rgba(239,68,68,0.12)",
+            border: "2px solid rgba(239,68,68,0.3)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <AlertTriangle size={28} color="#ef4444" />
         </div>
+
+        {/* Nom de l'étudiant */}
+        <div style={{ textAlign: "center" }}>
+          <p
+            style={{
+              fontSize: 15,
+              fontWeight: 700,
+              color: "var(--text)",
+              margin: "0 0 6px",
+            }}
+          >
+            {student.prenom} {student.nom}
+          </p>
+          <p
+            style={{
+              fontSize: 13,
+              color: "var(--text-muted)",
+              lineHeight: 1.7,
+              maxWidth: 340,
+              margin: "0 auto",
+            }}
+          >
+            Cette action supprimera définitivement l'étudiant ainsi que toutes
+            ses inscriptions et notes.{" "}
+            <strong style={{ color: "var(--text)" }}>
+              Cette action est irréversible.
+            </strong>
+          </p>
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          justifyContent: "flex-end",
+          paddingTop: 16,
+          borderTop: "1px solid var(--border)",
+        }}
+      >
+        <Btn variant="ghost" onClick={onCancel} disabled={loading}>
+          Annuler
+        </Btn>
+        <Btn
+          variant="danger"
+          onClick={onConfirm}
+          loading={loading}
+          icon={<Trash2 size={14} />}
+        >
+          Supprimer définitivement
+        </Btn>
       </div>
     </Modal>
   );
 }
 
-// --- PAGE PRINCIPALE ---
+// ─── Ligne de tableau skeleton (loading) ─────────────────────────────────
+function SkeletonRow() {
+  const pulse = {
+    background:
+      "linear-gradient(90deg, var(--surface2) 25%, var(--border) 50%, var(--surface2) 75%)",
+    backgroundSize: "200% 100%",
+    animation: "shimmer 1.5s infinite",
+    borderRadius: 6,
+  };
+  return (
+    <tr style={{ borderBottom: "1px solid var(--border)" }}>
+      <td style={{ padding: "14px 16px", width: 52 }}>
+        <div style={{ ...pulse, width: 38, height: 38, borderRadius: "50%" }} />
+      </td>
+      <td style={{ padding: "14px 12px" }}>
+        <div style={{ ...pulse, width: 80, height: 14 }} />
+      </td>
+      <td style={{ padding: "14px 12px" }}>
+        <div style={{ ...pulse, width: 120, height: 14, marginBottom: 6 }} />
+        <div style={{ ...pulse, width: 90, height: 11 }} />
+      </td>
+      <td style={{ padding: "14px 12px" }}>
+        <div style={{ ...pulse, width: 70, height: 14 }} />
+      </td>
+      <td style={{ padding: "14px 12px" }}>
+        <div style={{ ...pulse, width: 36, height: 22, borderRadius: 20 }} />
+      </td>
+      <td style={{ padding: "14px 12px" }}>
+        <div style={{ ...pulse, width: 60, height: 22, borderRadius: 20 }} />
+      </td>
+      <td style={{ padding: "14px 12px" }}>
+        <div style={{ ...pulse, width: 100, height: 30, borderRadius: 8 }} />
+      </td>
+    </tr>
+  );
+}
+
+// ─── Page principale ──────────────────────────────────────────────────────
+const LIMIT = 20;
+
 export default function EtudiantsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -305,18 +548,20 @@ export default function EtudiantsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [modal, setModal] = useState(null);
-  const [deleteId, setDeleteId] = useState(null);
+  const [modal, setModal] = useState(null); // null | 'create' | étudiant obj
+  const [toDelete, setToDelete] = useState(null); // étudiant obj
   const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const { data } = await api.get("/etudiants", {
-        params: { search, page, limit: 20 },
+        params: { search, page, limit: LIMIT },
       });
-      setEtudiants(data.data);
-      setTotal(data.total);
+      setEtudiants(data.data ?? []);
+      setTotal(data.total ?? 0);
+    } catch {
+      setEtudiants([]);
     } finally {
       setLoading(false);
     }
@@ -327,249 +572,281 @@ export default function EtudiantsPage() {
   }, [load]);
 
   const handleDelete = async () => {
+    if (!toDelete) return;
     setDeleting(true);
     try {
-      await api.delete(`/etudiants/${deleteId}`);
-      setDeleteId(null);
+      await api.delete(`/etudiants/${toDelete.id}`);
+      setToDelete(null);
       load();
     } finally {
       setDeleting(false);
     }
   };
 
-  const totalPages = Math.ceil(total / 20);
+  const totalPages = Math.ceil(total / LIMIT) || 1;
+  const startRecord = (page - 1) * LIMIT + 1;
+  const endRecord = Math.min(page * LIMIT, total);
 
   return (
-    <div style={{ animation: "fadeIn 0.3s ease" }}>
+    <>
+      {/* Style shimmer injecté une fois */}
       <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
+        @keyframes shimmer {
+          0%   { background-position: 200% 0 }
+          100% { background-position: -200% 0 }
         }
       `}</style>
 
-      <PageHeader
-        title="Étudiants"
-        subtitle={`${total} étudiant(s) enregistré(s)`}
-        action={
-          canEdit && (
-            <Btn
-              onClick={() => setModal("create")}
-              style={{ display: "flex", alignItems: "center", gap: 6 }}
-            >
-              <UserPlus size={16} /> Nouvel étudiant
-            </Btn>
-          )
-        }
-      />
-
-      {/* Barre de recherche améliorée */}
-      <div style={{ marginBottom: 24, position: "relative", maxWidth: 400 }}>
-        <Search
-          size={18}
-          style={{
-            position: "absolute",
-            left: 12,
-            top: "50%",
-            transform: "translateY(-50%)",
-            color: "var(--text-muted)",
-            pointerEvents: "none",
-          }}
+      <div
+        className="page-enter"
+        style={{ display: "flex", flexDirection: "column", gap: 0 }}
+      >
+        {/* En-tête */}
+        <PageHeader
+          title="Étudiants"
+          subtitle={
+            total > 0
+              ? `${total} étudiant${total > 1 ? "s" : ""} enregistré${total > 1 ? "s" : ""}`
+              : "Aucun étudiant"
+          }
+          action={
+            canEdit && (
+              <Btn
+                onClick={() => setModal("create")}
+                icon={<UserPlus size={16} />}
+              >
+                Nouvel étudiant
+              </Btn>
+            )
+          }
         />
-        <input
-          placeholder="Rechercher par nom, prénom, matricule…"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
+
+        {/* Barre de recherche */}
+        <div style={{ marginBottom: 24, position: "relative", maxWidth: 460 }}>
+          <Search
+            size={16}
+            style={{
+              position: "absolute",
+              left: 14,
+              top: "50%",
+              transform: "translateY(-50%)",
+              color: "var(--text-muted)",
+              pointerEvents: "none",
+            }}
+          />
+          <input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Rechercher par nom, prénom ou matricule…"
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              background: "var(--surface)",
+              border: "1.5px solid var(--border)",
+              borderRadius: 40,
+              color: "var(--text)",
+              padding: "11px 18px 11px 44px",
+              fontSize: 14,
+              outline: "none",
+              transition: "border-color 0.2s, box-shadow 0.2s",
+              boxShadow: "var(--shadow-sm)",
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = "var(--accent)";
+              e.currentTarget.style.boxShadow =
+                "0 0 0 3px rgba(99,102,241,0.18)";
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = "var(--border)";
+              e.currentTarget.style.boxShadow = "var(--shadow-sm)";
+            }}
+          />
+          {search && (
+            <button
+              onClick={() => {
+                setSearch("");
+                setPage(1);
+              }}
+              style={{
+                position: "absolute",
+                right: 12,
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: 4,
+                color: "var(--text-muted)",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+
+        {/* Tableau */}
+        <div
           style={{
             background: "var(--surface)",
+            borderRadius: "var(--radius-lg)",
             border: "1px solid var(--border)",
-            borderRadius: "40px",
-            color: "var(--text)",
-            padding: "10px 16px 10px 40px",
-            fontSize: 14,
-            width: "100%",
-            outline: "none",
-            transition: "all 0.2s",
+            overflow: "hidden",
+            boxShadow: "var(--shadow-sm)",
           }}
-          onFocus={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
-          onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
-        />
-      </div>
-
-      <div
-        style={{
-          background: "var(--surface)",
-          borderRadius: "1rem",
-          boxShadow:
-            "0 4px 12px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.05)",
-          overflow: "hidden",
-          transition: "box-shadow 0.2s",
-        }}
-      >
-        {loading ? (
-          <Spinner />
-        ) : (
+        >
           <Table
             headers={[
               "",
               "Matricule",
-              "Nom complet",
+              "Étudiant",
               "Filière",
               "Niveau",
               "Statut",
               "Actions",
             ]}
           >
-            {etudiants.length === 0 ? (
+            {loading ? (
+              Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)
+            ) : etudiants.length === 0 ? (
               <tr>
-                <td
-                  colSpan="7"
-                  style={{
-                    textAlign: "center",
-                    padding: "48px",
-                    color: "var(--text-muted)",
-                  }}
-                >
-                  Aucun étudiant trouvé.
+                <td colSpan={7}>
+                  <EmptyState
+                    icon={GraduationCap}
+                    title="Aucun étudiant trouvé"
+                    description={
+                      search
+                        ? `Aucun résultat pour "${search}". Essayez un autre terme.`
+                        : "Commencez par ajouter votre premier étudiant."
+                    }
+                    action={
+                      canEdit &&
+                      !search && (
+                        <Btn
+                          onClick={() => setModal("create")}
+                          icon={<UserPlus size={15} />}
+                        >
+                          Nouvel étudiant
+                        </Btn>
+                      )
+                    }
+                  />
                 </td>
               </tr>
             ) : (
               etudiants.map((e) => (
-                <Tr
-                  key={e.id}
-                  onClick={() => navigate(`/etudiants/${e.id}`)}
-                  style={{ cursor: "pointer", transition: "background 0.15s" }}
-                >
-                  {/* Colonne photo */}
-                  <Td style={{ width: 56, paddingRight: 0 }}>
-                    <div
-                      style={{ position: "relative", display: "inline-block" }}
-                    >
-                      {e.photo ? (
-                        <>
-                          <img
-                            src={`/uploads/${e.photo}`}
-                            alt={`${e.prenom} ${e.nom}`}
-                            style={{
-                              width: 40,
-                              height: 40,
-                              borderRadius: "50%",
-                              objectFit: "cover",
-                              border: "2px solid var(--border)",
-                              display: "block",
-                            }}
-                            onError={(ev) => {
-                              ev.currentTarget.style.display = "none";
-                              ev.currentTarget.nextSibling.style.display =
-                                "flex";
-                            }}
-                          />
-                          {/* Fallback si image cassée */}
-                          <Avatar
-                            photo={null}
-                            prenom={e.prenom}
-                            nom={e.nom}
-                            size={40}
-                            style={{
-                              display: "none",
-                              position: "absolute",
-                              top: 0,
-                              left: 0,
-                            }}
-                          />
-                        </>
-                      ) : (
-                        <Avatar
-                          photo={null}
-                          prenom={e.prenom}
-                          nom={e.nom}
-                          size={40}
-                        />
-                      )}
-                    </div>
+                <Tr key={e.id} onClick={() => navigate(`/etudiants/${e.id}`)}>
+                  {/* Avatar */}
+                  <Td style={{ width: 56, paddingRight: 4, paddingLeft: 16 }}>
+                    <Avatar
+                      photo={e.photo}
+                      prenom={e.prenom}
+                      nom={e.nom}
+                      size={38}
+                    />
                   </Td>
+
+                  {/* Matricule */}
                   <Td>
                     <span
                       style={{
-                        color: "var(--accent-light)",
                         fontFamily: "monospace",
-                        fontWeight: 500,
+                        fontSize: 12,
+                        color: "var(--accent-light)",
+                        fontWeight: 700,
+                        background: "rgba(99,102,241,0.08)",
+                        padding: "3px 8px",
+                        borderRadius: 6,
+                        whiteSpace: "nowrap",
                       }}
                     >
                       {e.matricule}
                     </span>
                   </Td>
+
+                  {/* Nom complet + email */}
                   <Td>
                     <div
-                      style={{ display: "flex", alignItems: "center", gap: 10 }}
+                      style={{
+                        fontWeight: 600,
+                        color: "var(--text)",
+                        lineHeight: 1.3,
+                      }}
                     >
-                      <span style={{ fontWeight: 500 }}>
-                        {e.prenom} {e.nom}
-                      </span>
+                      {e.prenom} {e.nom}
                     </div>
-                  </Td>
-                  <Td>{e.filiere_nom || "—"}</Td>
-                  <Td>
-                    {e.niveau ? (
-                      <Badge color="muted" style={{ borderRadius: "20px" }}>
-                        {e.niveau}
-                      </Badge>
-                    ) : (
-                      "—"
+                    {e.email && (
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: "var(--text-muted)",
+                          marginTop: 2,
+                        }}
+                      >
+                        {e.email}
+                      </div>
                     )}
                   </Td>
+
+                  {/* Filière */}
+                  <Td>
+                    <span style={{ color: "var(--text-muted)", fontSize: 13 }}>
+                      {e.filiere_nom || "—"}
+                    </span>
+                  </Td>
+
+                  {/* Niveau */}
+                  <Td>
+                    {e.niveau ? (
+                      <Badge color="info">{e.niveau}</Badge>
+                    ) : (
+                      <span style={{ color: "var(--text-muted)" }}>—</span>
+                    )}
+                  </Td>
+
+                  {/* Statut */}
                   <Td>
                     {e.statut ? (
-                      <Badge
-                        color={
-                          {
-                            actif: "success",
-                            suspendu: "warning",
-                            diplome: "accent",
-                            abandonne: "danger",
-                          }[e.statut] || "muted"
-                        }
-                      >
+                      <Badge color={STATUT_COLOR[e.statut] || "muted"} dot>
                         {e.statut}
                       </Badge>
                     ) : (
-                      "—"
+                      <span style={{ color: "var(--text-muted)" }}>—</span>
                     )}
                   </Td>
+
+                  {/* Actions */}
                   <Td>
                     <div
                       onClick={(ev) => ev.stopPropagation()}
-                      style={{ display: "flex", gap: 8 }}
+                      style={{ display: "flex", gap: 6, alignItems: "center" }}
                     >
                       {canEdit && (
                         <>
-                          <Btn
-                            small
-                            variant="ghost"
-                            onClick={() => setModal(e)}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 4,
-                            }}
-                          >
-                            <Edit size={14} /> Modifier
-                          </Btn>
-                          <Btn
-                            small
-                            variant="danger"
-                            onClick={() => setDeleteId(e.id)}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 4,
-                            }}
-                          >
-                            <Trash2 size={14} /> Suppr.
-                          </Btn>
+                          <Tooltip text="Modifier">
+                            <Btn
+                              small
+                              variant="ghost"
+                              onClick={() => setModal(e)}
+                              icon={<Edit size={13} />}
+                            >
+                              Modifier
+                            </Btn>
+                          </Tooltip>
+                          <Tooltip text="Supprimer">
+                            <Btn
+                              small
+                              variant="danger"
+                              onClick={() => setToDelete(e)}
+                              icon={<Trash2 size={13} />}
+                            >
+                              Suppr.
+                            </Btn>
+                          </Tooltip>
                         </>
                       )}
                     </div>
@@ -578,55 +855,66 @@ export default function EtudiantsPage() {
               ))
             )}
           </Table>
-        )}
 
-        {/* Pagination améliorée */}
-        {totalPages > 1 && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              gap: 12,
-              padding: "16px 20px",
-              borderTop: "1px solid var(--border)",
-              background: "var(--surface2)",
-            }}
-          >
-            <Btn
-              small
-              variant="ghost"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              style={{ display: "flex", alignItems: "center", gap: 4 }}
-            >
-              <ChevronLeft size={14} /> Précédent
-            </Btn>
-            <span
+          {/* Pagination */}
+          {!loading && total > LIMIT && (
+            <div
               style={{
-                color: "var(--text-muted)",
-                fontSize: 13,
-                background: "var(--surface)",
-                padding: "6px 12px",
-                borderRadius: "20px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "12px 20px",
+                borderTop: "1px solid var(--border)",
+                background: "var(--surface2)",
               }}
             >
-              Page {page} / {totalPages}
-            </span>
-            <Btn
-              small
-              variant="ghost"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              style={{ display: "flex", alignItems: "center", gap: 4 }}
-            >
-              Suivant <ChevronRight size={14} />
-            </Btn>
-          </div>
-        )}
+              <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                {startRecord}–{endRecord} sur{" "}
+                <strong style={{ color: "var(--text)" }}>{total}</strong>{" "}
+                résultats
+              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Btn
+                  small
+                  variant="ghost"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  icon={<ChevronLeft size={14} />}
+                >
+                  Précédent
+                </Btn>
+                {/* Indicateur de page */}
+                <span
+                  style={{
+                    padding: "5px 12px",
+                    background: "var(--surface)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 8,
+                    fontSize: 13,
+                    color: "var(--text)",
+                    fontWeight: 600,
+                    minWidth: 60,
+                    textAlign: "center",
+                  }}
+                >
+                  {page} / {totalPages}
+                </span>
+                <Btn
+                  small
+                  variant="ghost"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  icon={<ChevronRight size={14} />}
+                >
+                  Suivant
+                </Btn>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Modale d'édition / création */}
+      {/* Modal création / édition */}
       {modal && (
         <EtudiantModal
           initial={modal === "create" ? null : modal}
@@ -638,15 +926,13 @@ export default function EtudiantsPage() {
         />
       )}
 
-      {/* Modale de confirmation suppression */}
-      <ConfirmModal
-        open={!!deleteId}
-        title="Supprimer l'étudiant"
-        message="Supprimer cet étudiant ? Cette action est irréversible."
+      {/* Modal suppression */}
+      <DeleteModal
+        student={toDelete}
         onConfirm={handleDelete}
-        onCancel={() => setDeleteId(null)}
+        onCancel={() => setToDelete(null)}
         loading={deleting}
       />
-    </div>
+    </>
   );
 }

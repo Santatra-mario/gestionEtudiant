@@ -1,6 +1,7 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { useAuth } from '../../context/AuthContext'
-import { useState } from 'react'
+import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import { useState } from "react";
+import { ErrorBoundary } from "../ui";
 import {
   LayoutDashboard,
   GraduationCap,
@@ -12,281 +13,735 @@ import {
   ChevronLeft,
   ChevronRight,
   AlertTriangle,
-} from 'lucide-react'
+  PenLine,
+  Shield,
+  Clipboard,
+  GraduationCap as EnseignantIcon,
+} from "lucide-react";
 
+/* ─── Navigation ─────────────────────────────────────────────────────────── */
 const NAV = [
-  { to: '/',             label: 'Tableau de bord', icon: LayoutDashboard, exact: true },
-  { to: '/etudiants',   label: 'Étudiants',        icon: GraduationCap },
-  { to: '/inscriptions', label: 'Inscriptions',     icon: ClipboardList },
-  { to: '/notes',       label: 'Notes',             icon: BookOpen },
-  { to: '/filieres',    label: 'Filières',          icon: GitBranch,  roles: ['administrateur'] },
-  { to: '/utilisateurs', label: 'Utilisateurs',     icon: Users,      roles: ['administrateur'] },
-]
+  {
+    to: "/",
+    label: "Tableau de bord",
+    icon: LayoutDashboard,
+    exact: true,
+    hint: "Vue d'ensemble",
+  },
+  {
+    to: "/etudiants",
+    label: "Étudiants",
+    icon: GraduationCap,
+    hint: "Gestion des étudiants",
+  },
+  {
+    to: "/inscriptions",
+    label: "Inscriptions",
+    icon: ClipboardList,
+    hint: "Gestion des inscriptions",
+  },
+  {
+    to: "/notes",
+    label: "Consultation Notes",
+    icon: BookOpen,
+    hint: "Consulter les notes",
+  },
+  {
+    to: "/notes/saisie",
+    label: "Saisie des notes",
+    icon: PenLine,
+    hint: "Saisir les notes",
+    roles: ["administrateur", "secretaire", "enseignant"],
+  },
+  {
+    to: "/filieres",
+    label: "Filières",
+    icon: GitBranch,
+    hint: "Gestion des filières",
+    roles: ["administrateur", "secretaire"],
+  },
+  {
+    to: "/utilisateurs",
+    label: "Utilisateurs",
+    icon: Users,
+    hint: "Gestion des comptes",
+    roles: ["administrateur"],
+  },
+];
 
-// ── Boîte de dialogue de confirmation déconnexion ─────────────────────────────
-function LogoutDialog({ onConfirm, onCancel }) {
+/* ─── Couleurs par rôle ──────────────────────────────────────────────────── */
+const ROLE_CONFIG = {
+  administrateur: {
+    color: "#4f8ef7",
+    bg: "rgba(79,142,247,0.12)",
+    label: "Administrateur",
+  },
+  secretaire: {
+    color: "#22c55e",
+    bg: "rgba(34,197,94,0.12)",
+    label: "Secrétaire",
+  },
+  enseignant: {
+    color: "#f59e0b",
+    bg: "rgba(245,158,11,0.12)",
+    label: "Enseignant",
+  },
+};
+
+/* ─── Séparateur de section nav ─────────────────────────────────────────── */
+function NavSeparator({ label, collapsed }) {
+  if (collapsed)
+    return (
+      <div
+        style={{ height: 1, background: "var(--border)", margin: "6px 8px" }}
+      />
+    );
+  return (
+    <div
+      style={{
+        padding: "10px 10px 4px",
+        fontSize: 10,
+        fontWeight: 700,
+        color: "var(--text-muted)",
+        textTransform: "uppercase",
+        letterSpacing: "0.1em",
+      }}
+    >
+      {label}
+    </div>
+  );
+}
+
+/* ─── Modal de déconnexion ───────────────────────────────────────────────── */
+function LogoutDialog({ user, onConfirm, onCancel }) {
+  const rc = ROLE_CONFIG[user?.role] || {
+    color: "var(--accent)",
+    bg: "rgba(79,142,247,0.12)",
+    label: user?.role,
+  };
+
   return (
     <>
-      {/* Overlay sombre */}
+      {/* Overlay */}
       <div
         onClick={onCancel}
         style={{
-          position: 'fixed', inset: 0,
-          background: 'rgba(0,0,0,0.55)',
-          backdropFilter: 'blur(3px)',
+          position: "fixed",
+          inset: 0,
+          background: "rgba(6,10,22,0.72)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
           zIndex: 1000,
-          animation: 'fadeIn 0.18s ease',
+          animation: "fadeIn 0.18s ease",
         }}
       />
 
       {/* Boîte de dialogue */}
-      <div style={{
-        position: 'fixed',
-        top: '50%', left: '50%',
-        transform: 'translate(-50%, -50%)',
-        zIndex: 1001,
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
-        borderRadius: 16,
-        padding: '32px 28px 24px',
-        width: 340,
-        maxWidth: 'calc(100vw - 32px)',
-        boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
-        animation: 'slideUp 0.22s cubic-bezier(0.34,1.56,0.64,1)',
-      }}>
-
+      <div
+        style={{
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          zIndex: 1001,
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          borderRadius: 20,
+          padding: "28px",
+          width: 360,
+          maxWidth: "calc(100vw - 32px)",
+          boxShadow:
+            "0 32px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04)",
+          animation: "modalIn 0.22s cubic-bezier(0.34,1.56,0.64,1)",
+        }}
+      >
         {/* Icône */}
-        <div style={{
-          width: 52, height: 52, borderRadius: 14,
-          background: 'rgba(239,68,68,0.12)',
-          border: '1px solid rgba(239,68,68,0.25)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          marginBottom: 20,
-        }}>
+        <div
+          style={{
+            width: 54,
+            height: 54,
+            borderRadius: 16,
+            marginBottom: 20,
+            background: "rgba(239,68,68,0.1)",
+            border: "1px solid rgba(239,68,68,0.25)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
           <AlertTriangle size={26} color="var(--danger)" />
         </div>
 
-        {/* Titre */}
-        <div style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: 18, fontWeight: 600,
-          color: 'var(--text)',
-          marginBottom: 8,
-        }}>
+        <div
+          style={{
+            fontFamily: "var(--font-display)",
+            fontSize: 19,
+            fontWeight: 600,
+            color: "var(--text)",
+            marginBottom: 8,
+            lineHeight: 1.3,
+          }}
+        >
           Confirmer la déconnexion
         </div>
-
-        {/* Message */}
-        <p style={{
-          fontSize: 14,
-          color: 'var(--text-muted)',
-          lineHeight: 1.6,
-          margin: '0 0 24px',
-        }}>
-          Vous allez être déconnecté de votre session. Voulez-vous continuer ?
+        <p
+          style={{
+            fontSize: 14,
+            color: "var(--text-muted)",
+            lineHeight: 1.65,
+            margin: "0 0 20px",
+          }}
+        >
+          Vous allez quitter votre session en tant que&nbsp;
+          <span
+            style={{
+              fontWeight: 600,
+              color: rc.color,
+              background: rc.bg,
+              borderRadius: 6,
+              padding: "1px 7px",
+            }}
+          >
+            {user?.prenom} {user?.nom}
+          </span>
+          . Voulez-vous continuer ?
         </p>
 
-        {/* Boutons */}
-        <div style={{ display: 'flex', gap: 10 }}>
-          {/* Annuler */}
+        <div style={{ display: "flex", gap: 10 }}>
           <button
             onClick={onCancel}
             style={{
-              flex: 1, padding: '10px 16px',
-              borderRadius: 10, border: '1px solid var(--border)',
-              background: 'transparent',
-              color: 'var(--text-muted)',
-              fontSize: 14, fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'all 0.15s',
+              flex: 1,
+              padding: "10px 16px",
+              borderRadius: 10,
+              border: "1px solid var(--border)",
+              background: "transparent",
+              color: "var(--text-muted)",
+              fontSize: 14,
+              fontWeight: 500,
+              cursor: "pointer",
+              transition: "all 0.15s",
+              fontFamily: "var(--font-body)",
             }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = 'var(--surface2)'
-              e.currentTarget.style.color = 'var(--text)'
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--surface2)";
+              e.currentTarget.style.color = "var(--text)";
             }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = 'transparent'
-              e.currentTarget.style.color = 'var(--text-muted)'
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.color = "var(--text-muted)";
             }}
           >
             Annuler
           </button>
-
-          {/* Confirmer */}
           <button
             onClick={onConfirm}
             style={{
-              flex: 1, padding: '10px 16px',
-              borderRadius: 10, border: 'none',
-              background: 'var(--danger)',
-              color: '#fff',
-              fontSize: 14, fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              transition: 'opacity 0.15s',
+              flex: 1,
+              padding: "10px 16px",
+              borderRadius: 10,
+              border: "none",
+              background: "var(--danger)",
+              color: "#fff",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              transition: "opacity 0.15s",
+              fontFamily: "var(--font-body)",
             }}
-            onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
-            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
+            onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
           >
             <LogOut size={15} />
             Se déconnecter
           </button>
         </div>
       </div>
-
-      {/* Animations CSS */}
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0 }
-          to   { opacity: 1 }
-        }
-        @keyframes slideUp {
-          from { opacity: 0; transform: translate(-50%, -44%) scale(0.95) }
-          to   { opacity: 1; transform: translate(-50%, -50%) scale(1) }
-        }
-      `}</style>
     </>
-  )
+  );
 }
 
-// ── Layout principal ──────────────────────────────────────────────────────────
-export default function Layout() {
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
-  const [collapsed, setCollapsed] = useState(false)
-  const [showLogoutDialog, setShowLogoutDialog] = useState(false)   // ✅ état dialog
-
-  const handleLogoutClick   = () => setShowLogoutDialog(true)
-  const handleLogoutConfirm = () => { setShowLogoutDialog(false); logout(); navigate('/login') }
-  const handleLogoutCancel  = () => setShowLogoutDialog(false)
-
-  const visibleNav = NAV.filter(n => !n.roles || n.roles.includes(user?.role))
+/* ─── Élément de navigation ─────────────────────────────────────────────── */
+function NavItem({ item, collapsed, active }) {
+  const { to, label, icon: Icon, hint, exact } = item;
+  const [hovered, setHovered] = useState(false);
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
+    <NavLink
+      to={to}
+      end={exact}
+      style={({ isActive }) => ({
+        display: "flex",
+        alignItems: "center",
+        gap: collapsed ? 0 : 10,
+        justifyContent: collapsed ? "center" : "flex-start",
+        padding: collapsed ? "10px" : "9px 10px",
+        borderRadius: "var(--radius-sm)",
+        textDecoration: "none",
+        color: isActive ? "var(--accent-light)" : "var(--text-muted)",
+        background: isActive
+          ? "rgba(79,142,247,0.13)"
+          : hovered
+            ? "var(--surface2)"
+            : "transparent",
+        fontSize: 14,
+        fontWeight: isActive ? 600 : 400,
+        transition: "all 0.15s",
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        borderLeft: collapsed
+          ? "none"
+          : isActive
+            ? "2px solid var(--accent)"
+            : "2px solid transparent",
+        position: "relative",
+      })}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      title={collapsed ? label : undefined}
+    >
+      <Icon size={17} style={{ flexShrink: 0 }} />
+      {!collapsed && (
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+          {label}
+        </span>
+      )}
 
-      {/* ✅ Dialog monté conditionnellement */}
-      {showLogoutDialog && (
+      {/* Tooltip texte en mode collapsed */}
+      {collapsed && hovered && (
+        <div
+          style={{
+            position: "fixed",
+            left: 70,
+            zIndex: 9999,
+            background: "var(--surface3)",
+            color: "var(--text)",
+            fontSize: 13,
+            fontWeight: 500,
+            padding: "6px 12px",
+            borderRadius: 8,
+            border: "1px solid var(--border)",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
+            pointerEvents: "none",
+            whiteSpace: "nowrap",
+            animation: "fadeIn 0.12s ease",
+          }}
+        >
+          {label}
+          {hint && (
+            <div
+              style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}
+            >
+              {hint}
+            </div>
+          )}
+        </div>
+      )}
+    </NavLink>
+  );
+}
+
+/* ─── Layout principal ───────────────────────────────────────────────────── */
+export default function Layout() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [collapsed, setCollapsed] = useState(false);
+  const [showLogout, setShowLogout] = useState(false);
+
+  const visibleNav = NAV.filter(
+    (n) => !n.roles || n.roles.includes(user?.role),
+  );
+  const rc = ROLE_CONFIG[user?.role] || {
+    color: "var(--accent)",
+    bg: "rgba(79,142,247,0.12)",
+    label: user?.role,
+  };
+
+  /* Groupes de nav */
+  const mainNav = visibleNav.filter(
+    (n) =>
+      !["administrateur", "secretaire", "enseignant"].some(() =>
+        ["/filieres", "/utilisateurs"].includes(n.to),
+      ),
+  );
+  const adminNav = visibleNav.filter((n) =>
+    ["/filieres", "/utilisateurs"].includes(n.to),
+  );
+
+  return (
+    <div
+      style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}
+    >
+      {showLogout && (
         <LogoutDialog
-          onConfirm={handleLogoutConfirm}
-          onCancel={handleLogoutCancel}
+          user={user}
+          onConfirm={() => {
+            setShowLogout(false);
+            logout();
+            navigate("/login");
+          }}
+          onCancel={() => setShowLogout(false)}
         />
       )}
 
-      {/* Sidebar */}
-      <aside style={{
-        width: collapsed ? '64px' : '220px',
-        background: 'var(--surface)',
-        borderRight: '1px solid var(--border)',
-        display: 'flex',
-        flexDirection: 'column',
-        transition: 'width 0.25s ease',
-        overflow: 'hidden',
-        flexShrink: 0,
-        position: 'sticky',
-        top: 0,
-        height: '100vh',
-      }}>
+      {/* ══════════════════════ SIDEBAR ══════════════════════ */}
+      <aside
+        style={{
+          width: collapsed ? 64 : 234,
+          background: "var(--surface)",
+          borderRight: "1px solid var(--border)",
+          display: "flex",
+          flexDirection: "column",
+          transition: "width 0.25s cubic-bezier(0.4,0,0.2,1)",
+          overflow: "hidden",
+          flexShrink: 0,
+          position: "sticky",
+          top: 0,
+          height: "100vh",
+          boxShadow: "2px 0 20px rgba(0,0,0,0.2)",
+          zIndex: 100,
+        }}
+      >
+        {/* ── Logo / Marque ── */}
+        <div
+          style={{
+            padding: "18px 14px 16px",
+            borderBottom: "1px solid var(--border)",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            minHeight: 68,
+            flexShrink: 0,
+          }}
+        >
+          {/* Icône */}
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              flexShrink: 0,
+              background:
+                "linear-gradient(135deg, var(--accent), var(--accent-dark))",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 18,
+              color: "#fff",
+              fontFamily: "var(--font-display)",
+              fontWeight: 700,
+              boxShadow: "0 4px 14px rgba(79,142,247,0.4)",
+              letterSpacing: "-0.02em",
+            }}
+          >
+            U
+          </div>
 
-        {/* Logo */}
-        <div style={{ padding: '24px 16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8,
-            background: 'linear-gradient(135deg, var(--accent), var(--accent-dark))',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 16, color: '#fff', flexShrink: 0, fontFamily: 'var(--font-display)'
-          }}>U</div>
           {!collapsed && (
-            <span style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--text)', whiteSpace: 'nowrap' }}>
-              UniGest
-            </span>
+            <div style={{ overflow: "hidden" }}>
+              <div
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: 17,
+                  color: "var(--text)",
+                  lineHeight: 1.2,
+                  fontWeight: 700,
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                UniGest
+              </div>
+              <div
+                style={{
+                  fontSize: 10,
+                  color: "var(--text-muted)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  marginTop: 1,
+                }}
+              >
+                Gestion universitaire
+              </div>
+            </div>
           )}
         </div>
 
-        {/* Nav */}
-        <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {visibleNav.map(({ to, label, icon: Icon, exact }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={exact}
-              style={({ isActive }) => ({
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '9px 10px',
-                borderRadius: 8,
-                textDecoration: 'none',
-                color: isActive ? 'var(--accent-light)' : 'var(--text-muted)',
-                background: isActive ? 'rgba(79,142,247,0.12)' : 'transparent',
-                fontSize: 14,
-                fontWeight: isActive ? 500 : 400,
-                transition: 'all 0.15s',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-              })}
-            >
-              <Icon size={18} style={{ flexShrink: 0 }} />
-              {!collapsed && label}
-            </NavLink>
+        {/* ── Navigation principale ── */}
+        <nav
+          style={{
+            flex: 1,
+            padding: "8px 8px 4px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+            overflowY: "auto",
+            overflowX: "hidden",
+          }}
+        >
+          {/* Groupe principal */}
+          {!collapsed && (
+            <NavSeparator label="Principal" collapsed={collapsed} />
+          )}
+          {mainNav.map((item) => (
+            <NavItem key={item.to} item={item} collapsed={collapsed} />
           ))}
+
+          {/* Groupe administration */}
+          {adminNav.length > 0 && (
+            <>
+              <NavSeparator label="Administration" collapsed={collapsed} />
+              {adminNav.map((item) => (
+                <NavItem key={item.to} item={item} collapsed={collapsed} />
+              ))}
+            </>
+          )}
         </nav>
 
-        {/* User + boutons bas */}
-        <div style={{ padding: '12px 8px', borderTop: '1px solid var(--border)' }}>
+        {/* ── Zone utilisateur & actions bas ── */}
+        <div
+          style={{
+            padding: "8px 8px 10px",
+            borderTop: "1px solid var(--border)",
+            flexShrink: 0,
+          }}
+        >
+          {/* Carte utilisateur */}
           {!collapsed && (
-            <div style={{ padding: '8px 10px', marginBottom: 6 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>
-                {user?.prenom} {user?.nom}
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'capitalize' }}>
-                {user?.role}
+            <div
+              style={{
+                padding: "10px 12px",
+                marginBottom: 6,
+                borderRadius: "var(--radius-sm)",
+                background: rc.bg,
+                border: `1px solid ${rc.color}33`,
+                overflow: "hidden",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                {/* Avatar */}
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: "50%",
+                    flexShrink: 0,
+                    background: `linear-gradient(135deg, ${rc.color}, ${rc.color}99)`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: "#fff",
+                    boxShadow: `0 2px 8px ${rc.color}40`,
+                  }}
+                >
+                  {`${user?.prenom?.[0] || ""}${user?.nom?.[0] || ""}`.toUpperCase()}
+                </div>
+                <div style={{ overflow: "hidden", flex: 1 }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "var(--text)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {user?.prenom} {user?.nom}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: rc.color,
+                      fontWeight: 600,
+                      textTransform: "capitalize",
+                    }}
+                  >
+                    {rc.label}
+                  </div>
+                </div>
               </div>
             </div>
           )}
 
-          {/* ✅ Clic → ouvre dialog (plus de déconnexion directe) */}
+          {/* Avatar seul en mode collapsed */}
+          {collapsed && (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                marginBottom: 6,
+              }}
+            >
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: "50%",
+                  background: `linear-gradient(135deg, ${rc.color}, ${rc.color}99)`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "#fff",
+                  boxShadow: `0 2px 8px ${rc.color}40`,
+                  cursor: "default",
+                }}
+                title={`${user?.prenom} ${user?.nom} — ${rc.label}`}
+              >
+                {`${user?.prenom?.[0] || ""}${user?.nom?.[0] || ""}`.toUpperCase()}
+              </div>
+            </div>
+          )}
+
+          {/* Bouton déconnexion */}
           <button
-            onClick={handleLogoutClick}
+            onClick={() => setShowLogout(true)}
+            title={collapsed ? "Déconnexion" : undefined}
             style={{
-              width: '100%', padding: '8px 10px', borderRadius: 8,
-              background: 'transparent', border: 'none', cursor: 'pointer',
-              color: 'var(--danger)', fontSize: 13, textAlign: 'left',
-              display: 'flex', alignItems: 'center', gap: 8,
-              transition: 'background 0.15s',
+              width: "100%",
+              padding: collapsed ? "8px 0" : "8px 10px",
+              borderRadius: "var(--radius-sm)",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              color: "var(--danger)",
+              fontSize: 13,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: collapsed ? "center" : "flex-start",
+              gap: 8,
+              transition: "background 0.15s",
+              fontFamily: "var(--font-body)",
             }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.08)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.background = "rgba(239,68,68,0.1)")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.background = "transparent")
+            }
           >
-            <LogOut size={16} style={{ flexShrink: 0 }} />
-            {!collapsed && 'Déconnexion'}
+            <LogOut size={15} style={{ flexShrink: 0 }} />
+            {!collapsed && <span>Déconnexion</span>}
           </button>
 
-          {/* Bouton Réduire */}
+          {/* Bouton réduire / agrandir */}
           <button
-            onClick={() => setCollapsed(c => !c)}
+            onClick={() => setCollapsed((c) => !c)}
+            title={collapsed ? "Agrandir le menu" : "Réduire le menu"}
             style={{
-              width: '100%', padding: '8px 10px', borderRadius: 8,
-              background: 'transparent', border: 'none', cursor: 'pointer',
-              color: 'var(--text-muted)', fontSize: 12, textAlign: 'left',
-              display: 'flex', alignItems: 'center', gap: 8, marginTop: 2,
+              width: "100%",
+              padding: collapsed ? "7px 0" : "7px 10px",
+              borderRadius: "var(--radius-sm)",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              color: "var(--text-muted)",
+              fontSize: 12,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: collapsed ? "center" : "flex-start",
+              gap: 8,
+              marginTop: 2,
+              transition: "background 0.15s",
+              fontFamily: "var(--font-body)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--surface2)";
+              e.currentTarget.style.color = "var(--text)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.color = "var(--text-muted)";
             }}
           >
-            {collapsed
-              ? <ChevronRight size={16} style={{ flexShrink: 0 }} />
-              : <ChevronLeft  size={16} style={{ flexShrink: 0 }} />
-            }
-            {!collapsed && 'Réduire'}
+            {collapsed ? (
+              <ChevronRight size={15} style={{ flexShrink: 0 }} />
+            ) : (
+              <ChevronLeft size={15} style={{ flexShrink: 0 }} />
+            )}
+            {!collapsed && "Réduire le menu"}
           </button>
         </div>
       </aside>
 
-      {/* Main */}
-      <main style={{ flex: 1, overflow: 'auto' }}>
-        <div className="page-enter" style={{ padding: '32px 36px', maxWidth: 1200, margin: '0 auto' }}>
-          <Outlet />
+      {/* ══════════════════════ CONTENU ══════════════════════ */}
+      <main style={{ flex: 1, overflow: "auto", minWidth: 0 }}>
+        {/* Barre de contexte supérieure */}
+        <div
+          style={{
+            position: "sticky",
+            top: 0,
+            zIndex: 50,
+            background: "rgba(11,15,26,0.85)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            borderBottom: "1px solid var(--border)",
+            padding: "0 32px",
+            height: 48,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          {/* Fil d'ariane */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+              color: "var(--text-muted)",
+            }}
+          >
+            <span style={{ opacity: 0.5 }}>UniGest</span>
+            <span style={{ opacity: 0.3 }}>/</span>
+            <span style={{ color: "var(--text)", fontWeight: 500 }}>
+              {NAV.find((n) => n.to === location.pathname)?.label || "Page"}
+            </span>
+          </div>
+
+          {/* Indicateur rôle */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "3px 10px",
+              borderRadius: 99,
+              background: rc.bg,
+              border: `1px solid ${rc.color}33`,
+            }}
+          >
+            <div
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: rc.color,
+                flexShrink: 0,
+              }}
+            />
+            <span style={{ fontSize: 12, color: rc.color, fontWeight: 600 }}>
+              {rc.label}
+            </span>
+          </div>
+        </div>
+
+        {/* Zone de page */}
+        <div style={{ padding: "32px 36px", maxWidth: 1320, margin: "0 auto" }}>
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </div>
       </main>
     </div>
-  )
+  );
 }

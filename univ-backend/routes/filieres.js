@@ -8,9 +8,9 @@ router.use(verifyToken);
 
 // Lecture : tous les rôles authentifiés
 router.get("/", ctrl.getAllFilieres);
-// Écriture : administrateur uniquement
-router.post("/", authorizeRoles("administrateur"), ctrl.createFiliere);
-router.put("/:id", authorizeRoles("administrateur"), ctrl.updateFiliere);
+// Écriture : administrateur et secrétaire
+router.post("/", authorizeRoles("administrateur", "secretaire"), ctrl.createFiliere);
+router.put("/:id", authorizeRoles("administrateur", "secretaire"), ctrl.updateFiliere);
 router.delete("/:id", authorizeRoles("administrateur"), ctrl.deleteFiliere);
 
 // Liste des enseignants (pour le formulaire d'assignation matière)
