@@ -718,7 +718,7 @@ export default function NotesSaisiePage() {
       {!loading && selectedInscription && bulletin && (
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
-          {/* Fiche étudiant */}
+          {/* Fiche étudiant avec présence */}
           <Card>
             <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-start" }}>
               {[
@@ -754,6 +754,27 @@ export default function NotesSaisiePage() {
                   }
                 </div>
               </div>
+            </div>
+            
+            {/* Lien vers la gestion de présence */}
+            <div style={{ 
+              marginTop: 16, 
+              paddingTop: 16, 
+              borderTop: "1px solid var(--border)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center"
+            }}>
+              <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                💡 Consultez et gérez la présence de cet étudiant
+              </div>
+              <Btn 
+                variant="secondary" 
+                size="small"
+                onClick={() => window.open(`/presence?inscription=${selectedInscription}`, '_blank')}
+              >
+                📋 Voir la présence
+              </Btn>
             </div>
           </Card>
 

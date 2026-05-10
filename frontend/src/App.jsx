@@ -11,6 +11,7 @@ import NotesPage from "./pages/NotesPage";
 import NotesSaisiePage from "./pages/NotesSaisiePage";
 import FilieresPage from "./pages/FilieresPage";
 import UtilisateursPage from "./pages/UtilisateursPage";
+import PresencePage from "./pages/PresencePage";
 
 function PrivateRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -39,6 +40,11 @@ function AppRoutes() {
         <Route path="notes/saisie" element={
           <PrivateRoute roles={["administrateur", "secretaire", "enseignant"]}>
             <NotesSaisiePage />
+          </PrivateRoute>
+        } />
+        <Route path="presence" element={
+          <PrivateRoute roles={["administrateur", "secretaire", "enseignant"]}>
+            <PresencePage />
           </PrivateRoute>
         } />
         <Route path="filieres" element={

@@ -38,13 +38,14 @@ const loginLimiter = rateLimit({
   },
 });
 
-// ── Routes ───────────────────────────────────────────────────────────────────────────────────
+// ── Routes ───────────────────────────────────────────────────────────────────────────
 app.use("/api/auth", loginLimiter, require("./routes/auth"));
 app.use("/api/etudiants", require("./routes/etudiants"));
 app.use("/api/inscriptions", require("./routes/inscriptions"));
 app.use("/api/notes", require("./routes/notes"));
 app.use("/api/filieres", require("./routes/filieres"));
 app.use("/api/matieres", require("./routes/matieres"));
+app.use("/api/presences", require("./routes/presences"));
 app.use("/api/dashboard", require("./routes/dashboard"));
 app.use("/api/users", require("./routes/users"));
 
