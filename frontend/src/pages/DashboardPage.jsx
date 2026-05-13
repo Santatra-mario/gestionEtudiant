@@ -230,7 +230,7 @@ export default function DashboardPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
               <thead>
                 <tr style={{ background: 'rgba(79, 142, 247, 0.05)', borderRadius: '12px' }}>
-                  {['Matricule', 'Nom', 'Filière', 'Niveau', 'Statut', 'Date'].map(h => (
+                  {['Matricule', 'Nom', 'Filière', 'Niveau', 'Statut', 'Date d\'inscription'].map(h => (
                     <th key={h} style={{
                       padding: '12px 16px',
                       textAlign: 'left',

@@ -1,6 +1,9 @@
 // controllers/filiereController.js – Filières & Matières
 const db = require('../config/db');
 
+// ── Semestres valides ──────────────────────────────────────
+const SEMESTRES_VALIDES = ['S1','S2','S3','S4','S5','S6','S7','S8','S9','S10'];
+
 // ═══════════════════════════════════════════════════════
 //  FILIÈRES
 // ═══════════════════════════════════════════════════════
@@ -68,7 +71,6 @@ const deleteFiliere = async (req, res) => {
 
 const getMatieresByFiliere = async (req, res) => {
     try {
-        // ✅ Inclure enseignant_id + nom de l'enseignant pour l'affichage
         const [rows] = await db.query(
             `SELECT m.*,
                     CONCAT(u.nom, ' ', u.prenom) AS enseignant_nom
@@ -85,18 +87,22 @@ const getMatieresByFiliere = async (req, res) => {
 };
 
 const createMatiere = async (req, res) => {
-    // ✅ Accepter enseignant_id (optionnel)
     const { filiere_id, code, nom, coefficient, semestre, enseignant_id } = req.body;
     if (!filiere_id || !code || !nom || !coefficient || !semestre) {
         return res.status(400).json({ success: false, message: 'Champs obligatoires manquants.' });
     }
-    if (!['S1','S2'].includes(semestre)) {
-        return res.status(400).json({ success: false, message: 'Semestre invalide (S1 ou S2).' });
+
+    // ✅ CORRECTION : accepter S1 à S10
+    if (!SEMESTRES_VALIDES.includes(semestre)) {
+        return res.status(400).json({
+            success: false,
+            message: `Semestre invalide. Valeurs acceptées : ${SEMESTRES_VALIDES.join(', ')}.`
+        });
     }
+
     try {
         const ensId = enseignant_id ? parseInt(enseignant_id, 10) : null;
 
-        // Vérifier que l'enseignant existe et a bien le rôle enseignant
         if (ensId) {
             const [ensCheck] = await db.query(
                 `SELECT id FROM users WHERE id = ? AND role = 'enseignant' AND is_active = 1`,
@@ -119,8 +125,16 @@ const createMatiere = async (req, res) => {
 };
 
 const updateMatiere = async (req, res) => {
-    // ✅ Accepter enseignant_id dans la mise à jour
     const { nom, coefficient, semestre, enseignant_id } = req.body;
+
+    // ✅ CORRECTION : valider le semestre lors de la mise à jour aussi
+    if (semestre && !SEMESTRES_VALIDES.includes(semestre)) {
+        return res.status(400).json({
+            success: false,
+            message: `Semestre invalide. Valeurs acceptées : ${SEMESTRES_VALIDES.join(', ')}.`
+        });
+    }
+
     try {
         const ensId = enseignant_id !== undefined
             ? (enseignant_id === '' || enseignant_id === null ? null : parseInt(enseignant_id, 10))
@@ -155,7 +169,6 @@ const deleteMatiere = async (req, res) => {
     }
 };
 
-// ✅ NOUVEAU : liste des enseignants pour le select dans le formulaire matière
 const getEnseignants = async (req, res) => {
     try {
         const [rows] = await db.query(

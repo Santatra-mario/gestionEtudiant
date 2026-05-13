@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { X, Save } from "lucide-react"; // ← Icônes ajoutées
+import { X, Save } from "lucide-react";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -50,7 +50,6 @@ function FiliereModal({ onClose, onSaved, initial }) {
   const [loading, setLoading] = useState(false);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  // Validation du formulaire
   const isFormValid = form.code.trim() !== "" && form.nom.trim() !== "";
 
   const handleSubmit = async (e) => {
@@ -139,6 +138,17 @@ function FiliereModal({ onClose, onSaved, initial }) {
   );
 }
 
+// ── Semestres valides S1 → S10 ─────────────────────────────
+const SEMESTRES_VALIDES = ["S1","S2","S3","S4","S5","S6","S7","S8","S9","S10"];
+
+const NIVEAU_SEMESTRES = {
+  L1: ["S1", "S2"],
+  L2: ["S3", "S4"],
+  L3: ["S5", "S6"],
+  M1: ["S7", "S8"],
+  M2: ["S9", "S10"],
+};
+
 function MatiereModal({ filiereId, onClose, onSaved, initial }) {
   const [form, setForm] = useState(
     initial
@@ -167,13 +177,13 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
       .catch(() => setEnseignants([]));
   }, []);
 
-  // Validation du formulaire
+  // ✅ CORRECTION : accepter S1 à S10 (et non plus seulement S1 et S2)
   const isFormValid = () => {
     const codeOk = form.code.trim() !== "";
     const nomOk = form.nom.trim() !== "";
     const coeff = parseFloat(form.coefficient);
     const coeffOk = !isNaN(coeff) && coeff >= 0.5 && coeff <= 10;
-    const semestreOk = ["S1", "S2"].includes(form.semestre);
+    const semestreOk = SEMESTRES_VALIDES.includes(form.semestre);
     return codeOk && nomOk && coeffOk && semestreOk;
   };
 
@@ -204,23 +214,6 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
       setLoading(false);
     }
   };
-
-  const NIVEAU_SEMESTRES = {
-    L1: ["S1", "S2"],
-    L2: ["S3", "S4"],
-    L3: ["S5", "S6"],
-    M1: ["S7", "S8"],
-    M2: ["S9", "S10"],
-  };
-
-  const semestreOptions = Object.entries(NIVEAU_SEMESTRES).flatMap(
-    ([niveau, sems]) =>
-      sems.map((s) => ({
-        value: s,
-        label: `${s} — ${niveau}`,
-        groupe: niveau,
-      })),
-  );
 
   return (
     <Modal
@@ -384,10 +377,8 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
 
 export default function FilieresPage() {
   const { user } = useAuth();
-  // Créer et modifier : admin + secrétaire
   const canManageFilieres =
     user?.role === "administrateur" || user?.role === "secretaire";
-  // Désactiver filière / supprimer matière : admin uniquement
   const isAdmin = user?.role === "administrateur";
 
   const [filieres, setFilieres] = useState([]);
@@ -398,7 +389,6 @@ export default function FilieresPage() {
   const [matieres, setMatieres] = useState({});
   const [matiereModal, setMatiereModal] = useState(null);
 
-  // État pour la boîte de dialogue stylisée
   const [confirmState, setConfirmState] = useState({
     open: false,
     title: "",
@@ -588,7 +578,6 @@ export default function FilieresPage() {
                   )}
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  {/* Modifier : admin + secrétaire */}
                   {canManageFilieres && (
                     <Btn
                       small
@@ -601,7 +590,6 @@ export default function FilieresPage() {
                       Modifier
                     </Btn>
                   )}
-                  {/* Désactiver : admin uniquement */}
                   {isAdmin && (
                     <Btn
                       small
@@ -752,7 +740,6 @@ export default function FilieresPage() {
                           </div>
                           {canManageFilieres && (
                             <div style={{ display: "flex", gap: 6 }}>
-                              {/* Modifier : admin + secrétaire */}
                               <Btn
                                 small
                                 variant="ghost"
@@ -765,7 +752,6 @@ export default function FilieresPage() {
                               >
                                 Modifier
                               </Btn>
-                              {/* Supprimer : admin uniquement */}
                               {isAdmin && (
                                 <Btn
                                   small
@@ -794,7 +780,6 @@ export default function FilieresPage() {
         </div>
       )}
 
-      {/* MODAL DE CONFIRMATION STYLISÉE */}
       <ConfirmModal
         open={confirmState.open}
         title={confirmState.title}

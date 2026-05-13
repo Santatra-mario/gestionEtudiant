@@ -2,10 +2,31 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api from '../services/api'
-import { Eye, EyeOff, Mail, Lock, User, Users, CheckCircle, AlertCircle } from 'lucide-react'
+import { Eye, EyeOff, Mail, Lock, User, Users, CheckCircle, AlertCircle, GraduationCap } from 'lucide-react'
 
 // ── Keyframes injectés une seule fois ───────────────────────────────────────
 const STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@400;500;600&display=swap');
+
+  :root {
+    --uni-bg:          #0b1120;
+    --uni-surface:     #111827;
+    --uni-surface2:    #1a2538;
+    --uni-border:      rgba(255,255,255,0.08);
+    --uni-border-h:    rgba(255,255,255,0.16);
+    --uni-accent:      #c9a227;
+    --uni-accent-dark: #a07c18;
+    --uni-accent-glow: rgba(201,162,39,0.22);
+    --uni-text:        #f0eadc;
+    --uni-text-muted:  #8a9ab8;
+    --uni-danger:      #e57373;
+    --uni-success:     #4caf7d;
+    --uni-navy:        #162040;
+    --uni-navy-light:  #1e2d52;
+    --font-display:    'Playfair Display', Georgia, serif;
+    --font-body:       'DM Sans', system-ui, sans-serif;
+  }
+
   @keyframes lgSlideUp {
     from { opacity: 0; transform: translateY(32px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -39,61 +60,70 @@ const STYLES = `
   @keyframes lgSpin {
     to { transform: rotate(360deg); }
   }
+  @keyframes lgGlow {
+    0%,100% { box-shadow: 0 0 18px var(--uni-accent-glow); }
+    50%     { box-shadow: 0 0 36px var(--uni-accent-glow), 0 0 6px rgba(201,162,39,.35); }
+  }
 
-  .lg-card     { animation: lgSlideUp .5s cubic-bezier(.16,1,.3,1) both; }
-  .lg-logo-box { animation: lgPopIn .6s cubic-bezier(.34,1.56,.64,1) .2s both; }
+  .lg-card     { animation: lgSlideUp .5s cubic-bezier(.16,1,.3,1) both; font-family: var(--font-body); }
+  .lg-logo-box { animation: lgPopIn .6s cubic-bezier(.34,1.56,.64,1) .2s both, lgGlow 3s ease-in-out 1s infinite; }
 
   .lg-field { animation: lgFadeIn .3s ease both; }
 
   .lg-input {
-    width: 100%; padding: 9px 12px;
-    border: 1px solid var(--border);
+    width: 100%; padding: 10px 12px;
+    border: 1px solid var(--uni-border);
     border-radius: 8px;
-    background: var(--surface2);
-    color: var(--text);
+    background: var(--uni-surface2);
+    color: var(--uni-text);
     font-size: 14px;
+    font-family: var(--font-body);
     outline: none;
     box-sizing: border-box;
     transition: border-color .18s, box-shadow .18s, transform .12s;
   }
-  .lg-input:hover  { border-color: var(--accent); }
+  .lg-input::placeholder { color: var(--uni-text-muted); opacity: 0.6; }
+  .lg-input:hover  { border-color: var(--uni-border-h); }
   .lg-input:focus  {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(79,142,247,.18);
+    border-color: var(--uni-accent);
+    box-shadow: 0 0 0 3px var(--uni-accent-glow);
     transform: scale(1.012);
   }
   .lg-input.lg-err {
-    border-color: var(--danger) !important;
-    box-shadow: 0 0 0 3px rgba(239,68,68,.14);
+    border-color: var(--uni-danger) !important;
+    box-shadow: 0 0 0 3px rgba(229,115,115,.14);
   }
 
   .lg-select {
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238a9ab8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 14px center;
     padding-right: 36px;
     cursor: pointer;
   }
+  .lg-select option { background: var(--uni-surface2); color: var(--uni-text); }
 
   .lg-btn {
-    width: 100%; padding: 11px 20px;
-    background: var(--accent); color: #fff;
+    width: 100%; padding: 12px 20px;
+    background: linear-gradient(135deg, var(--uni-accent), var(--uni-accent-dark));
+    color: #0b1120;
     border: none; border-radius: 8px;
     font-size: 15px; font-weight: 600;
     font-family: var(--font-body);
     cursor: pointer; position: relative; overflow: hidden;
     display: flex; align-items: center; justify-content: center; gap: 8px;
-    transition: opacity .15s, transform .12s, filter .15s;
+    transition: opacity .15s, transform .12s, filter .15s, box-shadow .2s;
     margin-top: 4px;
+    letter-spacing: 0.02em;
   }
-  .lg-btn:hover:not(:disabled)  { transform: translateY(-1px); filter: brightness(1.08); }
+  .lg-btn:hover:not(:disabled)  { transform: translateY(-2px); box-shadow: 0 6px 20px var(--uni-accent-glow); filter: brightness(1.08); }
   .lg-btn:active:not(:disabled) { transform: scale(.98); }
-  .lg-btn:disabled               { opacity: .65; cursor: not-allowed; }
+  .lg-btn:disabled               { opacity: .5; cursor: not-allowed; }
 
   .lg-ripple {
     position: absolute; border-radius: 50%;
-    background: rgba(255,255,255,.28);
+    background: rgba(255,255,255,.22);
     transform: scale(0);
     animation: lgRipple .55s linear;
   }
@@ -101,61 +131,109 @@ const STYLES = `
   .lg-spinner {
     display: inline-block;
     width: 16px; height: 16px;
-    border: 2px solid rgba(255,255,255,.35);
-    border-top-color: #fff;
+    border: 2px solid rgba(11,17,32,.35);
+    border-top-color: #0b1120;
     border-radius: 50%;
     animation: lgSpin .7s linear infinite;
   }
 
-  .lg-tab-active   { background: var(--accent) !important; color: #fff !important; transform: scale(1.02); }
-  .lg-tab-inactive { background: transparent; color: var(--text-muted); }
-  .lg-tab-inactive:hover { color: var(--text); background: rgba(255,255,255,.05); }
+  .lg-tab-active {
+    background: linear-gradient(135deg, var(--uni-accent), var(--uni-accent-dark)) !important;
+    color: #0b1120 !important;
+    transform: scale(1.02);
+    box-shadow: 0 2px 12px var(--uni-accent-glow);
+  }
+  .lg-tab-inactive { background: transparent; color: var(--uni-text-muted); }
+  .lg-tab-inactive:hover { color: var(--uni-text); background: rgba(255,255,255,.04); }
 
   .lg-alert-err {
     animation: lgShake .4s both;
-    background: rgba(239,68,68,.10);
-    border: 1px solid var(--danger);
+    background: rgba(229,115,115,.10);
+    border: 1px solid var(--uni-danger);
     border-radius: 8px; padding: 10px 14px;
-    color: #fca5a5; font-size: 14px; margin-bottom: 16px;
+    color: #ffb3b3; font-size: 14px; margin-bottom: 16px;
     display: flex;
     align-items: center;
     gap: 8px;
+    font-family: var(--font-body);
   }
   .lg-alert-ok {
     animation: lgFadeIn .3s ease both;
-    background: rgba(34,197,94,.10);
-    border: 1px solid #22c55e;
+    background: rgba(76,175,125,.10);
+    border: 1px solid var(--uni-success);
     border-radius: 8px; padding: 10px 14px;
-    color: #86efac; font-size: 14px; margin-bottom: 16px;
+    color: #a7f3ce; font-size: 14px; margin-bottom: 16px;
     display: flex;
     align-items: center;
     gap: 8px;
+    font-family: var(--font-body);
   }
 
   .lg-pwd-track {
     height: 3px; border-radius: 2px; margin-top: 5px;
-    background: var(--border); overflow: hidden;
+    background: var(--uni-border); overflow: hidden;
   }
   .lg-pwd-bar {
     height: 100%; border-radius: 2px;
     transition: width .4s cubic-bezier(.4,0,.2,1), background .3s;
   }
 
+  /* Blobs de fond */
   .lg-blob {
     position: fixed; border-radius: 50%;
-    pointer-events: none; filter: blur(70px); opacity: .12;
+    pointer-events: none; filter: blur(80px); opacity: .1;
   }
   .lg-blob1 {
-    width: 520px; height: 520px;
-    background: #4f8ef7;
-    top: -180px; right: -180px;
-    animation: lgDrift1 9s ease-in-out infinite;
+    width: 560px; height: 560px;
+    background: #1e3a8a;
+    top: -200px; right: -200px;
+    animation: lgDrift1 10s ease-in-out infinite;
   }
   .lg-blob2 {
-    width: 340px; height: 340px;
-    background: #a78bfa;
-    bottom: -120px; left: -120px;
-    animation: lgDrift2 11s ease-in-out infinite;
+    width: 380px; height: 380px;
+    background: #c9a227;
+    bottom: -140px; left: -140px;
+    animation: lgDrift2 12s ease-in-out infinite;
+  }
+  .lg-blob3 {
+    width: 260px; height: 260px;
+    background: #162040;
+    top: 45%; left: 30%;
+    animation: lgDrift1 14s ease-in-out 2s infinite;
+    opacity: .07;
+  }
+
+  /* Séparateur décoratif sous le titre */
+  .lg-divider {
+    width: 48px; height: 2px;
+    background: linear-gradient(90deg, var(--uni-accent), transparent);
+    border-radius: 2px;
+    margin: 6px auto 0;
+  }
+
+  /* Badge de rôle admin */
+  .lg-admin-notice {
+    background: rgba(201,162,39,.08);
+    border: 1px solid rgba(201,162,39,.25);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--uni-text-muted);
+    animation: lgFadeIn .3s ease both;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-body);
+  }
+
+  /* Étiquette de champ */
+  .lg-label {
+    font-size: 12px;
+    color: var(--uni-text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-family: var(--font-body);
   }
 `
 
@@ -196,7 +274,7 @@ function Field({ label, delay = 0, children }) {
       className="lg-field"
       style={{ display: 'flex', flexDirection: 'column', gap: 5, animationDelay: `${delay}s` }}
     >
-      <label style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500 }}>{label}</label>
+      <label className="lg-label">{label}</label>
       {children}
     </div>
   )
@@ -222,13 +300,13 @@ function PwdInput({ id, value, onChange, placeholder = '••••••••
         onClick={() => setShow(v => !v)}
         style={{
           position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-          background: 'none', border: 'none', color: 'var(--text-muted)',
+          background: 'none', border: 'none', color: 'var(--uni-text-muted)',
           cursor: 'pointer', padding: 0, fontSize: 16, lineHeight: 1,
           transition: 'transform .15s, color .15s',
           display: 'flex', alignItems: 'center', justifyContent: 'center'
         }}
-        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-50%) scale(1.1)' }}
-        onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(-50%)' }}
+        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-50%) scale(1.1)'; e.currentTarget.style.color = 'var(--uni-accent)' }}
+        onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(-50%)'; e.currentTarget.style.color = 'var(--uni-text-muted)' }}
       >
         {show ? <EyeOff size={16} /> : <Eye size={16} />}
       </button>
@@ -252,7 +330,6 @@ export default function LoginPage() {
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
 
-  // Ré-anime les champs à chaque changement d'onglet
   const [fieldKey, setFieldKey] = useState(0)
 
   const switchTab = (t) => {
@@ -342,46 +419,79 @@ export default function LoginPage() {
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center',
-      justifyContent: 'center', background: 'var(--bg)', padding: 20,
+      justifyContent: 'center',
+      background: 'var(--uni-bg)',
+      padding: 20,
+      fontFamily: 'var(--font-body)',
     }}>
       {/* Blobs animés */}
       <div className="lg-blob lg-blob1" />
       <div className="lg-blob lg-blob2" />
+      <div className="lg-blob lg-blob3" />
 
       {/* Carte principale */}
       <div
         className="lg-card"
         style={{
-          background: 'var(--surface)', border: '1px solid var(--border)',
-          borderRadius: 16, padding: 40, width: '100%', maxWidth: 460,
-          position: 'relative', zIndex: 1,
+          background: 'var(--uni-surface)',
+          border: '1px solid var(--uni-border)',
+          borderRadius: 20,
+          padding: '40px 44px',
+          width: '100%',
+          maxWidth: 480,
+          position: 'relative',
+          zIndex: 1,
+          boxShadow: '0 24px 64px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.06) inset',
         }}
       >
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+        {/* Ligne dorée décorative en haut de la carte */}
+        <div style={{
+          position: 'absolute', top: 0, left: 40, right: 40, height: '2px',
+          background: 'linear-gradient(90deg, transparent, var(--uni-accent), transparent)',
+          borderRadius: '0 0 2px 2px',
+        }} />
+
+        {/* Logo & Titre */}
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div
             className="lg-logo-box"
             style={{
-              width: 52, height: 52, borderRadius: 14,
-              background: 'linear-gradient(135deg, var(--accent), var(--accent-dark))',
+              width: 64, height: 64, borderRadius: 18,
+              background: 'linear-gradient(145deg, #1e3a8a, #162040)',
+              border: '1.5px solid rgba(201,162,39,0.4)',
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 24, color: '#fff', marginBottom: 12,
-              fontFamily: 'var(--font-display)',
+              marginBottom: 16,
+              color: 'var(--uni-accent)',
             }}
-          >G</div>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 26, color: 'var(--text)', marginBottom: 4 }}>
+          >
+            <GraduationCap size={30} strokeWidth={1.5} />
+          </div>
+
+          <h1 style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: 24,
+            color: 'var(--uni-text)',
+            marginBottom: 4,
+            letterSpacing: '-0.01em',
+            lineHeight: 1.2,
+          }}>
             Gestion Des Étudiants
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Plateforme de gestion des étudiants</p>
+          <div className="lg-divider" />
+          <p style={{ color: 'var(--uni-text-muted)', fontSize: 13, marginTop: 10, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+            Plateforme de gestion universitaire
+          </p>
         </div>
 
         {/* Onglets */}
         <div style={{
-          display: 'flex', background: 'var(--surface2)',
-          borderRadius: 10, padding: 4, marginBottom: 24, gap: 4,
+          display: 'flex',
+          background: 'var(--uni-navy)',
+          border: '1px solid var(--uni-border)',
+          borderRadius: 12, padding: 4, marginBottom: 28, gap: 4,
         }}>
           {[
-            { key: 'connexion',  label: 'Connexion', icon: <Lock size={14} /> },
+            { key: 'connexion',   label: 'Connexion',   icon: <Lock size={14} /> },
             { key: 'inscription', label: 'Inscription', icon: <User size={14} /> },
           ].map(({ key, label, icon }) => (
             <button
@@ -389,9 +499,10 @@ export default function LoginPage() {
               onClick={() => switchTab(key)}
               className={tab === key ? 'lg-tab-active' : 'lg-tab-inactive'}
               style={{
-                flex: 1, padding: '8px 0', borderRadius: 7, border: 'none',
-                fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                flex: 1, padding: '9px 0', borderRadius: 9, border: 'none',
+                fontSize: 13, fontWeight: 600, cursor: 'pointer',
                 fontFamily: 'var(--font-body)',
+                letterSpacing: '0.03em',
                 transition: 'all .22s cubic-bezier(.4,0,.2,1)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}
@@ -407,10 +518,10 @@ export default function LoginPage() {
 
         {/* ── FORMULAIRE CONNEXION ── */}
         {tab === 'connexion' && (
-          <form key={`cnx-${fieldKey}`} onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <form key={`cnx-${fieldKey}`} onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <Field label="Adresse email" delay={0.05}>
               <div style={{ position: 'relative' }}>
-                <Mail size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', opacity: 0.6 }} />
+                <Mail size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--uni-accent)', opacity: 0.7 }} />
                 <input
                   type="email"
                   placeholder="exemple@univ.mg"
@@ -418,7 +529,7 @@ export default function LoginPage() {
                   onChange={e => setLoginForm({ ...loginForm, email: e.target.value })}
                   required
                   className="lg-input"
-                  style={{ paddingLeft: 36 }}
+                  style={{ paddingLeft: 38 }}
                 />
               </div>
             </Field>
@@ -461,26 +572,26 @@ export default function LoginPage() {
 
             <Field label="Adresse email *" delay={0.11}>
               <div style={{ position: 'relative' }}>
-                <Mail size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', opacity: 0.6 }} />
+                <Mail size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--uni-accent)', opacity: 0.7 }} />
                 <input
                   type="email" placeholder="jean.rakoto@univ.mg" required
                   value={registerForm.email}
                   onChange={e => setRegisterForm({ ...registerForm, email: e.target.value })}
                   className="lg-input"
-                  style={{ paddingLeft: 36 }}
+                  style={{ paddingLeft: 38 }}
                 />
               </div>
             </Field>
 
             <Field label="Rôle *" delay={0.14}>
               <div style={{ position: 'relative' }}>
-                <Users size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', opacity: 0.6, pointerEvents: 'none' }} />
+                <Users size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--uni-accent)', opacity: 0.7, pointerEvents: 'none' }} />
                 <select
                   value={registerForm.role}
                   onChange={e => setRegisterForm({ ...registerForm, role: e.target.value })}
                   required
                   className="lg-input lg-select"
-                  style={{ paddingLeft: 36 }}
+                  style={{ paddingLeft: 38 }}
                 >
                   <option value="secretaire">Secrétaire</option>
                   <option value="enseignant">Enseignant</option>
@@ -490,7 +601,7 @@ export default function LoginPage() {
             </Field>
 
             <Field
-              label={<>Mot de passe * <span style={{ fontWeight: 400, opacity: .7 }}>(min. 6 caractères)</span></>}
+              label={<>Mot de passe * <span style={{ fontWeight: 400, opacity: .7, fontSize: 11 }}>(min. 6 caractères)</span></>}
               delay={0.17}
             >
               <PwdInput
@@ -523,25 +634,21 @@ export default function LoginPage() {
                 hasError={!!pwdMatch}
               />
               {pwdMatch && (
-                <span style={{ fontSize: 12, color: '#fca5a5', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                <span style={{ fontSize: 12, color: '#ffb3b3', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
                   <AlertCircle size={12} /> Les mots de passe ne correspondent pas
                 </span>
               )}
               {registerForm.confirmPassword && !pwdMatch && registerForm.password && (
-                <span style={{ fontSize: 12, color: '#22c55e', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                <span style={{ fontSize: 12, color: 'var(--uni-success)', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
                   <CheckCircle size={12} /> Les mots de passe correspondent
                 </span>
               )}
             </Field>
 
             {registerForm.role === 'administrateur' && (
-              <div style={{
-                background: 'rgba(79,142,247,.08)', border: '1px solid rgba(79,142,247,.3)',
-                borderRadius: 8, padding: '8px 12px', fontSize: 12, color: 'var(--text-muted)',
-                animation: 'lgFadeIn .3s ease both',
-                display: 'flex', alignItems: 'center', gap: 6,
-              }}>
-                <AlertCircle size={14} /> ℹ️ La création d'un compte administrateur nécessite un token d'administrateur existant.
+              <div className="lg-admin-notice">
+                <AlertCircle size={14} style={{ color: 'var(--uni-accent)', flexShrink: 0 }} />
+                ℹ️ La création d'un compte administrateur nécessite un token d'administrateur existant.
               </div>
             )}
 
@@ -550,6 +657,18 @@ export default function LoginPage() {
             </button>
           </form>
         )}
+
+        {/* Pied de carte discret */}
+        <p style={{
+          textAlign: 'center',
+          marginTop: 24,
+          fontSize: 11,
+          color: 'var(--uni-text-muted)',
+          opacity: 0.5,
+          letterSpacing: '0.04em',
+        }}>
+          © {new Date().getFullYear()} Établissement Universitaire · Système sécurisé
+        </p>
       </div>
     </div>
   )
