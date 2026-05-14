@@ -24,11 +24,11 @@ import {
 const NAV = [
   { to: "/", label: "Tableau de bord", icon: LayoutDashboard, exact: true, hint: "Vue d'ensemble" },
   { to: "/etudiants", label: "Étudiants", icon: GraduationCap, hint: "Gestion des étudiants" },
+  { to: "/filieres", label: "Filières", icon: GitBranch, hint: "Gestion des filières", roles: ["administrateur", "secretaire"] },
   { to: "/inscriptions", label: "Inscriptions", icon: ClipboardList, hint: "Gestion des inscriptions" },
   { to: "/notes", label: "Consultation Notes", icon: BookOpen, hint: "Consulter les notes", exact: true },
   { to: "/notes/saisie", label: "Saisie des notes", icon: PenLine, hint: "Saisir les notes", exact: true, roles: ["administrateur", "secretaire", "enseignant"] },
   { to: "/presence", label: "Présence", icon: Calendar, hint: "Gestion de présence", roles: ["administrateur", "secretaire", "enseignant"] },
-  { to: "/filieres", label: "Filières", icon: GitBranch, hint: "Gestion des filières", roles: ["administrateur", "secretaire"] },
   { to: "/utilisateurs", label: "Utilisateurs", icon: Users, hint: "Gestion des comptes", roles: ["administrateur"] },
 ];
 
@@ -96,15 +96,16 @@ function NavItem({ item, collapsed }) {
   return (
     <NavLink to={to} end={exact}
       style={({ isActive }) => ({
-        display: "flex", alignItems: "center", gap: collapsed ? 0 : 10,
+        display: "flex", alignItems: "center", gap: collapsed ? 0 : 12,
         justifyContent: collapsed ? "center" : "flex-start",
-        padding: collapsed ? "10px" : "9px 10px",
-        borderRadius: "var(--radius-sm)", textDecoration: "none",
-        color: isActive ? "var(--accent-light)" : "var(--text-muted)",
-        background: isActive ? "rgba(79,142,247,0.13)" : hovered ? "var(--surface2)" : "transparent",
-        fontSize: 14, fontWeight: isActive ? 600 : 400, transition: "all 0.15s",
+        padding: collapsed ? "12px 8px" : "11px 12px",
+        borderRadius: "var(--radius-lg)", textDecoration: "none",
+        color: isActive ? "var(--accent)" : "var(--text-muted)",
+        background: isActive ? "var(--accent-glow)" : hovered ? "var(--surface2)" : "transparent",
+        fontSize: 14, fontWeight: isActive ? 600 : 500, transition: "all 0.2s ease",
         whiteSpace: "nowrap", overflow: "hidden", position: "relative",
-        borderLeft: collapsed ? "none" : isActive ? "2px solid var(--accent)" : "2px solid transparent",
+        border: isActive ? "1px solid var(--accent)" : "1px solid transparent",
+        boxShadow: isActive ? "0 2px 8px var(--accent-glow)" : "none",
       })}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -191,8 +192,8 @@ export default function Layout() {
   const rc = ROLE_CONFIG[user?.role] || { color: "var(--accent)", bg: "rgba(79,142,247,0.12)", label: user?.role };
 
   /* Groupes de nav */
-  const mainNav  = visibleNav.filter(n => !["/filieres", "/utilisateurs"].includes(n.to));
-  const adminNav = visibleNav.filter(n => ["/filieres", "/utilisateurs"].includes(n.to));
+  const mainNav  = visibleNav.filter(n => n.to !== "/utilisateurs");
+  const adminNav = visibleNav.filter(n => n.to === "/utilisateurs");
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}>
@@ -204,25 +205,27 @@ export default function Layout() {
 
       {/* ══════════════════════ SIDEBAR ══════════════════════ */}
       <aside style={{
-        width: collapsed ? 64 : 234,
+        width: collapsed ? 64 : 280,
         background: "var(--surface)",
-        borderRight: "1px solid var(--border)",
+        borderRight: "2px solid var(--border)",
         display: "flex", flexDirection: "column",
-        transition: "width 0.25s cubic-bezier(0.4,0,0.2,1)",
+        transition: "width 0.3s cubic-bezier(0.4,0,0.2,1)",
         overflow: "hidden", flexShrink: 0,
         position: "sticky", top: 0, height: "100vh",
-        boxShadow: "2px 0 20px rgba(0,0,0,0.12)", zIndex: 100,
+        boxShadow: "4px 0 20px rgba(0,0,0,0.15)", zIndex: 100,
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
       }}>
 
         {/* ── Logo / Marque ── */}
-        <div style={{ padding: "18px 14px 16px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10, minHeight: 68, flexShrink: 0 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0, background: "linear-gradient(135deg, var(--accent), var(--accent-dark))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#fff", fontFamily: "var(--font-display)", fontWeight: 700, boxShadow: "0 4px 14px rgba(79,142,247,0.4)", letterSpacing: "-0.02em" }}>
+        <div style={{ padding: "20px 16px 18px", borderBottom: "2px solid var(--border)", display: "flex", alignItems: "center", gap: 12, minHeight: 72, flexShrink: 0 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, background: "linear-gradient(135deg, var(--accent), var(--accent-dark))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#fff", fontFamily: "var(--font-display)", fontWeight: 700, boxShadow: "0 4px 16px rgba(201,162,39,0.4)", letterSpacing: "-0.02em", border: "2px solid var(--accent-glow)" }}>
             U
           </div>
           {!collapsed && (
-            <div style={{ overflow: "hidden" }}>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 17, color: "var(--text)", lineHeight: 1.2, fontWeight: 700, letterSpacing: "-0.01em" }}>UniGest</div>
-              <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 1 }}>Gestion universitaire</div>
+            <div style={{ overflow: "hidden", flex: 1 }}>
+              <div style={{ fontFamily: "var(--font-display)", fontSize: 18, color: "var(--text)", lineHeight: 1.2, fontWeight: 700, letterSpacing: "-0.01em" }}>UniGest</div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 2, fontWeight: 600 }}>Gestion universitaire</div>
             </div>
           )}
         </div>
@@ -247,16 +250,18 @@ export default function Layout() {
 
           {/* Carte utilisateur — mode étendu */}
           {!collapsed && (
-            <div style={{ padding: "10px 12px", marginBottom: 6, borderRadius: "var(--radius-sm)", background: rc.bg, border: `1px solid ${rc.color}33`, overflow: "hidden" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                <div style={{ width: 32, height: 32, borderRadius: "50%", flexShrink: 0, background: `linear-gradient(135deg, ${rc.color}, ${rc.color}99)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#fff", boxShadow: `0 2px 8px ${rc.color}40` }}>
+            <div style={{ padding: "12px 14px", marginBottom: 8, borderRadius: "var(--radius-lg)", background: rc.bg, border: `2px solid ${rc.color}40`, overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.1)", transition: "transform 0.2s ease" }}
+              onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"}
+              onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: "50%", flexShrink: 0, background: `linear-gradient(135deg, ${rc.color}, ${rc.color}99)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "#fff", boxShadow: `0 2px 10px ${rc.color}40`, border: "2px solid rgba(255,255,255,0.2)" }}>
                   {`${user?.prenom?.[0] || ""}${user?.nom?.[0] || ""}`.toUpperCase()}
                 </div>
                 <div style={{ overflow: "hidden", flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {user?.prenom} {user?.nom}
                   </div>
-                  <div style={{ fontSize: 11, color: rc.color, fontWeight: 600, textTransform: "capitalize" }}>
+                  <div style={{ fontSize: 12, color: rc.color, fontWeight: 600, textTransform: "capitalize", marginTop: 1 }}>
                     {rc.label}
                   </div>
                 </div>
@@ -303,25 +308,25 @@ export default function Layout() {
       <main style={{ flex: 1, overflow: "auto", minWidth: 0 }}>
 
         {/* Barre de contexte supérieure */}
-        <div style={{ position: "sticky", top: 0, zIndex: 50, background: "var(--topbar-bg)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "1px solid var(--border)", padding: "0 32px", height: 48, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ position: "sticky", top: 0, zIndex: 50, background: "var(--topbar-bg)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "2px solid var(--border)", padding: "0 36px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 2px 12px rgba(0,0,0,0.1)" }}>
           {/* Fil d'ariane */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-muted)" }}>
-            <span style={{ opacity: 0.5 }}>UniGest</span>
-            <span style={{ opacity: 0.3 }}>/</span>
-            <span style={{ color: "var(--text)", fontWeight: 500 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "var(--text-muted)" }}>
+            <span style={{ opacity: 0.6, fontWeight: 500 }}>UniGest</span>
+            <span style={{ opacity: 0.4, fontSize: 16 }}>/</span>
+            <span style={{ color: "var(--text)", fontWeight: 600 }}>
               {NAV.find(n => n.to === location.pathname)?.label || "Page"}
             </span>
           </div>
 
           {/* Indicateur rôle */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 10px", borderRadius: 99, background: rc.bg, border: `1px solid ${rc.color}33` }}>
-            <div style={{ width: 6, height: 6, borderRadius: "50%", background: rc.color, flexShrink: 0 }} />
-            <span style={{ fontSize: 12, color: rc.color, fontWeight: 600 }}>{rc.label}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 12px", borderRadius: 99, background: rc.bg, border: `2px solid ${rc.color}40`, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: rc.color, flexShrink: 0, boxShadow: `0 0 8px ${rc.color}60` }} />
+            <span style={{ fontSize: 13, color: rc.color, fontWeight: 600 }}>{rc.label}</span>
           </div>
         </div>
 
         {/* Zone de page */}
-        <div style={{ padding: "32px 36px", maxWidth: 1320, margin: "0 auto" }}>
+        <div style={{ padding: "36px 40px", maxWidth: 1400, margin: "0 auto", minHeight: "calc(100vh - 52px)" }}>
           <ErrorBoundary>
             <Outlet />
           </ErrorBoundary>

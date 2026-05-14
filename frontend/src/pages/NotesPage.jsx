@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
-import { Trash2 } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import {
@@ -47,8 +46,6 @@ export default function NotesPage() {
   const [selectedInscription, setSelectedInscription] = useState("");
   const [bulletin, setBulletin] = useState(null);
   const [matieres, setMatieres] = useState([]);
-  const [editNotes, setEditNotes] = useState({});
-  const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState({ text: "", type: "" });
   const [loading, setLoading] = useState(false);
   const [inscLoading, setInscLoading] = useState(true);
@@ -115,7 +112,6 @@ export default function NotesPage() {
     async (inscriptionId) => {
       if (!inscriptionId) {
         setBulletin(null);
-        setEditNotes({});
         setMatieres([]);
         return;
       }
@@ -156,25 +152,6 @@ export default function NotesPage() {
           ? matRaw.matieres
           : [];
         setMatieres(matList);
-
-        // Initialisation des notes éditables
-        const init = {};
-        const bulletinObj = bData.bulletin || {};
-        Object.values(bulletinObj).forEach((sem) => {
-          (sem.notes || []).forEach((n) => {
-            if (n.matiere_id !== undefined && n.matiere_id !== null) {
-              init[String(n.matiere_id)] = parseFloat(n.note) || 0;
-            }
-          });
-        });
-
-        // Si aucune note encore, on initialise à 0 pour chaque matière
-        if (Object.keys(init).length === 0 && matList.length > 0) {
-          matList.forEach((m) => {
-            init[String(m.id)] = 0;
-          });
-        }
-        setEditNotes(init);
       } catch (err) {
         console.error("Erreur bulletin:", err);
         setBulletin(null);
@@ -191,83 +168,20 @@ export default function NotesPage() {
   useEffect(() => {
     if (!selectedInscription) {
       setBulletin(null);
-      setEditNotes({});
       setMatieres([]);
       return;
     }
     loadBulletin(selectedInscription);
   }, [selectedInscription, loadBulletin]);
 
-  // ── Enregistrement des notes ─────────────────────────────────────────────────
-  const handleSave = async () => {
-    setSaving(true);
-    setMsg({ text: "", type: "" });
-    try {
-      const notes = Object.entries(editNotes)
-        .map(([matiere_id, note]) => ({
-          matiere_id: parseInt(matiere_id, 10),
-          note: parseFloat(note),
-        }))
-        .filter(
-          (n) =>
-            !isNaN(n.matiere_id) &&
-            !isNaN(n.note) &&
-            n.note >= 0 &&
-            n.note <= 20
-        );
-
-      if (notes.length === 0) {
-        setMsg({
-          text: "Aucune note valide à enregistrer. Vérifiez les valeurs (0–20).",
-          type: "danger",
-        });
-        setSaving(false);
-        return;
-      }
-
-      const inscriptionIdInt = parseInt(selectedInscription, 10);
-      if (isNaN(inscriptionIdInt)) {
-        setMsg({ text: "Inscription invalide.", type: "danger" });
-        setSaving(false);
-        return;
-      }
-
-      await api.post("/notes/batch", { inscription_id: inscriptionIdInt, notes });
-      setMsg({
-        text: `${notes.length} note(s) enregistrée(s) avec succès.`,
-        type: "success",
-      });
-
-      const r = await api.get(`/notes/bulletin/${selectedInscription}`);
-      setBulletin(r.data);
-      const init = {};
-      Object.values(r.data.bulletin || {}).forEach((sem) => {
-        (sem.notes || []).forEach((n) => {
-          if (n.matiere_id !== undefined && n.matiere_id !== null) {
-            init[String(n.matiere_id)] = parseFloat(n.note) || 0;
-          }
-        });
-      });
-      setEditNotes(init);
-    } catch (err) {
-      console.error("Erreur batch save:", err.response?.data || err);
-      const serverMsg =
-        err.response?.data?.message ||
-        err.response?.data?.error ||
-        "Erreur lors de l'enregistrement.";
-      setMsg({ text: serverMsg, type: "danger" });
-    } finally {
-      setSaving(false);
-    }
-  };
+  // ── Consultation uniquement : pas d'enregistrement de notes sur cette page.
 
   // ── Suppression d'une note ───────────────────────────────────────────────────
-  const performDeleteNote = async (noteId, matiereId) => {
+  const performDeleteNote = async (noteId) => {
     setConfirmState((prev) => ({ ...prev, loading: true }));
     try {
       await api.delete(`/notes/${noteId}`);
       setMsg({ text: "Note supprimée.", type: "success" });
-      setEditNotes((prev) => ({ ...prev, [String(matiereId)]: 0 }));
       const r = await api.get(`/notes/bulletin/${selectedInscription}`);
       setBulletin(r.data);
       closeConfirm();
@@ -287,21 +201,29 @@ export default function NotesPage() {
     try {
       const pdfContent = document.createElement("div");
       pdfContent.style.width = "800px";
-      pdfContent.style.padding = "20px";
-      pdfContent.style.backgroundColor = "white";
-      pdfContent.style.fontFamily = "Arial, sans-serif";
-      pdfContent.style.color = "#000";
+      pdfContent.style.padding = "32px";
+      pdfContent.style.backgroundColor = "#ffffff";
+      pdfContent.style.fontFamily = "Inter, Arial, sans-serif";
+      pdfContent.style.color = "#111827";
+      pdfContent.style.lineHeight = "1.5";
       pdfContent.innerHTML = `
-        <div style="text-align: center; margin-bottom: 20px;">
-          <h1 style="margin: 0;">UNIVERSITÉ DE ...</h1>
-          <h2 style="margin: 5px 0;">RELEVÉ DE NOTES</h2>
-          <hr />
+        <div style="padding-bottom: 20px; margin-bottom: 28px; border-bottom: 1px solid #e5e7eb;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+            <div>
+              <div style="font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: #4338ca; font-weight: 700; margin-bottom: 10px;">Université</div>
+              <h1 style="margin: 0; font-size: 30px; font-weight: 800; color: #111827;">Relevé de notes</h1>
+            </div>
+            <div style="text-align: right; min-width: 160px;">
+              <div style="font-size: 12px; color: #6b7280;">Année universitaire</div>
+              <div style="font-size: 15px; font-weight: 700; color: #111827;">${bulletin.inscription?.annee_universitaire || "-"}</div>
+            </div>
+          </div>
         </div>
-        <div style="margin-bottom: 20px;">
-          <p><strong>Étudiant :</strong> ${bulletin.inscription?.etudiant_nom || "-"}</p>
-          <p><strong>Matricule :</strong> ${bulletin.inscription?.matricule || "-"}</p>
-          <p><strong>Filière :</strong> ${bulletin.inscription?.filiere_nom || "-"} (${bulletin.inscription?.niveau || "-"})</p>
-          <p><strong>Année universitaire :</strong> ${bulletin.inscription?.annee_universitaire || "-"}</p>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-bottom: 26px; font-size: 14px; color: #374151;">
+          <div><strong>Étudiant :</strong> ${bulletin.inscription?.etudiant_nom || "-"}</div>
+          <div><strong>Matricule :</strong> ${bulletin.inscription?.matricule || "-"}</div>
+          <div><strong>Filière :</strong> ${bulletin.inscription?.filiere_nom || "-"} (${bulletin.inscription?.niveau || "-"})</div>
+          <div><strong>Option :</strong> ${bulletin.inscription?.option || "-"}</div>
         </div>
       `;
 
@@ -336,19 +258,26 @@ export default function NotesPage() {
           </tbody>
         `;
         pdfContent.appendChild(table);
-        pdfContent.innerHTML += `
-          <div style="display: flex; justify-content: space-between; margin-top: 10px;">
-            <p><strong>Semestre ${semestre}</strong></p>
-            <p>Moyenne : <strong>${data.moyenne}/20</strong> | Mention : <strong>${data.mention}</strong></p>
+        const sectionSummary = document.createElement("div");
+        sectionSummary.style.cssText = "margin-bottom: 30px; padding: 18px 20px; border: 1px solid #e5e7eb; border-radius: 16px; background: #f8fafc;";
+        sectionSummary.innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+            <div style="font-weight: 700; color: #111827;">Semestre ${semestre}</div>
+            <div style="color: #374151; font-size: 13px;">
+              Moyenne : <strong>${data.moyenne}/20</strong> &middot; Mention : <strong>${data.mention}</strong>
+            </div>
           </div>
-          <hr />
         `;
+        pdfContent.appendChild(sectionSummary);
       }
 
       if (bulletin.moyenne_generale !== undefined) {
         pdfContent.innerHTML += `
-          <div style="text-align: right; margin-top: 20px;">
-            <p><strong>Moyenne générale : ${bulletin.moyenne_generale}/20</strong></p>
+          <div style="margin-top: 10px; padding-top: 18px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 16px; font-size: 14px; color: #111827;">
+            <div><strong>Moyenne générale :</strong> ${bulletin.moyenne_generale}/20</div>
+          </div>
+          <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280;">
+            Document généré par UniGest - relevé officiel de l'université
           </div>
         `;
       }
@@ -375,37 +304,47 @@ export default function NotesPage() {
     }
   };
 
-  // ── Permissions selon le rôle ──────────────────────────────────────────────
-  const canDelete =
-    user?.role === "administrateur" || user?.role === "secretaire";
-  const canEdit =
-    user?.role === "administrateur" ||
-    user?.role === "secretaire" ||
-    user?.role === "enseignant";
+  // ── Consultation uniquement : désactiver toutes les actions d'édition
+  const canDelete = false;
+  const canEdit = false;
 
   // ── Rendu d'un semestre ────────────────────────────────────────────────────
   const renderSemestre = (semestre, data) => (
-    <Card key={semestre}>
+    <Card key={semestre} style={{
+      border: '2px solid var(--border)',
+      transition: 'all 0.3s ease',
+      cursor: 'pointer',
+      transform: 'scale(1)',
+    }}
+    onMouseEnter={e => {
+      e.currentTarget.style.transform = 'scale(1.01)';
+      e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
+    }}
+    onMouseLeave={e => {
+      e.currentTarget.style.transform = 'scale(1)';
+      e.currentTarget.style.boxShadow = 'var(--shadow)';
+    }}>
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: 16,
+          marginBottom: 20,
         }}
       >
         <h3
           style={{
             fontFamily: "var(--font-display)",
-            fontSize: 18,
+            fontSize: 20,
             color: "var(--text)",
             margin: 0,
+            fontWeight: 700,
           }}
         >
           Semestre {semestre}
         </h3>
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
+        <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+          <span style={{ fontSize: 14, color: "var(--text-muted)" }}>
             Moyenne :{" "}
             <strong
               style={{
@@ -413,220 +352,95 @@ export default function NotesPage() {
                   parseFloat(data.moyenne) >= 10
                     ? "var(--success)"
                     : "var(--danger)",
-                fontSize: 16,
+                fontSize: 18,
+                fontWeight: 700,
               }}
             >
               {data.moyenne}/20
             </strong>
           </span>
-          <Badge color={mentionColor[data.mention] || "muted"}>
+          <Badge color={mentionColor[data.mention] || "muted"} style={{
+            padding: '6px 12px',
+            fontSize: 13,
+            fontWeight: 600,
+          }}>
             {data.mention}
           </Badge>
         </div>
       </div>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-        <thead>
-          <tr>
-            {[
-              "Matière",
-              "Coefficient",
-              "Note /20",
-              "Pondérée",
-              ...(canDelete ? ["Action"] : []),
-            ].map((h) => (
-              <th
-                key={h}
-                style={{
-                  padding: "8px 12px",
-                  textAlign: "left",
-                  color: "var(--text-muted)",
-                  fontSize: 12,
+      <div style={{ overflowX: 'auto', border: '2px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+          <thead>
+            <tr style={{ background: 'var(--surface2)' }}>
+              {[
+                "Matière",
+                "Coefficient",
+                "Note /20",
+                "Pondérée",
+              ].map((h) => (
+                <th
+                  key={h}
+                  style={{
+                    padding: "14px 16px",
+                    textAlign: "left",
+                    color: "var(--text-muted)",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    borderBottom: "2px solid var(--border)",
+                    textTransform: "uppercase",
+                    letterSpacing: '0.08em',
+                  }}
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {(data.notes || []).map((n, idx) => {
+              const key =
+                n.matiere_id !== undefined && n.matiere_id !== null
+                  ? String(n.matiere_id)
+                  : `idx-${idx}`;
+              const noteValue = parseFloat(n.note || 0);
+              return (
+                <tr key={key} style={{
                   borderBottom: "1px solid var(--border)",
-                  textTransform: "uppercase",
+                  transition: 'background 0.2s ease',
+                  cursor: 'pointer',
                 }}
-              >
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {(data.notes || []).map((n, idx) => {
-            const key =
-              n.matiere_id !== undefined && n.matiere_id !== null
-                ? String(n.matiere_id)
-                : `idx-${idx}`;
-            const currentNote =
-              editNotes[key] !== undefined
-                ? editNotes[key]
-                : parseFloat(n.note) ?? 0;
-            return (
-              <tr key={key} style={{ borderBottom: "1px solid var(--border)" }}>
-                <td style={{ padding: "10px 12px", color: "var(--text)" }}>
-                  {n.matiere}
-                </td>
-                <td style={{ padding: "10px 12px", color: "var(--text-muted)" }}>
-                  {n.coefficient}
-                </td>
-                <td style={{ padding: "10px 12px" }}>
-                  {canEdit ? (
-                    <input
-                      type="number"
-                      min="0"
-                      max="20"
-                      step="0.5"
-                      value={currentNote}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setEditNotes((prev) => ({
-                          ...prev,
-                          [key]: val === "" ? "" : parseFloat(val),
-                        }));
-                      }}
-                      style={{
-                        width: 70,
-                        background: "var(--surface2)",
-                        border: "1px solid var(--border)",
-                        borderRadius: 6,
-                        color: "var(--text)",
-                        padding: "4px 8px",
-                        fontSize: 14,
-                        outline: "none",
-                      }}
-                    />
-                  ) : (
-                    <span style={{ fontWeight: 600, color: "var(--text)" }}>
-                      {currentNote}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                  <td style={{ padding: "14px 16px", color: "var(--text)", fontWeight: 500 }}>
+                    {n.matiere}
+                  </td>
+                  <td style={{ padding: "14px 16px", color: "var(--text-muted)", fontWeight: 600 }}>
+                    {n.coefficient}
+                  </td>
+                  <td style={{ padding: "14px 16px" }}>
+                    <span style={{
+                      fontWeight: 700,
+                      color: noteValue >= 10 ? "var(--success)" : "var(--danger)",
+                      fontSize: 15,
+                      background: noteValue >= 10 ? 'rgba(76, 175, 125, 0.1)' : 'rgba(229, 115, 115, 0.1)',
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      border: `1px solid ${noteValue >= 10 ? 'rgba(76, 175, 125, 0.3)' : 'rgba(229, 115, 115, 0.3)'}`,
+                    }}>
+                      {noteValue.toFixed(2)}
                     </span>
-                  )}
-                </td>
-                <td style={{ padding: "10px 12px", color: "var(--text-muted)" }}>
-                  {(
-                    parseFloat(currentNote || 0) * parseFloat(n.coefficient)
-                  ).toFixed(2)}
-                </td>
-                {canDelete && (
-                  <td style={{ padding: "10px 12px", verticalAlign: "middle" }}>
-                    {n.note_id && (
-                      <Btn
-                        small
-                        variant="danger"
-                        onClick={() =>
-                          openConfirm(
-                            n.note_id,
-                            key,
-                            "Supprimer cette note ? Cette action est irréversible."
-                          )
-                        }
-                      >
-                        <Trash2 size={14} style={{ marginRight: 4 }} /> Supprimer
-                      </Btn>
-                    )}
                   </td>
-                )}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </Card>
-  );
-
-  // ── Saisie initiale (aucune note encore) ────────────────────────────────────
-  const renderSaisieInitiale = () => {
-    if (matieres.length === 0) return null;
-    const parSemestre = {};
-    matieres.forEach((m) => {
-      const sem = m.semestre ?? "S1";
-      if (!parSemestre[sem]) parSemestre[sem] = [];
-      parSemestre[sem].push(m);
-    });
-    return Object.entries(parSemestre)
-      .sort()
-      .map(([sem, list]) => (
-        <Card key={sem}>
-          <h3
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: 18,
-              color: "var(--text)",
-              marginBottom: 16,
-            }}
-          >
-            Semestre {sem} — Saisie initiale
-          </h3>
-          <table
-            style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}
-          >
-            <thead>
-              <tr>
-                {["Matière", "Coefficient", "Note /20"].map((h) => (
-                  <th
-                    key={h}
-                    style={{
-                      padding: "8px 12px",
-                      textAlign: "left",
-                      color: "var(--text-muted)",
-                      fontSize: 12,
-                      borderBottom: "1px solid var(--border)",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {list.map((m) => (
-                <tr key={m.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                  <td style={{ padding: "10px 12px", color: "var(--text)" }}>
-                    {m.nom}
-                  </td>
-                  <td
-                    style={{ padding: "10px 12px", color: "var(--text-muted)" }}
-                  >
-                    {m.coefficient}
-                  </td>
-                  <td style={{ padding: "10px 12px" }}>
-                    {canEdit ? (
-                      <input
-                        type="number"
-                        min="0"
-                        max="20"
-                        step="0.5"
-                        value={editNotes[String(m.id)] ?? 0}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setEditNotes((prev) => ({
-                            ...prev,
-                            [String(m.id)]: val === "" ? "" : parseFloat(val),
-                          }));
-                        }}
-                        style={{
-                          width: 70,
-                          background: "var(--surface2)",
-                          border: "1px solid var(--border)",
-                          borderRadius: 6,
-                          color: "var(--text)",
-                          padding: "4px 8px",
-                          fontSize: 14,
-                          outline: "none",
-                        }}
-                      />
-                    ) : (
-                      <span style={{ color: "var(--text-muted)", fontSize: 13 }}>
-                        —
-                      </span>
-                    )}
+                  <td style={{ padding: "14px 16px", color: "var(--text-muted)", fontWeight: 600 }}>
+                    {(noteValue * parseFloat(n.coefficient || 0)).toFixed(2)}
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
-      ));
-  };
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
 
   const hasNotes =
     bulletin && Object.keys(bulletin.bulletin || {}).length > 0;
@@ -683,7 +497,6 @@ export default function NotesPage() {
                 value={selectedInscription}
                 onChange={(e) => {
                   setBulletin(null);
-                  setEditNotes({});
                   setMatieres([]);
                   setMsg({ text: "", type: "" });
                   setSelectedInscription(e.target.value);
@@ -753,8 +566,12 @@ export default function NotesPage() {
         <div className="print-area">
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             {/* Info étudiant */}
-            <Card>
-              <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+            <Card style={{
+              border: '2px solid var(--border)',
+              background: 'linear-gradient(135deg, var(--surface), var(--surface2))',
+              boxShadow: 'var(--shadow-lg)',
+            }}>
+              <div style={{ display: "flex", gap: 32, flexWrap: "wrap", alignItems: 'center' }}>
                 {[
                   ["Étudiant", bulletin.inscription?.etudiant_nom],
                   ["Matricule", bulletin.inscription?.matricule],
@@ -762,23 +579,34 @@ export default function NotesPage() {
                   ["Niveau", bulletin.inscription?.niveau],
                   ["Année", bulletin.inscription?.annee_universitaire],
                 ].map(([k, v]) => (
-                  <div key={k}>
+                  <div key={k} style={{
+                    textAlign: 'center',
+                    padding: '8px 16px',
+                    borderRadius: 'var(--radius-lg)',
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    minWidth: '120px',
+                    transition: 'transform 0.2s ease',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}>
                     <div
                       style={{
                         fontSize: 11,
                         color: "var(--text-muted)",
                         textTransform: "uppercase",
-                        letterSpacing: "0.05em",
-                        marginBottom: 2,
+                        letterSpacing: "0.08em",
+                        marginBottom: 4,
+                        fontWeight: 600,
                       }}
                     >
                       {k}
                     </div>
                     <div
                       style={{
-                        fontSize: 14,
+                        fontSize: 15,
                         color: "var(--text)",
-                        fontWeight: 500,
+                        fontWeight: 700,
                       }}
                     >
                       {v || "—"}
@@ -802,47 +630,32 @@ export default function NotesPage() {
                 renderSemestre(semestre, data)
               )
             ) : (
-              <>
-                {matieres.length > 0 ? (
-                  renderSaisieInitiale()
-                ) : (
-                  <Card>
-                    <p
-                      style={{
-                        color: "var(--text-muted)",
-                        textAlign: "center",
-                        padding: "24px 0",
-                        fontSize: 14,
-                      }}
-                    >
-                      Aucune note enregistrée. Aucune matière trouvée pour cette
-                      filière.
-                    </p>
-                  </Card>
-                )}
-              </>
+              <Card>
+                <p
+                  style={{
+                    color: "var(--text-muted)",
+                    textAlign: "center",
+                    padding: "24px 0",
+                    fontSize: 14,
+                  }}
+                >
+                  Aucune note enregistrée pour cette inscription.
+                </p>
+              </Card>
             )}
 
-            {/* Boutons d'action */}
-            {Object.keys(editNotes).length > 0 && (
-              <div
-                style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}
-                className="no-print"
+            <div
+              style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}
+              className="no-print"
+            >
+              <Btn
+                variant="secondary"
+                onClick={generatePDF}
+                disabled={pdfGenerating || !hasNotes}
               >
-                {canEdit && (
-                  <Btn onClick={handleSave} disabled={saving}>
-                    {saving ? "Enregistrement…" : "💾 Enregistrer les notes"}
-                  </Btn>
-                )}
-                <Btn
-                  variant="secondary"
-                  onClick={generatePDF}
-                  disabled={pdfGenerating || !hasNotes}
-                >
-                  {pdfGenerating ? "Génération..." : "📄 Télécharger PDF"}
-                </Btn>
-              </div>
-            )}
+                {pdfGenerating ? "Génération..." : "📄 Télécharger PDF"}
+              </Btn>
+            </div>
           </div>
         </div>
       )}
@@ -857,7 +670,7 @@ export default function NotesPage() {
               padding: "24px 0",
             }}
           >
-            Sélectionnez une inscription pour consulter ou saisir les notes.
+            Sélectionnez une inscription pour consulter les notes.
           </p>
         </Card>
       )}
@@ -866,9 +679,7 @@ export default function NotesPage() {
         open={confirmState.open}
         title={confirmState.title}
         message={confirmState.message}
-        onConfirm={() =>
-          performDeleteNote(confirmState.noteId, confirmState.matiereId)
-        }
+        onConfirm={() => performDeleteNote(confirmState.noteId)}
         onCancel={closeConfirm}
         loading={confirmState.loading}
       />

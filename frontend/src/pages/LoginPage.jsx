@@ -2,27 +2,26 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api from '../services/api'
-import { Eye, EyeOff, Mail, Lock, User, Users, CheckCircle, AlertCircle, GraduationCap } from 'lucide-react'
 
-// ── Keyframes injectés une seule fois ───────────────────────────────────────
-const STYLES = `
+// ── Styles dynamiques avec support du thème ─────────────────────────────────
+const getStyles = (isDark) => `
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@400;500;600&display=swap');
 
   :root {
-    --uni-bg:          #0b1120;
-    --uni-surface:     #111827;
-    --uni-surface2:    #1a2538;
-    --uni-border:      rgba(255,255,255,0.08);
-    --uni-border-h:    rgba(255,255,255,0.16);
+    --uni-bg:          ${isDark ? '#0b1120' : '#f0f4f8'};
+    --uni-surface:     ${isDark ? '#111827' : '#ffffff'};
+    --uni-surface2:    ${isDark ? '#1a2538' : '#f8fafc'};
+    --uni-border:      ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'};
+    --uni-border-h:    ${isDark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.12)'};
     --uni-accent:      #c9a227;
     --uni-accent-dark: #a07c18;
-    --uni-accent-glow: rgba(201,162,39,0.22);
-    --uni-text:        #f0eadc;
-    --uni-text-muted:  #8a9ab8;
+    --uni-accent-glow: ${isDark ? 'rgba(201,162,39,0.22)' : 'rgba(201,162,39,0.15)'};
+    --uni-text:        ${isDark ? '#f0eadc' : '#000000'};
+    --uni-text-muted:  ${isDark ? '#8a9ab8' : '#4a5568'};
     --uni-danger:      #e57373;
     --uni-success:     #4caf7d;
-    --uni-navy:        #162040;
-    --uni-navy-light:  #1e2d52;
+    --uni-navy:        ${isDark ? '#162040' : '#e2e8f0'};
+    --uni-navy-light:  ${isDark ? '#1e2d52' : '#f1f5f9'};
     --font-display:    'Playfair Display', Georgia, serif;
     --font-body:       'DM Sans', system-ui, sans-serif;
   }
@@ -96,7 +95,7 @@ const STYLES = `
 
   .lg-select {
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238a9ab8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='${isDark ? '%238a9ab8' : '%234a5568'}' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 14px center;
     padding-right: 36px;
@@ -107,7 +106,7 @@ const STYLES = `
   .lg-btn {
     width: 100%; padding: 12px 20px;
     background: linear-gradient(135deg, var(--uni-accent), var(--uni-accent-dark));
-    color: #0b1120;
+    color: ${isDark ? '#0b1120' : '#ffffff'};
     border: none; border-radius: 8px;
     font-size: 15px; font-weight: 600;
     font-family: var(--font-body);
@@ -132,14 +131,14 @@ const STYLES = `
     display: inline-block;
     width: 16px; height: 16px;
     border: 2px solid rgba(11,17,32,.35);
-    border-top-color: #0b1120;
+    border-top-color: ${isDark ? '#0b1120' : '#ffffff'};
     border-radius: 50%;
     animation: lgSpin .7s linear infinite;
   }
 
   .lg-tab-active {
     background: linear-gradient(135deg, var(--uni-accent), var(--uni-accent-dark)) !important;
-    color: #0b1120 !important;
+    color: ${isDark ? '#0b1120' : '#ffffff'} !important;
     transform: scale(1.02);
     box-shadow: 0 2px 12px var(--uni-accent-glow);
   }
@@ -151,7 +150,8 @@ const STYLES = `
     background: rgba(229,115,115,.10);
     border: 1px solid var(--uni-danger);
     border-radius: 8px; padding: 10px 14px;
-    color: #ffb3b3; font-size: 14px; margin-bottom: 16px;
+    color: ${isDark ? '#ffb3b3' : '#c62828'};
+    font-size: 14px; margin-bottom: 16px;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -162,7 +162,8 @@ const STYLES = `
     background: rgba(76,175,125,.10);
     border: 1px solid var(--uni-success);
     border-radius: 8px; padding: 10px 14px;
-    color: #a7f3ce; font-size: 14px; margin-bottom: 16px;
+    color: ${isDark ? '#a7f3ce' : '#2e7d32'};
+    font-size: 14px; margin-bottom: 16px;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -178,7 +179,6 @@ const STYLES = `
     transition: width .4s cubic-bezier(.4,0,.2,1), background .3s;
   }
 
-  /* Blobs de fond */
   .lg-blob {
     position: fixed; border-radius: 50%;
     pointer-events: none; filter: blur(80px); opacity: .1;
@@ -203,7 +203,6 @@ const STYLES = `
     opacity: .07;
   }
 
-  /* Séparateur décoratif sous le titre */
   .lg-divider {
     width: 48px; height: 2px;
     background: linear-gradient(90deg, var(--uni-accent), transparent);
@@ -211,7 +210,6 @@ const STYLES = `
     margin: 6px auto 0;
   }
 
-  /* Badge de rôle admin */
   .lg-admin-notice {
     background: rgba(201,162,39,.08);
     border: 1px solid rgba(201,162,39,.25);
@@ -226,7 +224,6 @@ const STYLES = `
     font-family: var(--font-body);
   }
 
-  /* Étiquette de champ */
   .lg-label {
     font-size: 12px;
     color: var(--uni-text-muted);
@@ -274,7 +271,7 @@ function Field({ label, delay = 0, children }) {
       className="lg-field"
       style={{ display: 'flex', flexDirection: 'column', gap: 5, animationDelay: `${delay}s` }}
     >
-      <label className="lg-label">{label}</label>
+      <label className="lg-label" style={{ fontWeight: 600 }}>{label}</label>
       {children}
     </div>
   )
@@ -308,7 +305,16 @@ function PwdInput({ id, value, onChange, placeholder = '••••••••
         onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-50%) scale(1.1)'; e.currentTarget.style.color = 'var(--uni-accent)' }}
         onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(-50%)'; e.currentTarget.style.color = 'var(--uni-text-muted)' }}
       >
-        {show ? <EyeOff size={16} /> : <Eye size={16} />}
+        {show ? (
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: 16, height: 16 }}>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+          </svg>
+        ) : (
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: 16, height: 16 }}>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+          </svg>
+        )}
       </button>
     </div>
   )
@@ -318,6 +324,10 @@ function PwdInput({ id, value, onChange, placeholder = '••••••••
 export default function LoginPage() {
   const { login }  = useAuth()
   const navigate   = useNavigate()
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('theme')
+    return saved ? saved === 'dark' : true // Default to dark mode
+  })
 
   const [tab, setTab] = useState('connexion')
 
@@ -339,16 +349,29 @@ export default function LoginPage() {
     setFieldKey(k => k + 1)
   }
 
-  // Injecte les styles CSS une seule fois
+  const toggleTheme = () => {
+    setIsDarkMode(prev => {
+      const newTheme = !prev
+      localStorage.setItem('theme', newTheme ? 'dark' : 'light')
+      return newTheme
+    })
+  }
+
+  // Injecte les styles CSS à chaque changement de thème
   useEffect(() => {
     const id = 'lg-styles'
-    if (!document.getElementById(id)) {
-      const el = document.createElement('style')
-      el.id = id
-      el.textContent = STYLES
-      document.head.appendChild(el)
+    const existing = document.getElementById(id)
+    if (existing) existing.remove()
+    
+    const el = document.createElement('style')
+    el.id = id
+    el.textContent = getStyles(isDarkMode)
+    document.head.appendChild(el)
+    
+    return () => {
+      if (document.getElementById(id)) document.getElementById(id).remove()
     }
-  }, [])
+  }, [isDarkMode])
 
   // ── Vérification formulaire connexion ─────────────────────────────────────
   const isLoginValid = loginForm.email.trim() !== '' && loginForm.password.trim() !== ''
@@ -423,7 +446,50 @@ export default function LoginPage() {
       background: 'var(--uni-bg)',
       padding: 20,
       fontFamily: 'var(--font-body)',
+      transition: 'background 0.3s ease',
     }}>
+      {/* Bouton de changement de thème avec icônes Tailwind */}
+      <button 
+        onClick={toggleTheme} 
+        style={{
+          position: 'fixed',
+          top: 20,
+          right: 20,
+          zIndex: 1000,
+          background: 'var(--uni-surface)',
+          border: '1px solid var(--uni-border)',
+          borderRadius: '50%',
+          width: 44,
+          height: 44,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          transition: 'all 0.3s ease',
+          color: 'var(--uni-accent)'
+        }}
+        onMouseEnter={e => {
+          e.currentTarget.style.transform = 'scale(1.1)'
+          e.currentTarget.style.borderColor = 'var(--uni-accent)'
+          e.currentTarget.style.boxShadow = '0 0 15px var(--uni-accent-glow)'
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.transform = 'scale(1)'
+          e.currentTarget.style.borderColor = 'var(--uni-border)'
+          e.currentTarget.style.boxShadow = 'none'
+        }}
+      >
+        {isDarkMode ? (
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: 20, height: 20 }}>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+        ) : (
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: 20, height: 20 }}>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+        )}
+      </button>
+
       {/* Blobs animés */}
       <div className="lg-blob lg-blob1" />
       <div className="lg-blob lg-blob2" />
@@ -442,6 +508,7 @@ export default function LoginPage() {
           position: 'relative',
           zIndex: 1,
           boxShadow: '0 24px 64px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.06) inset',
+          transition: 'background 0.3s ease, border-color 0.3s ease',
         }}
       >
         {/* Ligne dorée décorative en haut de la carte */}
@@ -464,7 +531,11 @@ export default function LoginPage() {
               color: 'var(--uni-accent)',
             }}
           >
-            <GraduationCap size={30} strokeWidth={1.5} />
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: 30, height: 30, strokeWidth: 1.5 }}>
+              <path d="M12 14l9-5-9-5-9 5 9 5z" />
+              <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
+            </svg>
           </div>
 
           <h1 style={{
@@ -474,11 +545,12 @@ export default function LoginPage() {
             marginBottom: 4,
             letterSpacing: '-0.01em',
             lineHeight: 1.2,
+            fontWeight: 'bold'
           }}>
             Gestion Des Étudiants
           </h1>
           <div className="lg-divider" />
-          <p style={{ color: 'var(--uni-text-muted)', fontSize: 13, marginTop: 10, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+          <p style={{ color: 'var(--uni-text-muted)', fontSize: 13, marginTop: 10, letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 500 }}>
             Plateforme de gestion universitaire
           </p>
         </div>
@@ -491,8 +563,16 @@ export default function LoginPage() {
           borderRadius: 12, padding: 4, marginBottom: 28, gap: 4,
         }}>
           {[
-            { key: 'connexion',   label: 'Connexion',   icon: <Lock size={14} /> },
-            { key: 'inscription', label: 'Inscription', icon: <User size={14} /> },
+            { key: 'connexion', label: 'Connexion', icon: (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: 14, height: 14 }}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            ) },
+            { key: 'inscription', label: 'Inscription', icon: (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: 14, height: 14 }}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            ) },
           ].map(({ key, label, icon }) => (
             <button
               key={key}
@@ -513,15 +593,31 @@ export default function LoginPage() {
         </div>
 
         {/* Messages d'état */}
-        {error   && <div className="lg-alert-err"><AlertCircle size={16} /> {error}</div>}
-        {success && <div className="lg-alert-ok"><CheckCircle size={16} /> {success}</div>}
+        {error && (
+          <div className="lg-alert-err" style={{ fontWeight: 500 }}>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: 16, height: 16 }}>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {error}
+          </div>
+        )}
+        {success && (
+          <div className="lg-alert-ok" style={{ fontWeight: 500 }}>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: 16, height: 16 }}>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {success}
+          </div>
+        )}
 
         {/* ── FORMULAIRE CONNEXION ── */}
         {tab === 'connexion' && (
           <form key={`cnx-${fieldKey}`} onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <Field label="Adresse email" delay={0.05}>
               <div style={{ position: 'relative' }}>
-                <Mail size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--uni-accent)', opacity: 0.7 }} />
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--uni-accent)', opacity: 0.7, width: 16, height: 16 }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
                 <input
                   type="email"
                   placeholder="exemple@univ.mg"
@@ -529,7 +625,7 @@ export default function LoginPage() {
                   onChange={e => setLoginForm({ ...loginForm, email: e.target.value })}
                   required
                   className="lg-input"
-                  style={{ paddingLeft: 38 }}
+                  style={{ paddingLeft: 38, fontWeight: 500 }}
                 />
               </div>
             </Field>
@@ -542,7 +638,7 @@ export default function LoginPage() {
               />
             </Field>
 
-            <button type="submit" disabled={loading || !isLoginValid} className="lg-btn">
+            <button type="submit" disabled={loading || !isLoginValid} className="lg-btn" style={{ fontWeight: 'bold' }}>
               {loading ? <><span className="lg-spinner" /> Connexion…</> : 'Se connecter'}
             </button>
           </form>
@@ -558,6 +654,7 @@ export default function LoginPage() {
                   value={registerForm.nom}
                   onChange={e => setRegisterForm({ ...registerForm, nom: e.target.value })}
                   className="lg-input"
+                  style={{ fontWeight: 500 }}
                 />
               </Field>
               <Field label="Prénom *" delay={0.08}>
@@ -566,32 +663,37 @@ export default function LoginPage() {
                   value={registerForm.prenom}
                   onChange={e => setRegisterForm({ ...registerForm, prenom: e.target.value })}
                   className="lg-input"
+                  style={{ fontWeight: 500 }}
                 />
               </Field>
             </div>
 
             <Field label="Adresse email *" delay={0.11}>
               <div style={{ position: 'relative' }}>
-                <Mail size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--uni-accent)', opacity: 0.7 }} />
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--uni-accent)', opacity: 0.7, width: 16, height: 16 }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
                 <input
                   type="email" placeholder="jean.rakoto@univ.mg" required
                   value={registerForm.email}
                   onChange={e => setRegisterForm({ ...registerForm, email: e.target.value })}
                   className="lg-input"
-                  style={{ paddingLeft: 38 }}
+                  style={{ paddingLeft: 38, fontWeight: 500 }}
                 />
               </div>
             </Field>
 
             <Field label="Rôle *" delay={0.14}>
               <div style={{ position: 'relative' }}>
-                <Users size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--uni-accent)', opacity: 0.7, pointerEvents: 'none' }} />
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--uni-accent)', opacity: 0.7, width: 16, height: 16 }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
                 <select
                   value={registerForm.role}
                   onChange={e => setRegisterForm({ ...registerForm, role: e.target.value })}
                   required
                   className="lg-input lg-select"
-                  style={{ paddingLeft: 38 }}
+                  style={{ paddingLeft: 38, fontWeight: 500 }}
                 >
                   <option value="secretaire">Secrétaire</option>
                   <option value="enseignant">Enseignant</option>
@@ -620,7 +722,7 @@ export default function LoginPage() {
                 />
               </div>
               {strength && (
-                <span style={{ fontSize: 11, color: strength.color, marginTop: 2 }}>
+                <span style={{ fontSize: 11, color: strength.color, marginTop: 2, fontWeight: 500 }}>
                   {strength.label}
                 </span>
               )}
@@ -634,25 +736,33 @@ export default function LoginPage() {
                 hasError={!!pwdMatch}
               />
               {pwdMatch && (
-                <span style={{ fontSize: 12, color: '#ffb3b3', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
-                  <AlertCircle size={12} /> Les mots de passe ne correspondent pas
+                <span style={{ fontSize: 12, color: '#ffb3b3', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4, fontWeight: 500 }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: 12, height: 12 }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Les mots de passe ne correspondent pas
                 </span>
               )}
               {registerForm.confirmPassword && !pwdMatch && registerForm.password && (
-                <span style={{ fontSize: 12, color: 'var(--uni-success)', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
-                  <CheckCircle size={12} /> Les mots de passe correspondent
+                <span style={{ fontSize: 12, color: 'var(--uni-success)', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4, fontWeight: 500 }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: 12, height: 12 }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Les mots de passe correspondent
                 </span>
               )}
             </Field>
 
             {registerForm.role === 'administrateur' && (
-              <div className="lg-admin-notice">
-                <AlertCircle size={14} style={{ color: 'var(--uni-accent)', flexShrink: 0 }} />
+              <div className="lg-admin-notice" style={{ fontWeight: 500 }}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: 14, height: 14, color: 'var(--uni-accent)', flexShrink: 0 }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
                 ℹ️ La création d'un compte administrateur nécessite un token d'administrateur existant.
               </div>
             )}
 
-            <button type="submit" disabled={loading || !isRegisterValid()} className="lg-btn">
+            <button type="submit" disabled={loading || !isRegisterValid()} className="lg-btn" style={{ fontWeight: 'bold' }}>
               {loading ? <><span className="lg-spinner" /> Création…</> : 'Créer le compte'}
             </button>
           </form>
@@ -666,6 +776,7 @@ export default function LoginPage() {
           color: 'var(--uni-text-muted)',
           opacity: 0.5,
           letterSpacing: '0.04em',
+          fontWeight: 500
         }}>
           © {new Date().getFullYear()} Établissement Universitaire · Système sécurisé
         </p>

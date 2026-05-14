@@ -45,6 +45,14 @@ const inputNoteStyle = {
   textAlign: "center",
 };
 
+const sectionTitleStyle = {
+  fontFamily: "var(--font-display)",
+  fontSize: 16,
+  fontWeight: 800,
+  letterSpacing: "0.01em",
+  color: "var(--text)",
+};
+
 function NativeSelect({ label, value, onChange, children, style = {} }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -319,17 +327,25 @@ export default function NotesSaisiePage() {
     setPdfGenerating(true);
     try {
       const pdfContent = document.createElement("div");
-      pdfContent.style.cssText = "width:800px;padding:20px;background:#fff;font-family:Arial,sans-serif;color:#000;";
+      pdfContent.style.cssText = "width:800px;padding:32px;background:#fff;font-family:Inter,Arial,sans-serif;color:#111827;line-height:1.5;";
       pdfContent.innerHTML = `
-        <div style="text-align:center;margin-bottom:20px;">
-          <h1 style="margin:0;">UNIVERSITÉ DE ...</h1>
-          <h2 style="margin:5px 0;">RELEVÉ DE NOTES</h2><hr/>
+        <div style="padding-bottom: 20px; margin-bottom: 28px; border-bottom: 1px solid #e5e7eb;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+            <div>
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.18em;color:#4338ca;font-weight:700;margin-bottom:10px;">Université</div>
+              <h1 style="margin:0;font-size:30px;font-weight:800;color:#111827;">Relevé de notes</h1>
+            </div>
+            <div style="text-align:right;min-width:160px;color:#374151;">
+              <div style="font-size:12px;">Année universitaire</div>
+              <div style="font-size:15px;font-weight:700;color:#111827;">${bulletin.inscription?.annee_universitaire || "—"}</div>
+            </div>
+          </div>
         </div>
-        <div style="margin-bottom:20px;">
-          <p><strong>Étudiant :</strong> ${bulletin.inscription?.etudiant_nom || "—"}</p>
-          <p><strong>Matricule :</strong> ${bulletin.inscription?.matricule || "—"}</p>
-          <p><strong>Filière :</strong> ${bulletin.inscription?.filiere_nom || "—"} (${bulletin.inscription?.niveau || "—"})</p>
-          <p><strong>Année universitaire :</strong> ${bulletin.inscription?.annee_universitaire || "—"}</p>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-bottom:26px;font-size:14px;color:#374151;">
+          <div><strong>Étudiant :</strong> ${bulletin.inscription?.etudiant_nom || "—"}</div>
+          <div><strong>Matricule :</strong> ${bulletin.inscription?.matricule || "—"}</div>
+          <div><strong>Filière :</strong> ${bulletin.inscription?.filiere_nom || "—"} (${bulletin.inscription?.niveau || "—"})</div>
+          <div><strong>Option :</strong> ${bulletin.inscription?.option || "—"}</div>
         </div>
       `;
       for (const [semestre, data] of Object.entries(bulletin.bulletin || {})) {
@@ -353,14 +369,17 @@ export default function NotesSaisiePage() {
         `;
         pdfContent.appendChild(table);
         const summary = document.createElement("div");
-        summary.style.cssText = "display:flex;justify-content:space-between;margin-top:10px;";
+        summary.style.cssText = "margin-bottom:24px;padding:18px 20px;border:1px solid #e5e7eb;border-radius:14px;background:#f8fafc;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:13px;color:#374151;";
         summary.innerHTML = `
-          <p><strong>Semestre ${semestre}</strong></p>
-          <p>Moyenne : <strong>${data.moyenne}/20</strong> | Mention : <strong>${data.mention}</strong></p>
+          <div style="font-weight:700;color:#111827;">Semestre ${semestre}</div>
+          <div>Moyenne : <strong>${data.moyenne}/20</strong> | Mention : <strong>${data.mention}</strong></div>
         `;
         pdfContent.appendChild(summary);
-        pdfContent.appendChild(document.createElement("hr"));
       }
+      const footer = document.createElement("div");
+      footer.style.cssText = "margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:12px;color:#6b7280;";
+      footer.textContent = "Document généré par UniGest - relevé officiel de l'université";
+      pdfContent.appendChild(footer);
       document.body.appendChild(pdfContent);
       const canvas  = await html2canvas(pdfContent, { scale: 2, backgroundColor: "#ffffff" });
       const imgData = canvas.toDataURL("image/png");
@@ -402,6 +421,38 @@ export default function NotesSaisiePage() {
     return acc;
   }, {});
 
+  const computeSemestreStats = (list) => {
+    let totalPond = 0, totalCoeff = 0, totalNote = 0, validCount = 0;
+    list.forEach((m) => {
+      const value = editNotes[String(m.id)];
+      const note = parseFloat(value);
+      if (!isNaN(note) && note >= 0 && note <= 20) {
+        totalPond += note * parseFloat(m.coefficient);
+        totalCoeff += parseFloat(m.coefficient);
+        totalNote += note;
+        validCount += 1;
+      }
+    });
+
+    const moyennePonderee = totalCoeff > 0 ? totalPond / totalCoeff : null;
+    const moyenneSimple = validCount > 0 ? totalNote / validCount : null;
+    const mentionTemp = moyennePonderee !== null
+      ? parseFloat(moyennePonderee) >= 10 ? "Admis"
+        : parseFloat(moyennePonderee) >= 8 ? "Rattrapage" : "Ajourné"
+      : null;
+
+    return {
+      totalPond,
+      totalCoeff,
+      totalNote,
+      validCount,
+      moyennePonderee,
+      moyenneSimple,
+      moyenneTemp: moyennePonderee !== null ? moyennePonderee.toFixed(2) : null,
+      mentionTemp,
+    };
+  };
+
   // Nombre de notes valides saisies
   const nbNotesRemplies = Object.values(editNotes).filter((v) => {
     const n = parseFloat(v);
@@ -411,15 +462,19 @@ export default function NotesSaisiePage() {
   // ── Rendu d'un tableau de saisie pour un semestre ────────────────────────────
   const renderSaisieTable = (sem, list) => {
     // Calcul moyenne temps réel
-    let totalPond = 0, totalCoeff = 0;
+    let totalPond = 0, totalCoeff = 0, totalNote = 0, validCount = 0;
     list.forEach((m) => {
-      const val = parseFloat(editNotes[String(m.id)]);
-      if (!isNaN(val) && val >= 0 && val <= 20) {
-        totalPond  += val * parseFloat(m.coefficient);
+      const value = editNotes[String(m.id)];
+      const note = parseFloat(value);
+      if (!isNaN(note) && note >= 0 && note <= 20) {
+        totalPond += note * parseFloat(m.coefficient);
         totalCoeff += parseFloat(m.coefficient);
+        totalNote += note;
+        validCount += 1;
       }
     });
     const moyenneTemp = totalCoeff > 0 ? (totalPond / totalCoeff).toFixed(2) : null;
+    const moyenneRaw = validCount > 0 ? (totalNote / validCount).toFixed(2) : null;
     const mentionTemp = moyenneTemp
       ? parseFloat(moyenneTemp) >= 10 ? "Admis"
         : parseFloat(moyenneTemp) >= 8 ? "Rattrapage" : "Ajourné"
@@ -463,9 +518,9 @@ export default function NotesSaisiePage() {
               ].map((h) => (
                 <th key={h} style={{
                   padding: "8px 12px", textAlign: "left",
-                  color: "var(--text-muted)", fontSize: 11,
+                  color: "var(--text)", fontSize: 12, fontWeight: 700,
                   borderBottom: "1px solid var(--border)",
-                  textTransform: "uppercase", letterSpacing: "0.05em",
+                  textTransform: "uppercase", letterSpacing: "0.08em",
                 }}>
                   {h}
                 </th>
@@ -584,7 +639,33 @@ export default function NotesSaisiePage() {
               );
             })}
           </tbody>
+          <tfoot>
+            <tr style={{ background: "var(--surface2)" }}>
+              <td colSpan={3} style={{ padding: "10px 12px", fontWeight: 700, color: "var(--text)" }}>
+                Total semestre
+              </td>
+              <td style={{ padding: "10px 12px", fontWeight: 700, color: "var(--text)" }}>
+                {validCount > 0 ? totalNote.toFixed(2) : "—"}
+              </td>
+              <td style={{ padding: "10px 12px", fontWeight: 700, color: "var(--text)" }}>
+                {moyenneTemp ?? "—"}
+              </td>
+              {canDelete && <td />}
+            </tr>
+          </tfoot>
         </table>
+
+        <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 14, marginTop: 14, padding: "14px 16px", borderTop: "1px solid var(--border)", color: "var(--text)" }}>
+          <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
+            Total notes : <strong>{validCount > 0 ? totalNote.toFixed(2) : "—"}</strong>
+          </div>
+          <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
+            Moyenne pondérée : <strong>{moyenneTemp ?? "—"}/20</strong>
+          </div>
+          <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
+            Total coefficient : <strong>{totalCoeff}</strong>
+          </div>
+        </div>
       </Card>
     );
   };
@@ -808,9 +889,68 @@ export default function NotesSaisiePage() {
               </div>
             </Card>
           ) : (
-            Object.entries(matieresBySemestre)
-              .sort(([a], [b]) => a.localeCompare(b))
-              .map(([sem, list]) => renderSaisieTable(sem, list))
+            (() => {
+              const sortSemestres = (keys) => keys.slice().sort((a, b) => {
+                const aNum = parseInt(String(a).replace(/\D/g, ""), 10);
+                const bNum = parseInt(String(b).replace(/\D/g, ""), 10);
+                if (!Number.isNaN(aNum) && !Number.isNaN(bNum)) return aNum - bNum;
+                return String(a).localeCompare(String(b));
+              });
+
+              const semestreData = Object.entries(matieresBySemestre)
+                .map(([sem, list]) => ({ sem, list, stats: computeSemestreStats(list) }))
+                .sort((a, b) => sortSemestres([a.sem, b.sem]).indexOf(a.sem) - sortSemestres([a.sem, b.sem]).indexOf(b.sem));
+
+              const semestreKeys = semestreData.map((item) => item.sem);
+              const sortedSemKeys = sortSemestres(semestreKeys);
+              const semesterRangeLabel = sortedSemKeys.length === 0
+                ? "—"
+                : sortedSemKeys.length === 1
+                  ? sortedSemKeys[0]
+                  : `${sortedSemKeys[0]}-${sortedSemKeys[sortedSemKeys.length - 1]}`;
+
+              const totalMoyennesSemestres = semestreData.reduce((sum, item) => sum + (item.stats.moyennePonderee ?? 0), 0);
+              const semCount = semestreData.filter((item) => item.stats.moyennePonderee !== null).length;
+              const moyennesSemestresTotal = semCount > 0 ? totalMoyennesSemestres.toFixed(2) : null;
+              const totalNotesSemestres = semestreData.reduce((sum, item) => sum + item.stats.totalNote, 0);
+              const totalCoeffSemestres = semestreData.reduce((sum, item) => sum + item.stats.totalCoeff, 0);
+              const totalPondSemestres = semestreData.reduce((sum, item) => sum + item.stats.totalPond, 0);
+              const moyenneGenerale = totalCoeffSemestres > 0 ? (totalPondSemestres / totalCoeffSemestres).toFixed(2) : null;
+
+              return (
+                <>
+                  {semestreData.map(({ sem, list }) => renderSaisieTable(sem, list))}
+                  <Card style={{
+                borderColor: "#1e40af",
+                background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
+                color: "#eff6ff",
+                boxShadow: "0 18px 42px rgba(37,99,235,0.22)",
+              }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "0.03em", color: "#eff6ff" }}>Résumé général</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+                        <div style={{ padding: 14, borderRadius: 14, background: "#2563eb", border: "1px solid #1d4ed8", color: "#ffffff" }}>
+                          <div style={{ fontSize: 11, color: "#dbeafe", marginBottom: 6 }}>Total notes ({semesterRangeLabel})</div>
+                          <div style={{ fontSize: 18, fontWeight: 700, color: "#ffffff" }}>{totalNotesSemestres.toFixed(2)}</div>
+                        </div>
+                        <div style={{ padding: 14, borderRadius: 14, background: "#2563eb", border: "1px solid #1d4ed8", color: "#ffffff" }}>
+                          <div style={{ fontSize: 11, color: "#dbeafe", marginBottom: 6 }}>Somme moyennes semestrielles</div>
+                          <div style={{ fontSize: 18, fontWeight: 700, color: "#ffffff" }}>{moyennesSemestresTotal ?? "—"}</div>
+                        </div>
+                        <div style={{ padding: 14, borderRadius: 14, background: "#2563eb", border: "1px solid #041c5c", color: "#ffffff" }}>
+                          <div style={{ fontSize: 11, color: "#dbeafe", marginBottom: 6 }}>Moyenne générale</div>
+                          <div style={{ fontSize: 18, fontWeight: 700, color: "#ffffff" }}>{moyenneGenerale ?? "—"}/20</div>
+                        </div>
+                        <div style={{ padding: 14, borderRadius: 14, background: "#2563eb", border: "1px solid #1d4ed8", color: "#ffffff" }}>
+                          <div style={{ fontSize: 11, color: "#dbeafe", marginBottom: 6 }}>Total coefficient</div>
+                          <div style={{ fontSize: 18, fontWeight: 700, color: "#ffffff" }}>{totalCoeffSemestres}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </>
+              );
+            })()
           )}
 
           {/* Boutons d'action */}
@@ -825,14 +965,7 @@ export default function NotesSaisiePage() {
                   }
                 </Btn>
               )}
-              <Btn
-                variant="secondary"
-                onClick={generatePDF}
-                disabled={pdfGenerating || !hasNotes}
-              >
-                <Download size={16} style={{ marginRight: 6 }} />
-                {pdfGenerating ? "Génération…" : "Télécharger PDF"}
-              </Btn>
+             
             </div>
           )}
         </div>

@@ -15,6 +15,8 @@ import {
   ChevronDown,
   RotateCcw,
   Tag,
+  Layers,
+  Sparkles,
 } from "lucide-react";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
@@ -59,6 +61,12 @@ const PALETTE = [
   ["#14b8a6", "#0d9488"],
   ["#8b5cf6", "#7c3aed"],
 ];
+
+const getTodayDate = () => new Date().toISOString().split("T")[0];
+const getCurrentAcademicYear = () => {
+  const year = new Date().getFullYear();
+  return `${year}-${year + 1}`;
+};
 function getColors(seed) {
   const idx =
     (typeof seed === "string" ? seed.charCodeAt(0) : seed || 0) % PALETTE.length;
@@ -257,12 +265,12 @@ function InscriptionModal({ onClose, onSaved }) {
   const [filiereError, setFiliereError]   = useState(false);
   const [selected, setSelected]           = useState(null);
   const [form, setForm] = useState({
-    etudiant_id:        "",
-    filiere_id:         "",
-    niveau:             "L1",
-    statut:             "actif",          // ← nouveau champ
-    annee_universitaire: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
-    date_inscription:   new Date().toISOString().split("T")[0],
+    etudiant_id:         "",
+    filiere_id:          "",
+    niveau:              "L1",
+    statut:              "actif",          // ← nouveau champ
+    annee_universitaire: getCurrentAcademicYear(),
+    date_inscription:    getTodayDate(),
   });
   const [error, setError]   = useState("");
   const [loading, setLoading] = useState(false);
@@ -439,14 +447,39 @@ function InscriptionModal({ onClose, onSaved }) {
             />
 
             {/* Date d'inscription */}
-            <Input
-              label="Date d'inscription"
-              required
-              type="date"
-              value={form.date_inscription}
-              onChange={set("date_inscription")}
-              icon={Calendar}
-            />
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <Input
+                label="Date d'inscription"
+                required
+                type="date"
+                value={form.date_inscription}
+                onChange={set("date_inscription")}
+                icon={Calendar}
+              />
+              <button
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, date_inscription: getTodayDate() }))}
+                style={{
+                  alignSelf: "flex-start",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  background: "rgba(59,130,246,0.12)",
+                  border: "1px solid rgba(59,130,246,0.3)",
+                  color: "#3b82f6",
+                  padding: "8px 12px",
+                  borderRadius: "999px",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  transition: "transform 0.16s ease",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-1px)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+              >
+                <Calendar size={14} /> Aujourd'hui
+              </button>
+            </div>
           </FormSection>
 
         </div>
@@ -599,7 +632,14 @@ export default function InscriptionsPage() {
         @keyframes spin { to { transform: translateY(-50%) rotate(360deg) } }
       `}</style>
 
-      <div className="page-enter" style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+      <div style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 20,
+        minHeight: "100vh",
+        padding: "24px 0 40px",
+        background: "transparent",
+      }}>
 
         {/* En-tête */}
         <PageHeader
@@ -611,6 +651,42 @@ export default function InscriptionsPage() {
             </Btn>
           )}
         />
+        <div style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 14,
+          padding: 20,
+          borderRadius: "28px",
+          background: "var(--surface)",
+          boxShadow: "var(--shadow-sm)",
+          border: "1px solid var(--border)",
+        }}>
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
+            <div style={{ width: 52, height: 52, borderRadius: 18, background: "rgba(59,130,246,0.18)", display: "grid", placeItems: "center" }}>
+              <Layers size={26} color="#2563eb" />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <Sparkles size={16} color="#60a5fa" />
+                <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--text)" }}>
+                  Vitrine de gestion
+                </span>
+              </div>
+              <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: "var(--text)" }}>
+                Administration des inscriptions universitaires
+              </h2>
+             
+            </div>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 999, background: "rgba(59,130,246,0.08)", color: "var(--text)", fontSize: 13, border: "1px solid rgba(59,130,246,0.18)" }}>
+              <Calendar size={13} color="var(--accent)" /> Année : {getCurrentAcademicYear()}
+            </span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 999, background: "rgba(59,130,246,0.08)", color: "var(--text)", fontSize: 13, border: "1px solid rgba(59,130,246,0.18)" }}>
+              <Users size={13} color="var(--accent)" /> Étudiants inscrits : {inscriptions.length}
+            </span>
+          </div>
+        </div>
 
         {/* Barre filtres */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>

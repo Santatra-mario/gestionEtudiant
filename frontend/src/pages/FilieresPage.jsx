@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { X, Save } from "lucide-react";
+import { X, Save, Edit, Trash2 } from "lucide-react";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -397,6 +397,8 @@ export default function FilieresPage() {
     loading: false,
   });
 
+  const [activeButton, setActiveButton] = useState(null);
+
   const openConfirm = (message, onConfirm, title = "Confirmation") => {
     setConfirmState({
       open: true,
@@ -584,9 +586,37 @@ export default function FilieresPage() {
                       variant="ghost"
                       onClick={(e) => {
                         e.stopPropagation();
+                        setActiveButton(`filiere-${f.id}`);
                         setModal(f);
                       }}
+                      style={{
+                        background: activeButton === `filiere-${f.id}` 
+                          ? "linear-gradient(135deg, #15803d, #166534)" 
+                          : "linear-gradient(135deg, #22c55e, #16a34a)",
+                        color: "#fff",
+                        border: "1px solid #16a34a",
+                        transition: "all 0.2s ease",
+                        transform: activeButton === `filiere-${f.id}` ? "translateY(0)" : "translateY(0)",
+                        boxShadow: activeButton === `filiere-${f.id}` 
+                          ? "0 2px 8px rgba(34, 197, 94, 0.4)" 
+                          : "none",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (activeButton !== `filiere-${f.id}`) {
+                          e.currentTarget.style.background = "linear-gradient(135deg, #16a34a, #15803d)";
+                          e.currentTarget.style.transform = "translateY(-1px)";
+                          e.currentTarget.style.boxShadow = "0 4px 12px rgba(34, 197, 94, 0.3)";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (activeButton !== `filiere-${f.id}`) {
+                          e.currentTarget.style.background = "linear-gradient(135deg, #22c55e, #16a34a)";
+                          e.currentTarget.style.transform = "translateY(0)";
+                          e.currentTarget.style.boxShadow = "none";
+                        }
+                      }}
                     >
+                      <Edit size={14} className="h-4 w-4" style={{ marginRight: 6 }} />
                       Modifier
                     </Btn>
                   )}
@@ -603,6 +633,7 @@ export default function FilieresPage() {
                         );
                       }}
                     >
+                      <Trash2 size={14} className="h-4 w-4" style={{ marginRight: 6 }} />
                       Désactiver
                     </Btn>
                   )}
@@ -743,13 +774,41 @@ export default function FilieresPage() {
                               <Btn
                                 small
                                 variant="ghost"
-                                onClick={() =>
+                                onClick={() => {
+                                  setActiveButton(`matiere-${m.id}`);
                                   setMatiereModal({
                                     filiereId: f.id,
                                     initial: m,
-                                  })
-                                }
+                                  });
+                                }}
+                                style={{
+                                  background: activeButton === `matiere-${m.id}` 
+                                    ? "linear-gradient(135deg, #15803d, #166534)" 
+                                    : "linear-gradient(135deg, #22c55e, #16a34a)",
+                                  color: "#fff",
+                                  border: "1px solid #16a34a",
+                                  transition: "all 0.2s ease",
+                                  transform: activeButton === `matiere-${m.id}` ? "translateY(0)" : "translateY(0)",
+                                  boxShadow: activeButton === `matiere-${m.id}` 
+                                    ? "0 2px 8px rgba(34, 197, 94, 0.4)" 
+                                    : "none",
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (activeButton !== `matiere-${m.id}`) {
+                                    e.currentTarget.style.background = "linear-gradient(135deg, #16a34a, #15803d)";
+                                    e.currentTarget.style.transform = "translateY(-1px)";
+                                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(34, 197, 94, 0.3)";
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (activeButton !== `matiere-${m.id}`) {
+                                    e.currentTarget.style.background = "linear-gradient(135deg, #22c55e, #16a34a)";
+                                    e.currentTarget.style.transform = "translateY(0)";
+                                    e.currentTarget.style.boxShadow = "none";
+                                  }
+                                }}
                               >
+                                <Edit size={14} className="h-4 w-4" style={{ marginRight: 6 }} />
                                 Modifier
                               </Btn>
                               {isAdmin && (
@@ -764,6 +823,7 @@ export default function FilieresPage() {
                                     )
                                   }
                                 >
+                                  <Trash2 size={14} className="h-4 w-4" style={{ marginRight: 6 }} />
                                   Suppr.
                                 </Btn>
                               )}
@@ -792,9 +852,13 @@ export default function FilieresPage() {
       {modal && (
         <FiliereModal
           initial={modal === "create" ? null : modal}
-          onClose={() => setModal(null)}
+          onClose={() => {
+            setModal(null);
+            setActiveButton(null);
+          }}
           onSaved={() => {
             setModal(null);
+            setActiveButton(null);
             load();
           }}
         />
@@ -804,10 +868,14 @@ export default function FilieresPage() {
         <MatiereModal
           filiereId={matiereModal.filiereId}
           initial={matiereModal.initial}
-          onClose={() => setMatiereModal(null)}
+          onClose={() => {
+            setMatiereModal(null);
+            setActiveButton(null);
+          }}
           onSaved={() => {
             loadMatieres(matiereModal.filiereId);
             setMatiereModal(null);
+            setActiveButton(null);
           }}
         />
       )}

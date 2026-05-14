@@ -1,36 +1,61 @@
 /* Variables CSS pour le thème */
 :root {
-  /* Mode sombre par défaut */
-  --bg: #1a1a1a;
-  --surface: #2d2d2d;
-  --surface2: #404040;
-  --border: #555555;
-  --text: #ffffff;
-  --text-muted: #a0a0a0;
-  --primary: #6366f1;
-  --accent: #818cf8;
-  --success: #22c55e;
+  /* Mode sombre par défaut - couleurs inspirées de LoginPage */
+  --bg: #0b1120;
+  --surface: #111827;
+  --surface2: #1a2538;
+  --surface3: #1e2d52;
+  --border: rgba(255,255,255,0.08);
+  --border-h: rgba(255,255,255,0.16);
+  --text: #f0eadc;
+  --text-muted: #8a9ab8;
+  --text-soft: #6c757d;
+  --font-weight-base: 400;
+  --accent: #c9a227;
+  --accent-light: #d4af37;
+  --accent-dark: #a07c18;
+  --accent-glow: rgba(201,162,39,0.22);
+  --success: #4caf7d;
   --warning: #f59e0b;
-  --danger: #ef4444;
-  --info: #3b82f6;
-  --font-weight-base: normal;
+  --danger: #e57373;
+  --info: #06b6d4;
+  --navy: #162040;
+  --navy-light: #1e2d52;
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --radius-sm: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --shadow: 0 4px 16px rgba(0,0,0,0.15);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.1);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.2);
+  --shadow-modal: 0 20px 60px rgba(0,0,0,0.3);
+  --transition: 0.2s ease;
+  --topbar-bg: rgba(11,17,32,0.95);
 }
 
 /* Mode clair */
 [data-theme="light"] {
-  --bg: #ffffff;
-  --surface: #f8f9fa;
-  --surface2: #e9ecef;
-  --border: #dee2e6;
+  --bg: #f0f4f8;
+  --surface: #ffffff;
+  --surface2: #f8fafc;
+  --surface3: #e2e8f0;
+  --border: rgba(0,0,0,0.08);
+  --border-h: rgba(0,0,0,0.12);
   --text: #000000;
-  --text-muted: #6c757d;
-  --primary: #6366f1;
-  --accent: #818cf8;
-  --success: #22c55e;
+  --text-muted: #4a5568;
+  --text-soft: #6c757d;
+  --font-weight-base: 700;
+  --accent: #c9a227;
+  --accent-light: #d4af37;
+  --accent-dark: #a07c18;
+  --accent-glow: rgba(201,162,39,0.15);
+  --success: #4caf7d;
   --warning: #f59e0b;
-  --danger: #ef4444;
-  --info: #3b82f6;
-  --font-weight-base: bold;
+  --danger: #e57373;
+  --info: #06b6d4;
+  --navy: #e2e8f0;
+  --navy-light: #f1f5f9;
 }
 
 /* Styles de base */
@@ -41,62 +66,54 @@ body {
   transition: all 0.3s ease;
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-family: var(--font-body);
 }
 
-/* Textes en gras en mode clair */
-[data-theme="light"] * {
-  font-weight: bold !important;
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-[data-theme="light"] h1,
-[data-theme="light"] h2,
-[data-theme="light"] h3,
-[data-theme="light"] h4,
-[data-theme="light"] h5,
-[data-theme="light"] h6 {
-  font-weight: 900 !important;
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* Surfaces et cartes */
-.card,
-.surface {
-  background-color: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--text);
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
 }
 
-.surface2 {
-  background-color: var(--surface2);
-  color: var(--text);
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* Textes */
-.text {
-  color: var(--text);
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
-.text-muted {
-  color: var(--text-muted);
+/* Spinner */
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border);
+  border-top: 2px solid var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
 }
 
-/* Bordures */
-.border {
-  border-color: var(--border);
+.spinner.spinner-sm {
+  width: 16px;
+  height: 16px;
+  border-width: 1.5px;
 }
 
-/* Boutons */
-.btn {
-  background-color: var(--surface);
-  color: var(--text);
-  border: 1px solid var(--border);
-  font-weight: var(--font-weight-base);
-}
-
-.btn-primary {
-  background-color: var(--primary);
-  color: white;
-  border-color: var(--primary);
+/* Theme toggle spin */
+.theme-icon-spin {
+  animation: spin 0.6s ease;
 }
 
 .btn-success {

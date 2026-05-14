@@ -52,13 +52,26 @@ const getStats = async (req, res) => {
              ORDER BY FIELD(niveau,'L1','L2','L3','M1','M2')`
         );
 
-        // Derniers inscrits (5 derniers)
+        // Derniers inscrits (5 derniers) avec décision
         const [derniers_inscrits] = await db.query(
             `SELECT e.matricule, CONCAT(e.nom,' ',e.prenom) AS nom_complet,
-                    f.nom AS filiere, i.niveau, i.statut, i.date_inscription
+                    f.nom AS filiere, i.niveau, i.statut, i.date_inscription,
+                    COALESCE(vb.mention, 'En attente') AS decision
              FROM inscriptions i
              JOIN etudiants e ON i.etudiant_id = e.id
              JOIN filieres  f ON i.filiere_id  = f.id
+             LEFT JOIN (
+                SELECT i2.id, 
+                       CASE
+                           WHEN SUM(n.note * m.coefficient) / SUM(m.coefficient) >= 10 THEN 'Admis'
+                           WHEN SUM(n.note * m.coefficient) / SUM(m.coefficient) >= 8  THEN 'Rattrapage'
+                           ELSE 'Ajourné'
+                       END AS mention
+                FROM notes n
+                JOIN inscriptions i2 ON n.inscription_id = i2.id
+                JOIN matieres m ON n.matiere_id = m.id
+                GROUP BY i2.id
+             ) vb ON i.id = vb.id
              ORDER BY i.date_inscription DESC
              LIMIT 5`
         );

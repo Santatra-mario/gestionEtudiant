@@ -616,103 +616,6 @@ export default function EtudiantDetailPage() {
             </div>
           </div>
 
-          {/* ── Résumé académique ── */}
-          {historique.length > 0 && (
-            <div
-              style={{
-                background: "var(--surface)",
-                border: "1px solid var(--border)",
-                borderRadius: "var(--radius-lg)",
-                padding: "18px 20px",
-                boxShadow: "var(--shadow-sm)",
-              }}
-            >
-              {/* En-tête section */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  marginBottom: 16,
-                }}
-              >
-                <div
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 8,
-                    background: "linear-gradient(135deg,#4f8ef7,#2d6ee0)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <BarChart3 size={14} color="#fff" />
-                </div>
-                <span
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: "var(--text)",
-                  }}
-                >
-                  Résumé académique
-                </span>
-              </div>
-
-              <StatPill label="Total inscriptions" value={historique.length} />
-              <StatPill label="Admis" value={nbAdmis} color="var(--success)" />
-              <StatPill
-                label="Rattrapages"
-                value={nbRattrapage}
-                color="var(--warning)"
-              />
-              <StatPill
-                label="Ajournés"
-                value={nbAjourn}
-                color="var(--danger)"
-              />
-
-              {moyGlobale !== null && (
-                <div
-                  style={{
-                    marginTop: 14,
-                    padding: "12px 14px",
-                    background: `${moyenneColor(parseFloat(moyGlobale))}11`,
-                    border: `1px solid ${moyenneColor(parseFloat(moyGlobale))}33`,
-                    borderRadius: "var(--radius-sm)",
-                    textAlign: "center",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: "var(--text-muted)",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                      marginBottom: 4,
-                    }}
-                  >
-                    Moyenne globale
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 28,
-                      fontFamily: "var(--font-display)",
-                      fontWeight: 700,
-                      color: moyenneColor(parseFloat(moyGlobale)),
-                    }}
-                  >
-                    {moyGlobale}
-                    <span style={{ fontSize: 14, opacity: 0.6, marginLeft: 4 }}>
-                      /20
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
           {/* ── Bouton retour ── */}
           <Btn
             variant="ghost"
@@ -835,6 +738,103 @@ export default function EtudiantDetailPage() {
                 onViewNotes={() => navigate(`/notes?inscription=${h.id}`)}
               />
             ))
+          )}
+
+          {/* ── Résumé académique ── */}
+          {historique.length > 0 && (
+            <div
+              style={{
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                borderRadius: "var(--radius-lg)",
+                padding: "18px 20px",
+                boxShadow: "var(--shadow-sm)",
+                marginTop: 12,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: 16,
+                }}
+              >
+                <div
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 8,
+                    background: "linear-gradient(135deg,#4f8ef7,#2d6ee0)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <BarChart3 size={14} color="#fff" />
+                </div>
+                <span
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "var(--text)",
+                  }}
+                >
+                  Résumé académique
+                </span>
+              </div>
+
+              <StatPill label="Total inscriptions" value={historique.length} />
+              <StatPill label="Admis" value={nbAdmis} color="var(--success)" />
+              <StatPill
+                label="Rattrapages"
+                value={nbRattrapage}
+                color="var(--warning)"
+              />
+              <StatPill
+                label="Ajournés"
+                value={nbAjourn}
+                color="var(--danger)"
+              />
+
+              {moyGlobale !== null && (
+                <div
+                  style={{
+                    marginTop: 14,
+                    padding: "12px 14px",
+                    background: `${moyenneColor(parseFloat(moyGlobale))}11`,
+                    border: `1px solid ${moyenneColor(parseFloat(moyGlobale))}33`,
+                    borderRadius: "var(--radius-sm)",
+                    textAlign: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "var(--text-muted)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      marginBottom: 4,
+                    }}
+                  >
+                    Moyenne globale
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 28,
+                      fontFamily: "var(--font-display)",
+                      fontWeight: 700,
+                      color: moyenneColor(parseFloat(moyGlobale)),
+                    }}
+                  >
+                    {moyGlobale}
+                    <span style={{ fontSize: 14, opacity: 0.6, marginLeft: 4 }}>
+                      /20
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

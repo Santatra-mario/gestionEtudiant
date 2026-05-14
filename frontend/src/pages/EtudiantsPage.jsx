@@ -234,6 +234,8 @@ function EtudiantModal({ onClose, onSaved, initial }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const today = new Date().toISOString().split("T")[0];
+
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const handlePhoto = (e) => {
@@ -354,6 +356,15 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                 value={form.date_naissance}
                 onChange={set("date_naissance")}
                 icon={Calendar}
+                hint="Sélectionnez une date passée. Pas de date future."
+                min="1900-01-01"
+                max={today}
+                style={{
+                  borderRadius: "18px",
+                  padding: "12px 18px",
+                  background: "linear-gradient(180deg, var(--surface2), var(--surface))",
+                  boxShadow: "0 8px 20px rgba(79,142,247,0.12)",
+                }}
               />
               <Select
                 label="Sexe"
@@ -712,10 +723,13 @@ export default function EtudiantsPage() {
           style={{
             background: "var(--surface)",
             borderRadius: "var(--radius-lg)",
-            border: "1px solid var(--border)",
+            border: "2px solid var(--border)",
             overflow: "hidden",
-            boxShadow: "var(--shadow-sm)",
+            boxShadow: "var(--shadow)",
+            transition: "box-shadow 0.3s ease",
           }}
+          onMouseEnter={e => e.currentTarget.style.boxShadow = "var(--shadow-lg)"}
+          onMouseLeave={e => e.currentTarget.style.boxShadow = "var(--shadow)"}
         >
           <Table
             headers={[
@@ -758,7 +772,21 @@ export default function EtudiantsPage() {
               </tr>
             ) : (
               etudiants.map((e) => (
-                <Tr key={e.id} onClick={() => navigate(`/etudiants/${e.id}`)}>
+                <Tr key={e.id} onClick={() => navigate(`/etudiants/${e.id}`)} style={{
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer',
+                  transform: 'scale(1)',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'var(--surface2)';
+                  e.currentTarget.style.transform = 'scale(1.01)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.transform = 'scale(1)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}>
                   {/* Avatar */}
                   <Td style={{ width: 56, paddingRight: 4, paddingLeft: 16 }}>
                     <Avatar
@@ -885,9 +913,10 @@ export default function EtudiantsPage() {
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                padding: "12px 20px",
-                borderTop: "1px solid var(--border)",
+                padding: "16px 24px",
+                borderTop: "2px solid var(--border)",
                 background: "var(--surface2)",
+                borderRadius: "0 0 var(--radius-lg) var(--radius-lg)",
               }}
             >
               <span style={{ fontSize: 13, color: "var(--text-muted)" }}>

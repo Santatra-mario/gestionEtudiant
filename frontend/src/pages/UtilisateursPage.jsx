@@ -62,6 +62,9 @@ const AVATAR_GRAD = {
   enseignant: "linear-gradient(135deg,#a78bfa,#7c3aed)",
 };
 
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const isValidEmail = (email) => emailPattern.test(String(email).trim());
+
 /* ─── Composant : Avatar initiales ───────────────────────────────────────── */
 function Avatar({ user: u, size = 36 }) {
   const initials = `${u.prenom?.[0] || ""}${u.nom?.[0] || ""}`.toUpperCase();
@@ -89,7 +92,7 @@ function Avatar({ user: u, size = 36 }) {
 }
 
 /* ─── Composant : Pied de formulaire ─────────────────────────────────────── */
-function ModalFooter({ onClose, loading, submitLabel, submitIcon }) {
+function ModalFooter({ onClose, loading, submitLabel, submitIcon, disabled = false }) {
   return (
     <div
       style={{
@@ -101,10 +104,8 @@ function ModalFooter({ onClose, loading, submitLabel, submitIcon }) {
         borderTop: "1px solid var(--border)",
       }}
     >
-      <Btn variant="ghost" onClick={onClose} icon={<X size={15} />}>
-        Annuler
-      </Btn>
-      <Btn type="submit" loading={loading} icon={submitIcon}>
+      <Btn variant="ghost" onClick={onClose} icon={<X size={15} />}>Annuler</Btn>
+      <Btn type="submit" loading={loading} disabled={disabled} icon={submitIcon}>
         {submitLabel}
       </Btn>
     </div>
@@ -124,9 +125,22 @@ function CreateUserModal({ onClose, onSaved }) {
   const [loading, setLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const validEmail = isValidEmail(form.email);
+  const canSubmit = Boolean(
+    form.prenom.trim() &&
+      form.nom.trim() &&
+      validEmail &&
+      form.password.length >= 6,
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!canSubmit) {
+      setError(
+        "Veuillez compléter tous les champs obligatoires avec des valeurs valides.",
+      );
+      return;
+    }
     setError("");
     setLoading(true);
     try {
@@ -256,12 +270,25 @@ function CreateUserModal({ onClose, onSaved }) {
             </div>
           </FormSection>
         </div>
+        {(!canSubmit || error) && (
+          <div
+            style={{
+              fontSize: 13,
+              color: "var(--text-muted)",
+              marginTop: -10,
+              lineHeight: 1.4,
+            }}
+          >
+            Complétez les champs obligatoires et vérifiez votre e-mail/mot de passe.
+          </div>
+        )}
 
         <ModalFooter
           onClose={onClose}
           loading={loading}
+          disabled={!canSubmit}
           submitLabel="Créer le compte"
-          submitIcon={<UserPlus size={15} />}
+          submitIcon={<UserPlus size={15} className="h-4 w-4" />}
         />
       </form>
     </Modal>
@@ -279,9 +306,17 @@ function EditUserModal({ user: u, onClose, onSaved }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const validEmail = isValidEmail(form.email);
+  const canSubmit = Boolean(
+    form.prenom.trim() && form.nom.trim() && validEmail,
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!canSubmit) {
+      setError("Prénom, nom et e-mail valides sont requis.");
+      return;
+    }
     setError("");
     setLoading(true);
     try {
@@ -382,13 +417,20 @@ function EditUserModal({ user: u, onClose, onSaved }) {
             </Select>
           </FormSection>
         </div>
-
-        <ModalFooter
-          onClose={onClose}
-          loading={loading}
-          submitLabel="Enregistrer"
-          submitIcon={<Save size={15} />}
-        />
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {!canSubmit && (
+            <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
+              Prénom, nom et e-mail valides requis pour enregistrer.
+            </div>
+          )}
+          <ModalFooter
+            onClose={onClose}
+            loading={loading}
+            disabled={!canSubmit}
+            submitLabel="Enregistrer"
+            submitIcon={<Save size={15} className="h-4 w-4" />}
+          />
+        </div>
       </form>
     </Modal>
   );
@@ -404,15 +446,21 @@ function ChangePasswordModal({ user: u, onClose, onSaved }) {
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const mismatch = form.confirm.length > 0 && form.newPassword !== form.confirm;
+  const canSubmit =
+    form.newPassword.length >= 6 &&
+    form.confirm.length >= 6 &&
+    !mismatch;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (mismatch) {
-      setError("Les mots de passe ne correspondent pas.");
+    if (!canSubmit) {
+      setError(
+        "Le mot de passe doit être saisi deux fois et contenir au moins 6 caractères.",
+      );
       return;
     }
-    if (form.newPassword.length < 6) {
-      setError("Le mot de passe doit comporter au moins 6 caractères.");
+    if (mismatch) {
+      setError("Les mots de passe ne correspondent pas.");
       return;
     }
     setError("");
@@ -589,12 +637,20 @@ function ChangePasswordModal({ user: u, onClose, onSaved }) {
           )}
         </div>
 
-        <ModalFooter
-          onClose={onClose}
-          loading={loading}
-          submitLabel="Enregistrer"
-          submitIcon={<Save size={15} />}
-        />
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {!canSubmit && (
+            <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
+              Le mot de passe doit être saisi deux fois et contenir au moins 6 caractères.
+            </div>
+          )}
+          <ModalFooter
+            onClose={onClose}
+            loading={loading}
+            disabled={!canSubmit}
+            submitLabel="Enregistrer"
+            submitIcon={<Save size={15} className="h-4 w-4" />}
+          />
+        </div>
       </form>
     </Modal>
   );
