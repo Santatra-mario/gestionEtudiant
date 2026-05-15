@@ -21,13 +21,20 @@ const getStats = async (req, res) => {
              AND NOT EXISTS (SELECT 1 FROM notes n WHERE n.inscription_id = i.id)`
         );
 
-        // Taux de réussite (moyenne >= 10)
+        // Taux de réussite (calculé sur les inscriptions actives disposant de notes)
         const [[{ admis, total_avec_notes }]] = await db.query(
             `SELECT
-                SUM(IF(vb.moyenne >= 10, 1, 0)) AS admis,
+                SUM(IF(sub.moyenne >= 10, 1, 0)) AS admis,
                 COUNT(*) AS total_avec_notes
-             FROM vue_bulletins vb
-             WHERE vb.semestre = 'S1'`
+             FROM (
+                 SELECT i.id AS inscription_id,
+                        SUM(n.note * m.coefficient) / SUM(m.coefficient) AS moyenne
+                 FROM notes n
+                 JOIN inscriptions i ON n.inscription_id = i.id
+                 JOIN matieres m ON n.matiere_id = m.id
+                 WHERE i.statut = 'actif'
+                 GROUP BY i.id
+             ) AS sub`
         );
         const taux_reussite = total_avec_notes > 0
             ? Math.round((admis / total_avec_notes) * 100)

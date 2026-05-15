@@ -18,8 +18,9 @@ import {
   BarChart3,
 } from "lucide-react";
 import api from "../services/api";
+import { useNotification, NotificationDisplay } from "../hooks/useNotification";
 import { PageHeader, Card, Badge, Btn, Spinner, Alert } from "../components/ui";
-
+ 
 /* ─── Palettes ───────────────────────────────────────────────────────────── */
 const STATUT_COLOR = {
   actif: "success",
@@ -40,14 +41,14 @@ const AVATAR_COLORS = [
   ["#ec4899", "#be185d"],
   ["#14b8a6", "#0d9488"],
 ];
-
+ 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
 const mention_icon = {
   Admis: CheckCircle2,
   Rattrapage: AlertCircle,
   Ajourné: AlertCircle,
 };
-
+ 
 function fmtDate(d) {
   if (!d) return null;
   return new Date(d).toLocaleDateString("fr", {
@@ -56,12 +57,12 @@ function fmtDate(d) {
     year: "numeric",
   });
 }
-
+ 
 function moyenneColor(m) {
   if (m === null || m === undefined) return "var(--text-muted)";
   return parseFloat(m) >= 10 ? "var(--success)" : "var(--danger)";
 }
-
+ 
 /* ─── Composant : Ligne d'information ───────────────────────────────────── */
 function InfoRow({ label, value, icon: Icon, last = false }) {
   if (!value) return null;
@@ -119,7 +120,7 @@ function InfoRow({ label, value, icon: Icon, last = false }) {
     </div>
   );
 }
-
+ 
 /* ─── Composant : Stat résumé ────────────────────────────────────────────── */
 function StatPill({ label, value, color = "var(--text)" }) {
   return (
@@ -137,13 +138,13 @@ function StatPill({ label, value, color = "var(--text)" }) {
     </div>
   );
 }
-
+ 
 /* ─── Composant : Carte d'inscription (historique) ──────────────────────── */
 function InscriptionCard({ h, onViewNotes }) {
   const moyenne = h.moyenne != null ? parseFloat(h.moyenne) : null;
   const MIcon = mention_icon[h.mention] || Clock;
   const pct = moyenne != null ? Math.min(100, (moyenne / 20) * 100) : 0;
-
+ 
   return (
     <div
       style={{
@@ -219,7 +220,7 @@ function InscriptionCard({ h, onViewNotes }) {
           )}
         </div>
       </div>
-
+ 
       {/* Bloc moyenne */}
       {moyenne != null ? (
         <div
@@ -249,7 +250,7 @@ function InscriptionCard({ h, onViewNotes }) {
             >
               <TrendingUp size={18} color={moyenneColor(moyenne)} />
             </div>
-
+ 
             <div>
               <div
                 style={{
@@ -277,7 +278,7 @@ function InscriptionCard({ h, onViewNotes }) {
                 </span>
               </div>
             </div>
-
+ 
             {/* Barre de progression */}
             <div style={{ flex: 1, marginLeft: 8 }}>
               <div
@@ -327,7 +328,7 @@ function InscriptionCard({ h, onViewNotes }) {
               </div>
             </div>
           </div>
-
+ 
           {/* Seuil de passage */}
           <div
             style={{
@@ -375,7 +376,7 @@ function InscriptionCard({ h, onViewNotes }) {
           <Clock size={14} /> Aucune moyenne enregistrée pour cette inscription.
         </div>
       )}
-
+ 
       {/* Action */}
       <Btn
         small
@@ -388,17 +389,21 @@ function InscriptionCard({ h, onViewNotes }) {
     </div>
   );
 }
-
+ 
 /* ─── Page principale ────────────────────────────────────────────────────── */
 export default function EtudiantDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+ 
+  // ✅ Notifications
+  const { notification, hideNotification, success, error: showError } = useNotification();
+ 
   const [etudiant, setEtudiant] = useState(null);
   const [historique, setHistorique] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [imgError, setImgError] = useState(false);
-
+ 
   useEffect(() => {
     setLoading(true);
     Promise.all([
@@ -408,11 +413,23 @@ export default function EtudiantDetailPage() {
       .then(([e, h]) => {
         setEtudiant(e.data.data);
         setHistorique(h.data.data);
+        // ✅ Notification de chargement réussi
+        success(`Dossier de ${e.data.data.prenom} ${e.data.data.nom} chargé avec succès.`);
       })
-      .catch(() => setError("Impossible de charger les données de l'étudiant."))
+      .catch(() => {
+        setError("Impossible de charger les données de l'étudiant.");
+        // ✅ Notification d'erreur de chargement
+        showError("Erreur lors du chargement du dossier étudiant.");
+      })
       .finally(() => setLoading(false));
   }, [id]);
-
+ 
+  // ✅ Handler navigation vers notes avec notification
+  const handleViewNotes = (h) => {
+    success(`Ouverture des notes — ${h.filiere_nom} (${h.annee_universitaire}, ${h.niveau})`);
+    setTimeout(() => navigate(`/notes?inscription=${h.id}`), 600);
+  };
+ 
   if (loading)
     return (
       <div
@@ -428,19 +445,17 @@ export default function EtudiantDetailPage() {
     );
   if (error) return <Alert type="danger">{error}</Alert>;
   if (!etudiant) return <Alert type="warning">Étudiant introuvable.</Alert>;
-
+ 
   /* Avatar */
   const photoSrc =
     etudiant.photo && !imgError ? `/uploads/${etudiant.photo}` : null;
   const idx = (etudiant.prenom?.charCodeAt(0) || 0) % AVATAR_COLORS.length;
   const [gradFrom, gradTo] = AVATAR_COLORS[idx];
   const initials = `${(etudiant.prenom?.[0] || "").toUpperCase()}${(etudiant.nom?.[0] || "").toUpperCase()}`;
-
+ 
   /* Stats */
   const nbAdmis = historique.filter((h) => h.mention === "Admis").length;
-  const nbRattrapage = historique.filter(
-    (h) => h.mention === "Rattrapage",
-  ).length;
+  const nbRattrapage = historique.filter((h) => h.mention === "Rattrapage").length;
   const nbAjourn = historique.filter((h) => h.mention === "Ajourné").length;
   const moyennes = historique
     .filter((h) => h.moyenne != null)
@@ -449,16 +464,19 @@ export default function EtudiantDetailPage() {
     moyennes.length > 0
       ? (moyennes.reduce((a, b) => a + b, 0) / moyennes.length).toFixed(2)
       : null;
-
+ 
   return (
     <div className="page-enter">
+      {/* ✅ NotificationDisplay en haut de page */}
+      <NotificationDisplay notification={notification} onClose={hideNotification} />
+ 
       {/* ── En-tête ── */}
       <PageHeader
         title={`${etudiant.prenom} ${etudiant.nom}`}
         subtitle={`Matricule : ${etudiant.matricule}`}
         back={() => navigate(-1)}
       />
-
+ 
       <div
         style={{
           display: "grid",
@@ -488,7 +506,6 @@ export default function EtudiantDetailPage() {
                 position: "relative",
               }}
             >
-              {/* Motif points */}
               <div
                 style={{
                   position: "absolute",
@@ -500,9 +517,9 @@ export default function EtudiantDetailPage() {
                 }}
               />
             </div>
-
+ 
             <div style={{ padding: "0 20px 20px", position: "relative" }}>
-              {/* Photo / Avatar (chevauchant le bandeau) */}
+              {/* Photo / Avatar */}
               <div
                 style={{
                   display: "flex",
@@ -546,7 +563,7 @@ export default function EtudiantDetailPage() {
                     {initials}
                   </div>
                 )}
-
+ 
                 {/* Nom & Matricule */}
                 <div style={{ marginTop: 12, textAlign: "center" }}>
                   <div
@@ -574,7 +591,7 @@ export default function EtudiantDetailPage() {
                     {etudiant.matricule}
                   </div>
                 </div>
-
+ 
                 {etudiant.statut && (
                   <div style={{ marginTop: 10 }}>
                     <Badge color={STATUT_COLOR[etudiant.statut] || "muted"} dot>
@@ -583,7 +600,7 @@ export default function EtudiantDetailPage() {
                   </div>
                 )}
               </div>
-
+ 
               {/* Informations personnelles */}
               <div>
                 <InfoRow
@@ -615,7 +632,7 @@ export default function EtudiantDetailPage() {
               </div>
             </div>
           </div>
-
+ 
           {/* ── Bouton retour ── */}
           <Btn
             variant="ghost"
@@ -626,7 +643,7 @@ export default function EtudiantDetailPage() {
             Retour à la liste
           </Btn>
         </div>
-
+ 
         {/* ════════════════════ COLONNE DROITE ════════════════════ */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {/* ── Titre section historique ── */}
@@ -682,7 +699,7 @@ export default function EtudiantDetailPage() {
               </Badge>
             </div>
           </div>
-
+ 
           {/* ── Liste des inscriptions ── */}
           {historique.length === 0 ? (
             <div
@@ -735,11 +752,12 @@ export default function EtudiantDetailPage() {
               <InscriptionCard
                 key={h.id}
                 h={h}
-                onViewNotes={() => navigate(`/notes?inscription=${h.id}`)}
+                // ✅ handleViewNotes avec notification dynamique
+                onViewNotes={() => handleViewNotes(h)}
               />
             ))
           )}
-
+ 
           {/* ── Résumé académique ── */}
           {historique.length > 0 && (
             <div
@@ -783,20 +801,12 @@ export default function EtudiantDetailPage() {
                   Résumé académique
                 </span>
               </div>
-
+ 
               <StatPill label="Total inscriptions" value={historique.length} />
               <StatPill label="Admis" value={nbAdmis} color="var(--success)" />
-              <StatPill
-                label="Rattrapages"
-                value={nbRattrapage}
-                color="var(--warning)"
-              />
-              <StatPill
-                label="Ajournés"
-                value={nbAjourn}
-                color="var(--danger)"
-              />
-
+              <StatPill label="Rattrapages" value={nbRattrapage} color="var(--warning)" />
+              <StatPill label="Ajournés" value={nbAjourn} color="var(--danger)" />
+ 
               {moyGlobale !== null && (
                 <div
                   style={{

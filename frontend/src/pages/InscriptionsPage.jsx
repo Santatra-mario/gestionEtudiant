@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useNotification, NotificationDisplay } from "../hooks/useNotification";
+import { Messages, formatErrorMessage } from "../utils/messages";
 import {
   PageHeader,
   Btn,
@@ -259,7 +261,7 @@ function StatutPicker({ value, onChange }) {
 }
 
 // ─── Modal nouvelle inscription ───────────────────────────────────────────────
-function InscriptionModal({ onClose, onSaved }) {
+function InscriptionModal({ onClose, onSaved, onSuccess, onError }) {
   const [filieres, setFilieres]           = useState([]);
   const [filiereLoading, setFiliereLoading] = useState(true);
   const [filiereError, setFiliereError]   = useState(false);
@@ -293,9 +295,12 @@ function InscriptionModal({ onClose, onSaved }) {
     setLoading(true);
     try {
       await api.post("/inscriptions", form);
-      onSaved();
+      onSuccess && onSuccess(Messages.INSCRIPTION_CREATED(form.etudiant_id));
+      setTimeout(onSaved, 300);
     } catch (err) {
-      setError(err.response?.data?.message || "Une erreur est survenue.");
+      const errMsg = formatErrorMessage(err) || Messages.INSCRIPTION_ERROR;
+      setError(errMsg);
+      onError && onError(errMsg);
     } finally {
       setLoading(false);
     }
@@ -508,7 +513,7 @@ function InscriptionModal({ onClose, onSaved }) {
 }
 
 // ─── Modal changement de statut ───────────────────────────────────────────────
-function StatutModal({ inscription, onClose, onSaved }) {
+function StatutModal({ inscription, onClose, onSaved, onSuccess, onError }) {
   const [statut, setStatut]   = useState(inscription.statut);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState("");
@@ -518,9 +523,12 @@ function StatutModal({ inscription, onClose, onSaved }) {
     setLoading(true);
     try {
       await api.patch(`/inscriptions/${inscription.id}/statut`, { statut });
-      onSaved();
+      onSuccess && onSuccess(Messages.INSCRIPTION_UPDATED(inscription.etudiant_nom));
+      setTimeout(onSaved, 300);
     } catch (err) {
-      setError(err.response?.data?.message || "Erreur lors de la mise à jour.");
+      const errMsg = formatErrorMessage(err) || Messages.INSCRIPTION_ERROR;
+      setError(errMsg);
+      onError && onError(errMsg);
     } finally {
       setLoading(false);
     }
@@ -596,6 +604,7 @@ function SkeletonRow() {
 export default function InscriptionsPage() {
   const { user } = useAuth();
   const canEdit  = ["administrateur", "secretaire"].includes(user?.role);
+  const { notification, hideNotification, success: showSuccess, error: showError } = useNotification();
 
   const [inscriptions, setInscriptions] = useState([]);
   const [loading, setLoading]           = useState(true);
@@ -881,6 +890,8 @@ export default function InscriptionsPage() {
         <InscriptionModal
           onClose={() => setShowModal(false)}
           onSaved={() => { setShowModal(false); load(); }}
+          onSuccess={showSuccess}
+          onError={showError}
         />
       )}
       {statutModal && (
@@ -888,8 +899,11 @@ export default function InscriptionsPage() {
           inscription={statutModal}
           onClose={() => setStatutModal(null)}
           onSaved={() => { setStatutModal(null); load(); }}
+          onSuccess={showSuccess}
+          onError={showError}
         />
       )}
+      <NotificationDisplay notification={notification} onClose={hideNotification} />
     </>
   );
 }

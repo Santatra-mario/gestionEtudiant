@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useNotification, NotificationDisplay } from "../hooks/useNotification";
+import { Messages, formatErrorMessage } from "../utils/messages";
 import {
   PageHeader,
   Btn,
@@ -51,7 +53,6 @@ const PALETTE = [
 ];
 
 function getColors(seed) {
-  // Sécurité : charCodeAt("") retourne NaN → on force 0
   const code =
     typeof seed === "string" && seed.length > 0
       ? seed.charCodeAt(0)
@@ -59,7 +60,7 @@ function getColors(seed) {
         ? seed
         : 0;
   const idx = (isNaN(code) ? 0 : Math.abs(code)) % PALETTE.length;
-  return PALETTE[idx] || PALETTE[0]; // fallback garanti
+  return PALETTE[idx] || PALETTE[0];
 }
 
 // ─── Composant Avatar ─────────────────────────────────────────────────────
@@ -126,7 +127,6 @@ function PhotoPicker({ photo, preview, prenom, nom, onFileChange }) {
         padding: "20px 0 8px",
       }}
     >
-      {/* Cercle avatar / aperçu photo */}
       <div style={{ position: "relative", display: "inline-flex" }}>
         {src ? (
           <img
@@ -162,7 +162,6 @@ function PhotoPicker({ photo, preview, prenom, nom, onFileChange }) {
             {initials || <User size={34} color="#fff" />}
           </div>
         )}
-        {/* Bouton caméra overlay */}
         <label
           style={{
             position: "absolute",
@@ -220,6 +219,9 @@ const STATUT_COLOR = {
 function EtudiantModal({ onClose, onSaved, initial }) {
   const isEdit = !!initial?.id;
 
+  // ✅ CORRECTION 1 : useNotification manquait dans EtudiantModal
+  const { notification, hideNotification, success, error: showError } = useNotification();
+
   const [form, setForm] = useState({
     nom: initial?.nom || "",
     prenom: initial?.prenom || "",
@@ -246,9 +248,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
     setPhotoPreview(url);
   };
 
-  // Validation téléphone Madagascar : 10 chiffres (ex: 0341234567 ou +261341234567)
   const phoneDigits = form.telephone.replace(/[\s\-\+]/g, "");
-  // Accepter: 034... (10 chiffres) OU 261... (12 chiffres avec indicatif)
   const phoneValid =
     !form.telephone.trim() ||
     /^0[23][0-9]{8}$/.test(phoneDigits) ||
@@ -272,173 +272,177 @@ function EtudiantModal({ onClose, onSaved, initial }) {
         await api.put(`/etudiants/${initial.id}`, fd, {
           headers: { "Content-Type": "multipart/form-data" },
         });
+        success(Messages.STUDENT_UPDATED(`${form.prenom} ${form.nom}`));
       } else {
         await api.post("/etudiants", fd, {
           headers: { "Content-Type": "multipart/form-data" },
         });
+        success(Messages.STUDENT_CREATED(`${form.prenom} ${form.nom}`));
       }
-      onSaved();
+      setTimeout(onSaved, 500);
     } catch (err) {
-      setError(err.response?.data?.message || "Une erreur est survenue.");
+      setError(formatErrorMessage(err) || Messages.STUDENT_ERROR);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal
-      title={isEdit ? "Modifier l'étudiant" : "Nouvel étudiant"}
-      subtitle={
-        isEdit
-          ? `Matricule : ${initial.matricule}`
-          : "Remplissez les informations ci-dessous"
-      }
-      onClose={onClose}
-      width={580}
-    >
-      <form
-        onSubmit={handleSubmit}
-        style={{ display: "flex", flexDirection: "column", gap: 0 }}
+    <>
+      <NotificationDisplay notification={notification} onClose={hideNotification} />
+      <Modal
+        title={isEdit ? "Modifier l'étudiant" : "Nouvel étudiant"}
+        subtitle={
+          isEdit
+            ? `Matricule : ${initial.matricule}`
+            : "Remplissez les informations ci-dessous"
+        }
+        onClose={onClose}
+        width={580}
       >
-        {/* Photo */}
-        <PhotoPicker
-          photo={initial?.photo}
-          preview={photoPreview}
-          prenom={form.prenom}
-          nom={form.nom}
-          onFileChange={handlePhoto}
-        />
-
-        {error && (
-          <div style={{ margin: "12px 0 4px" }}>
-            <Alert type="danger">{error}</Alert>
-          </div>
-        )}
-
-        {/* Séparateur décoratif */}
-        <div
-          style={{
-            height: 1,
-            background:
-              "linear-gradient(to right, transparent, var(--border), transparent)",
-            margin: "16px 0",
-          }}
-        />
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
-          {/* Section Identité */}
-          <FormSection title="Identité" icon={User}>
-            <FormRow>
-              <Input
-                label="Prénom"
-                required
-                value={form.prenom}
-                onChange={set("prenom")}
-                placeholder="Jean"
-                icon={User}
-                hint="Prénom(s) de l'étudiant"
-              />
-              <Input
-                label="Nom"
-                required
-                value={form.nom}
-                onChange={set("nom")}
-                placeholder="Rakoto"
-                icon={User}
-                hint="Nom de famille"
-              />
-            </FormRow>
-            <FormRow>
-              <Input
-                label="Date de naissance"
-                required
-                type="date"
-                value={form.date_naissance}
-                onChange={set("date_naissance")}
-                icon={Calendar}
-                hint="Sélectionnez une date passée. Pas de date future."
-                min="1900-01-01"
-                max={today}
-                style={{
-                  borderRadius: "18px",
-                  padding: "12px 18px",
-                  background: "linear-gradient(180deg, var(--surface2), var(--surface))",
-                  boxShadow: "0 8px 20px rgba(79,142,247,0.12)",
-                }}
-              />
-              <Select
-                label="Sexe"
-                required
-                value={form.sexe}
-                onChange={set("sexe")}
-              >
-                <option value="M">👦 Masculin</option>
-                <option value="F">👧 Féminin</option>
-              </Select>
-            </FormRow>
-          </FormSection>
-
-          {/* Section Contact */}
-          <FormSection title="Contact" icon={Phone}>
-            <Input
-              label="Adresse e-mail"
-              type="email"
-              value={form.email}
-              onChange={set("email")}
-              placeholder="jean.rakoto@email.com"
-              icon={Mail}
-            />
-            <FormRow>
-              <Input
-                label="Téléphone"
-                value={form.telephone}
-                onChange={(e) => {
-                  // Autoriser chiffres, espaces, +, tirets uniquement
-                  const val = e.target.value.replace(/[^\d\s\+\-]/g, "");
-                  setForm(f => ({ ...f, telephone: val }));
-                }}
-                placeholder="034 12 345 67"
-                icon={Phone}
-                maxLength={15}
-                error={phoneError}
-                hint="Format Madagascar : 034 XX XXX XX (10 chiffres)"
-              />
-              <Input
-                label="Adresse"
-                value={form.adresse}
-                onChange={set("adresse")}
-                placeholder="Antananarivo"
-                icon={MapPin}
-              />
-            </FormRow>
-          </FormSection>
-        </div>
-
-        {/* Actions */}
-        <div
-          style={{
-            display: "flex",
-            gap: 10,
-            justifyContent: "flex-end",
-            marginTop: 28,
-            paddingTop: 20,
-            borderTop: "1px solid var(--border)",
-          }}
+        <form
+          onSubmit={handleSubmit}
+          style={{ display: "flex", flexDirection: "column", gap: 0 }}
         >
-          <Btn variant="ghost" onClick={onClose} icon={<X size={15} />}>
-            Annuler
-          </Btn>
-          <Btn
-            type="submit"
-            loading={loading}
-            disabled={!isValid}
-            icon={<Save size={15} />}
+          {/* Photo */}
+          <PhotoPicker
+            photo={initial?.photo}
+            preview={photoPreview}
+            prenom={form.prenom}
+            nom={form.nom}
+            onFileChange={handlePhoto}
+          />
+
+          {error && (
+            <div style={{ margin: "12px 0 4px" }}>
+              <Alert type="danger">{error}</Alert>
+            </div>
+          )}
+
+          {/* Séparateur décoratif */}
+          <div
+            style={{
+              height: 1,
+              background:
+                "linear-gradient(to right, transparent, var(--border), transparent)",
+              margin: "16px 0",
+            }}
+          />
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+            {/* Section Identité */}
+            <FormSection title="Identité" icon={User}>
+              <FormRow>
+                <Input
+                  label="Prénom"
+                  required
+                  value={form.prenom}
+                  onChange={set("prenom")}
+                  placeholder="Jean"
+                  icon={User}
+                  hint="Prénom(s) de l'étudiant"
+                />
+                <Input
+                  label="Nom"
+                  required
+                  value={form.nom}
+                  onChange={set("nom")}
+                  placeholder="Rakoto"
+                  icon={User}
+                  hint="Nom de famille"
+                />
+              </FormRow>
+              <FormRow>
+                <Input
+                  label="Date de naissance"
+                  required
+                  type="date"
+                  value={form.date_naissance}
+                  onChange={set("date_naissance")}
+                  icon={Calendar}
+                  hint="Sélectionnez une date passée. Pas de date future."
+                  min="1900-01-01"
+                  max={today}
+                  style={{
+                    borderRadius: "18px",
+                    padding: "12px 18px",
+                    background: "linear-gradient(180deg, var(--surface2), var(--surface))",
+                    boxShadow: "0 8px 20px rgba(79,142,247,0.12)",
+                  }}
+                />
+                <Select
+                  label="Sexe"
+                  required
+                  value={form.sexe}
+                  onChange={set("sexe")}
+                >
+                  <option value="M">👦 Masculin</option>
+                  <option value="F">👧 Féminin</option>
+                </Select>
+              </FormRow>
+            </FormSection>
+
+            {/* Section Contact */}
+            <FormSection title="Contact" icon={Phone}>
+              <Input
+                label="Adresse e-mail"
+                type="email"
+                value={form.email}
+                onChange={set("email")}
+                placeholder="jean.rakoto@email.com"
+                icon={Mail}
+              />
+              <FormRow>
+                <Input
+                  label="Téléphone"
+                  value={form.telephone}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^\d\s\+\-]/g, "");
+                    setForm(f => ({ ...f, telephone: val }));
+                  }}
+                  placeholder="034 12 345 67"
+                  icon={Phone}
+                  maxLength={15}
+                  error={phoneError}
+                  hint="Format Madagascar : 034 XX XXX XX (10 chiffres)"
+                />
+                <Input
+                  label="Adresse"
+                  value={form.adresse}
+                  onChange={set("adresse")}
+                  placeholder="Antananarivo"
+                  icon={MapPin}
+                />
+              </FormRow>
+            </FormSection>
+          </div>
+
+          {/* Actions */}
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              justifyContent: "flex-end",
+              marginTop: 28,
+              paddingTop: 20,
+              borderTop: "1px solid var(--border)",
+            }}
           >
-            {isEdit ? "Enregistrer les modifications" : "Créer l'étudiant"}
-          </Btn>
-        </div>
-      </form>
-    </Modal>
+            <Btn variant="ghost" onClick={onClose} icon={<X size={15} />}>
+              Annuler
+            </Btn>
+            <Btn
+              type="submit"
+              loading={loading}
+              disabled={!isValid}
+              icon={<Save size={15} />}
+            >
+              {isEdit ? "Enregistrer les modifications" : "Créer l'étudiant"}
+            </Btn>
+          </div>
+        </form>
+      </Modal>
+    </>
   );
 }
 
@@ -456,7 +460,6 @@ function DeleteModal({ student, onConfirm, onCancel, loading }) {
           padding: "8px 0 24px",
         }}
       >
-        {/* Icône d'avertissement */}
         <div
           style={{
             width: 64,
@@ -472,7 +475,6 @@ function DeleteModal({ student, onConfirm, onCancel, loading }) {
           <AlertTriangle size={28} color="#ef4444" />
         </div>
 
-        {/* Nom de l'étudiant */}
         <div style={{ textAlign: "center" }}>
           <p
             style={{
@@ -570,6 +572,7 @@ const LIMIT = 20;
 export default function EtudiantsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { notification, hideNotification, success, error: showError } = useNotification();
   const canEdit = ["administrateur", "secretaire"].includes(user?.role);
 
   const [etudiants, setEtudiants] = useState([]);
@@ -577,8 +580,8 @@ export default function EtudiantsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [modal, setModal] = useState(null); // null | 'create' | étudiant obj
-  const [toDelete, setToDelete] = useState(null); // étudiant obj
+  const [modal, setModal] = useState(null);
+  const [toDelete, setToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
@@ -605,8 +608,11 @@ export default function EtudiantsPage() {
     setDeleting(true);
     try {
       await api.delete(`/etudiants/${toDelete.id}`);
+      success(Messages.STUDENT_DELETED(`${toDelete.prenom} ${toDelete.nom}`));
       setToDelete(null);
       load();
+    } catch (err) {
+      showError(formatErrorMessage(err) || Messages.STUDENT_ERROR);
     } finally {
       setDeleting(false);
     }
@@ -616,9 +622,10 @@ export default function EtudiantsPage() {
   const startRecord = (page - 1) * LIMIT + 1;
   const endRecord = Math.min(page * LIMIT, total);
 
+  // ✅ CORRECTION 2 : tout le JSX est dans UN SEUL return, DeleteModal inclus
   return (
     <>
-      {/* Style shimmer injecté une fois */}
+      <NotificationDisplay notification={notification} onClose={hideNotification} />
       <style>{`
         @keyframes shimmer {
           0%   { background-position: 200% 0 }
@@ -772,21 +779,25 @@ export default function EtudiantsPage() {
               </tr>
             ) : (
               etudiants.map((e) => (
-                <Tr key={e.id} onClick={() => navigate(`/etudiants/${e.id}`)} style={{
-                  transition: 'all 0.2s ease',
-                  cursor: 'pointer',
-                  transform: 'scale(1)',
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.background = 'var(--surface2)';
-                  e.currentTarget.style.transform = 'scale(1.01)';
-                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.background = 'transparent';
-                  e.currentTarget.style.transform = 'scale(1)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}>
+                <Tr
+                  key={e.id}
+                  onClick={() => navigate(`/etudiants/${e.id}`)}
+                  style={{
+                    transition: "all 0.2s ease",
+                    cursor: "pointer",
+                    transform: "scale(1)",
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = "var(--surface2)";
+                    e.currentTarget.style.transform = "scale(1.01)";
+                    e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.1)";
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.transform = "scale(1)";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                >
                   {/* Avatar */}
                   <Td style={{ width: 56, paddingRight: 4, paddingLeft: 16 }}>
                     <Avatar
@@ -850,7 +861,7 @@ export default function EtudiantsPage() {
 
                   {/* Sexe */}
                   <Td>
-                    <span style={{ fontSize: 13 }}>
+                    <span style={{ fontSize: 12.15 }}>
                       {e.sexe === "M" ? "👦 M" : e.sexe === "F" ? "👧 F" : "—"}
                     </span>
                   </Td>
@@ -880,7 +891,7 @@ export default function EtudiantsPage() {
                           <Tooltip text="Modifier">
                             <Btn
                               small
-                              variant="ghost"
+                              variant="success"
                               onClick={() => setModal(e)}
                               icon={<Edit size={13} />}
                             >
@@ -934,7 +945,6 @@ export default function EtudiantsPage() {
                 >
                   Précédent
                 </Btn>
-                {/* Indicateur de page */}
                 <span
                   style={{
                     padding: "5px 12px",
@@ -977,7 +987,7 @@ export default function EtudiantsPage() {
         />
       )}
 
-      {/* Modal suppression */}
+      {/* ✅ CORRECTION 2 : DeleteModal déplacé DANS le return, avant </> */}
       <DeleteModal
         student={toDelete}
         onConfirm={handleDelete}

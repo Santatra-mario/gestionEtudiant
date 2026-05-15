@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
+  LineChart, Line, CartesianGrid,
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from 'recharts'
@@ -156,8 +157,9 @@ function ChartCard({ title, icon: Icon, children }) {
     onClick={() => setIsExpanded(!isExpanded)}
     hover={false}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 22 }}>
-        <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--surface2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '2px solid var(--border)', transition: 'all 0.3s ease', transform: isExpanded ? 'rotate(5deg)' : 'rotate(0deg)' }}>
-          <Icon size={20} aria-hidden="true" style={{ color: 'var(--accent)' }} />
+        <div className="h-10 w-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center transition-all duration-300"
+          style={{ transform: isExpanded ? 'rotate(5deg)' : 'rotate(0deg)' }}>
+          <Icon size={20} aria-hidden="true" className="text-sky-600" />
         </div>
         <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', margin: 0 }}>{title}</h2>
         <div style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)', transition: 'transform 0.3s ease', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
@@ -210,41 +212,49 @@ export default function DashboardPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, marginBottom: 32 }}>
         <ChartCard title="Étudiants par filière" icon={BarChart3}>
           {stats?.par_filiere?.length ? (
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={stats.par_filiere} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart data={stats.par_filiere} margin={{ top: 12, right: 16, left: -10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="filiere" tick={{ fill: 'var(--text-muted)', fontSize: 12 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 12 }} axisLine={false} tickLine={false} />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(79,142,247,0.08)' }} />
-                <Bar dataKey="nb_etudiants" name="Étudiants" fill="var(--accent)" radius={[6, 6, 0, 0]} barSize={40} />
-              </BarChart>
+                <Tooltip content={<CustomTooltip />} />
+                <Line
+                  type="monotone"
+                  dataKey="nb_etudiants"
+                  name="Étudiants"
+                  stroke="var(--accent)"
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: 'var(--surface)', stroke: 'var(--accent)', strokeWidth: 2 }}
+                  activeDot={{ r: 6, fill: 'var(--surface)', stroke: 'var(--accent)', strokeWidth: 3 }}
+                />
+              </LineChart>
             </ResponsiveContainer>
           ) : (
             <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '60px 0', fontSize: 14 }}>Aucune donnée disponible.</p>
           )}
         </ChartCard>
  
-        <ChartCard title="Répartition par niveau" icon={PieChartIcon}>
+        <ChartCard title="Histogramme par niveau" icon={BarChart3}>
           {stats?.par_niveau?.length ? (
-            <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
-                <Pie
-                  data={stats.par_niveau}
-                  dataKey="nb"
-                  nameKey="niveau"
-                  cx="50%" cy="50%"
-                  innerRadius={65}
-                  outerRadius={95}
-                  paddingAngle={3}
-                  label={({ niveau, percent }) => `${niveau} ${Math.round(percent * 100)}%`}
-                  labelLine={{ stroke: 'var(--text-muted)', strokeWidth: 1 }}
-                >
-                  {stats.par_niveau.map((_, i) => (
-                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} stroke="var(--surface)" strokeWidth={2} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
+            <div style={{
+              background: 'linear-gradient(180deg, rgba(34,197,94,0.12), rgba(34,197,94,0.02))',
+              padding: 16,
+              borderRadius: 'var(--radius-lg)',
+            }}>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={stats.par_niveau} margin={{ top: 12, right: 16, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                  <XAxis dataKey="niveau" tick={{ fill: 'var(--text-muted)', fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="nb" name="Nombre" radius={[8, 8, 0, 0]} barSize={36}>
+                    {stats.par_niveau.map((_, i) => (
+                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           ) : (
             <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '60px 0', fontSize: 14 }}>Aucune donnée disponible.</p>
           )}

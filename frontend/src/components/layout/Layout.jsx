@@ -220,12 +220,12 @@ export default function Layout() {
         {/* ── Logo / Marque ── */}
         <div style={{ padding: "20px 16px 18px", borderBottom: "2px solid var(--border)", display: "flex", alignItems: "center", gap: 12, minHeight: 72, flexShrink: 0 }}>
           <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, background: "linear-gradient(135deg, var(--accent), var(--accent-dark))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#fff", fontFamily: "var(--font-display)", fontWeight: 700, boxShadow: "0 4px 16px rgba(201,162,39,0.4)", letterSpacing: "-0.02em", border: "2px solid var(--accent-glow)" }}>
-            U
+            <GraduationCap size={20} aria-hidden="true" />
           </div>
           {!collapsed && (
             <div style={{ overflow: "hidden", flex: 1 }}>
               <div style={{ fontFamily: "var(--font-display)", fontSize: 18, color: "var(--text)", lineHeight: 1.2, fontWeight: 700, letterSpacing: "-0.01em" }}>UniGest</div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 2, fontWeight: 600 }}>Gestion universitaire</div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 2, fontWeight: 600 }}>Gestion d'etudiant universitaire</div>
             </div>
           )}
         </div>

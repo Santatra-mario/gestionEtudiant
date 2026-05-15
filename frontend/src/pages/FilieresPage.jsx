@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { X, Save, Edit, Trash2 } from "lucide-react";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useNotification, NotificationDisplay } from "../hooks/useNotification";
 import {
   PageHeader,
   Btn,
@@ -13,22 +14,20 @@ import {
   Spinner,
 } from "../components/ui";
 
-// --- MODAL DE CONFIRMATION STYLISÉE (réutilisable) ---
-function ConfirmModal({
-  open,
-  title,
-  message,
-  onConfirm,
-  onCancel,
-  loading = false,
-}) {
+// ─── Style bouton Modifier : vert fixe ───────────────────────────────────
+const BTN_VERT_STYLE = {
+  background: "#16a34a",
+  color: "#fff",
+  border: "1px solid #15803d",
+};
+
+// --- MODAL DE CONFIRMATION STYLISÉE ---
+function ConfirmModal({ open, title, message, onConfirm, onCancel, loading = false }) {
   if (!open) return null;
   return (
     <Modal title={title || "Confirmation"} onClose={onCancel} width={420}>
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <p style={{ fontSize: 14, color: "var(--text)", marginBottom: 8 }}>
-          {message}
-        </p>
+        <p style={{ fontSize: 14, color: "var(--text)", marginBottom: 8 }}>{message}</p>
         <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
           <Btn variant="ghost" onClick={onCancel} disabled={loading}>
             Annuler
@@ -42,6 +41,7 @@ function ConfirmModal({
   );
 }
 
+// --- MODAL FILIÈRE ---
 function FiliereModal({ onClose, onSaved, initial }) {
   const [form, setForm] = useState(
     initial || { code: "", nom: "", description: "" },
@@ -65,10 +65,7 @@ function FiliereModal({ onClose, onSaved, initial }) {
       }
       onSaved();
     } catch (err) {
-      console.error("Erreur création/modification filière:", err);
-      setError(
-        err.response?.data?.message || "Erreur lors de l'enregistrement.",
-      );
+      setError(err.response?.data?.message || "Erreur lors de l'enregistrement.");
     } finally {
       setLoading(false);
     }
@@ -82,54 +79,24 @@ function FiliereModal({ onClose, onSaved, initial }) {
     >
       <form
         onSubmit={handleSubmit}
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 14,
-          alignItems: "center",
-        }}
+        style={{ display: "flex", flexDirection: "column", gap: 14, alignItems: "center" }}
       >
         {error && <Alert style={{ width: "100%" }}>{error}</Alert>}
         <div style={{ width: "100%", maxWidth: 320 }}>
-          <Input
-            label="Code *"
-            value={form.code}
-            onChange={set("code")}
-            placeholder="ex: INFO"
-            required
-            disabled={!!initial?.id}
-          />
+          <Input label="Code *" value={form.code} onChange={set("code")} placeholder="ex: INFO" required disabled={!!initial?.id} />
         </div>
         <div style={{ width: "100%", maxWidth: 320 }}>
-          <Input
-            label="Nom *"
-            value={form.nom}
-            onChange={set("nom")}
-            placeholder="ex: Informatique"
-            required
-          />
+          <Input label="Nom *" value={form.nom} onChange={set("nom")} placeholder="ex: Informatique" required />
         </div>
         <div style={{ width: "100%", maxWidth: 320 }}>
-          <Input
-            label="Description"
-            value={form.description || ""}
-            onChange={set("description")}
-            placeholder="Description optionnelle"
-          />
+          <Input label="Description" value={form.description || ""} onChange={set("description")} placeholder="Description optionnelle" />
         </div>
-        <div
-          style={{
-            display: "flex",
-            gap: 16,
-            justifyContent: "center",
-            marginTop: 4,
-          }}
-        >
+        <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 4 }}>
           <Btn variant="ghost" onClick={onClose}>
             <X size={16} style={{ marginRight: 6 }} /> Annuler
           </Btn>
           <Btn type="submit" disabled={loading || !isFormValid}>
-            <Save size={16} style={{ marginRight: 6 }} />{" "}
+            <Save size={16} style={{ marginRight: 6 }} />
             {loading ? "Enregistrement…" : "Enregistrer"}
           </Btn>
         </div>
@@ -138,9 +105,8 @@ function FiliereModal({ onClose, onSaved, initial }) {
   );
 }
 
-// ── Semestres valides S1 → S10 ─────────────────────────────
+// ── Semestres valides S1 → S10
 const SEMESTRES_VALIDES = ["S1","S2","S3","S4","S5","S6","S7","S8","S9","S10"];
-
 const NIVEAU_SEMESTRES = {
   L1: ["S1", "S2"],
   L2: ["S3", "S4"],
@@ -149,18 +115,12 @@ const NIVEAU_SEMESTRES = {
   M2: ["S9", "S10"],
 };
 
+// --- MODAL MATIÈRE ---
 function MatiereModal({ filiereId, onClose, onSaved, initial }) {
   const [form, setForm] = useState(
     initial
       ? { ...initial, enseignant_id: initial.enseignant_id ?? "" }
-      : {
-          filiere_id: filiereId,
-          code: "",
-          nom: "",
-          coefficient: 1,
-          semestre: "S1",
-          enseignant_id: "",
-        },
+      : { filiere_id: filiereId, code: "", nom: "", coefficient: 1, semestre: "S1", enseignant_id: "" },
   );
   const [enseignants, setEnseignants] = useState([]);
   const [error, setError] = useState("");
@@ -177,7 +137,6 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
       .catch(() => setEnseignants([]));
   }, []);
 
-  // ✅ CORRECTION : accepter S1 à S10 (et non plus seulement S1 et S2)
   const isFormValid = () => {
     const codeOk = form.code.trim() !== "";
     const nomOk = form.nom.trim() !== "";
@@ -195,8 +154,7 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
     try {
       const payload = {
         ...form,
-        enseignant_id:
-          form.enseignant_id === "" ? null : parseInt(form.enseignant_id, 10),
+        enseignant_id: form.enseignant_id === "" ? null : parseInt(form.enseignant_id, 10),
       };
       if (initial?.id) {
         await api.put(`/filieres/matieres/${initial.id}`, payload);
@@ -205,83 +163,32 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
       }
       onSaved();
     } catch (err) {
-      console.error("Erreur création/modification matière:", err);
-      setError(
-        err.response?.data?.message ||
-          "Erreur lors de l'enregistrement de la matière.",
-      );
+      setError(err.response?.data?.message || "Erreur lors de l'enregistrement de la matière.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal
-      title={initial ? "Modifier matière" : "Nouvelle matière"}
-      onClose={onClose}
-      width={440}
-    >
+    <Modal title={initial ? "Modifier matière" : "Nouvelle matière"} onClose={onClose} width={440}>
       <form
         onSubmit={handleSubmit}
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 14,
-          alignItems: "center",
-        }}
+        style={{ display: "flex", flexDirection: "column", gap: 14, alignItems: "center" }}
       >
         {error && <Alert style={{ width: "100%" }}>{error}</Alert>}
 
         <div style={{ width: "100%", maxWidth: 320 }}>
-          <Input
-            label="Code *"
-            value={form.code}
-            onChange={set("code")}
-            placeholder="ex: ALGO1"
-            required
-            disabled={!!initial?.id}
-          />
+          <Input label="Code *" value={form.code} onChange={set("code")} placeholder="ex: ALGO1" required disabled={!!initial?.id} />
         </div>
 
         <div style={{ width: "100%", maxWidth: 320 }}>
-          <Input
-            label="Nom *"
-            value={form.nom}
-            onChange={set("nom")}
-            placeholder="ex: Algorithmique 1"
-            required
-          />
+          <Input label="Nom *" value={form.nom} onChange={set("nom")} placeholder="ex: Algorithmique 1" required />
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 12,
-            width: "100%",
-            maxWidth: 320,
-          }}
-        >
-          <Input
-            label="Coefficient *"
-            type="number"
-            min="1"
-            max="10"
-            step="0.5"
-            value={form.coefficient}
-            onChange={set("coefficient")}
-            required
-          />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, width: "100%", maxWidth: 320 }}>
+          <Input label="Coefficient *" type="number" min="1" max="10" step="0.5" value={form.coefficient} onChange={set("coefficient")} required />
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-            <label
-              style={{
-                fontSize: 13,
-                color: "var(--text-muted)",
-                fontWeight: 500,
-              }}
-            >
-              Semestre *
-            </label>
+            <label style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 500 }}>Semestre *</label>
             <select
               value={form.semestre}
               onChange={set("semestre")}
@@ -298,11 +205,7 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
             >
               {Object.entries(NIVEAU_SEMESTRES).map(([niveau, sems]) => (
                 <optgroup key={niveau} label={`── ${niveau}`}>
-                  {sems.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
+                  {sems.map((s) => <option key={s} value={s}>{s}</option>)}
                 </optgroup>
               ))}
             </select>
@@ -310,15 +213,7 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
         </div>
 
         <div style={{ width: "100%", maxWidth: 320 }}>
-          <label
-            style={{
-              fontSize: 13,
-              color: "var(--text-muted)",
-              fontWeight: 500,
-              display: "block",
-              marginBottom: 5,
-            }}
-          >
+          <label style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 500, display: "block", marginBottom: 5 }}>
             Enseignant assigné
           </label>
           <select
@@ -337,36 +232,20 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
           >
             <option value="">— Aucun enseignant assigné —</option>
             {enseignants.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.nom_complet}
-              </option>
+              <option key={e.id} value={e.id}>{e.nom_complet}</option>
             ))}
           </select>
-          <span
-            style={{
-              fontSize: 11,
-              color: "var(--text-muted)",
-              display: "block",
-              marginTop: 4,
-            }}
-          >
+          <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginTop: 4 }}>
             L'enseignant assigné pourra saisir les notes de cette matière.
           </span>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            gap: 16,
-            justifyContent: "center",
-            marginTop: 4,
-          }}
-        >
+        <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 4 }}>
           <Btn variant="ghost" onClick={onClose}>
             <X size={16} style={{ marginRight: 6 }} /> Annuler
           </Btn>
           <Btn type="submit" disabled={loading || !isFormValid()}>
-            <Save size={16} style={{ marginRight: 6 }} />{" "}
+            <Save size={16} style={{ marginRight: 6 }} />
             {loading ? "Enregistrement…" : "Enregistrer"}
           </Btn>
         </div>
@@ -375,10 +254,12 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
   );
 }
 
+// ─── Page principale ──────────────────────────────────────────────────────
 export default function FilieresPage() {
   const { user } = useAuth();
-  const canManageFilieres =
-    user?.role === "administrateur" || user?.role === "secretaire";
+  const { notification, hideNotification, success, error: showError } = useNotification();
+
+  const canManageFilieres = user?.role === "administrateur" || user?.role === "secretaire";
   const isAdmin = user?.role === "administrateur";
 
   const [filieres, setFilieres] = useState([]);
@@ -388,16 +269,11 @@ export default function FilieresPage() {
   const [expanded, setExpanded] = useState(null);
   const [matieres, setMatieres] = useState({});
   const [matiereModal, setMatiereModal] = useState(null);
+  const [activeButton, setActiveButton] = useState(null);
 
   const [confirmState, setConfirmState] = useState({
-    open: false,
-    title: "",
-    message: "",
-    onConfirm: null,
-    loading: false,
+    open: false, title: "", message: "", onConfirm: null, loading: false,
   });
-
-  const [activeButton, setActiveButton] = useState(null);
 
   const openConfirm = (message, onConfirm, title = "Confirmation") => {
     setConfirmState({
@@ -413,13 +289,7 @@ export default function FilieresPage() {
   };
 
   const closeConfirm = () => {
-    setConfirmState({
-      open: false,
-      title: "",
-      message: "",
-      onConfirm: null,
-      loading: false,
-    });
+    setConfirmState({ open: false, title: "", message: "", onConfirm: null, loading: false });
   };
 
   const load = useCallback(async () => {
@@ -427,18 +297,9 @@ export default function FilieresPage() {
     setLoadError(false);
     try {
       const { data } = await api.get("/filieres");
-      const list = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.data)
-          ? data.data
-          : [];
+      const list = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
       setFilieres(list);
-    } catch (err) {
-      console.error(
-        "Erreur chargement filières:",
-        err.response?.status,
-        err.response?.data,
-      );
+    } catch {
       setLoadError(true);
       setFilieres([]);
     } finally {
@@ -446,52 +307,44 @@ export default function FilieresPage() {
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   const loadMatieres = async (filiereId) => {
     try {
       const { data } = await api.get(`/filieres/${filiereId}/matieres`);
-      const list = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.data)
-          ? data.data
-          : [];
+      const list = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
       setMatieres((m) => ({ ...m, [filiereId]: list }));
-    } catch (err) {
-      console.error("Erreur chargement matières:", err);
+    } catch {
       setMatieres((m) => ({ ...m, [filiereId]: [] }));
     }
   };
 
   const toggleExpand = (id) => {
-    if (expanded === id) {
-      setExpanded(null);
-      return;
-    }
+    if (expanded === id) { setExpanded(null); return; }
     setExpanded(id);
     loadMatieres(id);
   };
 
-  const handleDeleteFiliere = async (id) => {
+  const handleDeleteFiliere = async (id, nom) => {
     try {
       await api.delete(`/filieres/${id}`);
+      success(`Filière "${nom}" désactivée avec succès.`);
       load();
       closeConfirm();
     } catch (err) {
-      alert(err.response?.data?.message || "Erreur lors de la désactivation.");
+      showError(err.response?.data?.message || "Erreur lors de la désactivation.");
       closeConfirm();
     }
   };
 
-  const handleDeleteMatiere = async (id, filiereId) => {
+  const handleDeleteMatiere = async (id, filiereId, nom) => {
     try {
       await api.delete(`/filieres/matieres/${id}`);
+      success(`Matière "${nom}" supprimée avec succès.`);
       loadMatieres(filiereId);
       closeConfirm();
     } catch (err) {
-      alert(err.response?.data?.message || "Erreur lors de la suppression.");
+      showError(err.response?.data?.message || "Erreur lors de la suppression.");
       closeConfirm();
     }
   };
@@ -499,15 +352,10 @@ export default function FilieresPage() {
   if (loadError) {
     return (
       <div>
-        <PageHeader
-          title="Filières & Matières"
-          subtitle="Gestion des filières et de leurs matières"
-        />
+        <PageHeader title="Filières & Matières" subtitle="Gestion des filières et de leurs matières" />
         <Card>
           <div style={{ textAlign: "center", padding: "32px 0" }}>
-            <p style={{ color: "var(--danger)", marginBottom: 12 }}>
-              Impossible de charger les filières.
-            </p>
+            <p style={{ color: "var(--danger)", marginBottom: 12 }}>Impossible de charger les filières.</p>
             <Btn onClick={load}>Réessayer</Btn>
           </div>
         </Card>
@@ -517,6 +365,8 @@ export default function FilieresPage() {
 
   return (
     <div>
+      <NotificationDisplay notification={notification} onClose={hideNotification} />
+
       <PageHeader
         title="Filières & Matières"
         subtitle={`${filieres.length} filière(s) active(s)`}
@@ -533,22 +383,16 @@ export default function FilieresPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {filieres.length === 0 && (
             <Card>
-              <p
-                style={{
-                  color: "var(--text-muted)",
-                  textAlign: "center",
-                  padding: "24px 0",
-                }}
-              >
+              <p style={{ color: "var(--text-muted)", textAlign: "center", padding: "24px 0" }}>
                 Aucune filière active.{" "}
-                {canManageFilieres &&
-                  "Créez la première filière avec le bouton ci-dessus."}
+                {canManageFilieres && "Créez la première filière avec le bouton ci-dessus."}
               </p>
             </Card>
           )}
 
           {filieres.map((f) => (
             <Card key={f.id} style={{ padding: 0 }}>
+              {/* ── En-tête filière ── */}
               <div
                 style={{
                   display: "flex",
@@ -561,26 +405,18 @@ export default function FilieresPage() {
               >
                 <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
                   <Badge color="accent">{f.code}</Badge>
-                  <span style={{ fontWeight: 500, color: "var(--text)" }}>
-                    {f.nom}
-                  </span>
-                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                    {f.nb_matieres} matière(s)
-                  </span>
+                  <span style={{ fontWeight: 500, color: "var(--text)" }}>{f.nom}</span>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{f.nb_matieres} matière(s)</span>
                   {f.description && (
-                    <span
-                      style={{
-                        fontSize: 12,
-                        color: "var(--text-muted)",
-                        fontStyle: "italic",
-                      }}
-                    >
+                    <span style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>
                       — {f.description}
                     </span>
                   )}
                 </div>
+
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   {canManageFilieres && (
+                    // ✅ Vert fixe — plus de onMouseEnter/onMouseLeave qui écrasaient le style
                     <Btn
                       small
                       variant="ghost"
@@ -589,34 +425,9 @@ export default function FilieresPage() {
                         setActiveButton(`filiere-${f.id}`);
                         setModal(f);
                       }}
-                      style={{
-                        background: activeButton === `filiere-${f.id}` 
-                          ? "linear-gradient(135deg, #15803d, #166534)" 
-                          : "linear-gradient(135deg, #22c55e, #16a34a)",
-                        color: "#fff",
-                        border: "1px solid #16a34a",
-                        transition: "all 0.2s ease",
-                        transform: activeButton === `filiere-${f.id}` ? "translateY(0)" : "translateY(0)",
-                        boxShadow: activeButton === `filiere-${f.id}` 
-                          ? "0 2px 8px rgba(34, 197, 94, 0.4)" 
-                          : "none",
-                      }}
-                      onMouseEnter={(e) => {
-                        if (activeButton !== `filiere-${f.id}`) {
-                          e.currentTarget.style.background = "linear-gradient(135deg, #16a34a, #15803d)";
-                          e.currentTarget.style.transform = "translateY(-1px)";
-                          e.currentTarget.style.boxShadow = "0 4px 12px rgba(34, 197, 94, 0.3)";
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (activeButton !== `filiere-${f.id}`) {
-                          e.currentTarget.style.background = "linear-gradient(135deg, #22c55e, #16a34a)";
-                          e.currentTarget.style.transform = "translateY(0)";
-                          e.currentTarget.style.boxShadow = "none";
-                        }
-                      }}
+                      style={BTN_VERT_STYLE}
                     >
-                      <Edit size={14} className="h-4 w-4" style={{ marginRight: 6 }} />
+                      <Edit size={14} style={{ marginRight: 6 }} />
                       Modifier
                     </Btn>
                   )}
@@ -627,35 +438,25 @@ export default function FilieresPage() {
                       onClick={(e) => {
                         e.stopPropagation();
                         openConfirm(
-                          "Désactiver cette filière ?",
-                          () => handleDeleteFiliere(f.id),
+                          `Désactiver la filière "${f.nom}" ?`,
+                          () => handleDeleteFiliere(f.id, f.nom),
                           "Désactivation",
                         );
                       }}
                     >
-                      <Trash2 size={14} className="h-4 w-4" style={{ marginRight: 6 }} />
+                      <Trash2 size={14} style={{ marginRight: 6 }} />
                       Désactiver
                     </Btn>
                   )}
-                  <span
-                    style={{
-                      color: "var(--text-muted)",
-                      padding: "0 4px",
-                      fontSize: 12,
-                    }}
-                  >
+                  <span style={{ color: "var(--text-muted)", padding: "0 4px", fontSize: 12 }}>
                     {expanded === f.id ? "▲" : "▼"}
                   </span>
                 </div>
               </div>
 
+              {/* ── Matières ── */}
               {expanded === f.id && (
-                <div
-                  style={{
-                    borderTop: "1px solid var(--border)",
-                    padding: "16px 20px",
-                  }}
-                >
+                <div style={{ borderTop: "1px solid var(--border)", padding: "16px 20px" }}>
                   <div
                     style={{
                       display: "flex",
@@ -664,22 +465,9 @@ export default function FilieresPage() {
                       marginBottom: 12,
                     }}
                   >
-                    <span
-                      style={{
-                        fontSize: 13,
-                        color: "var(--text-muted)",
-                        fontWeight: 500,
-                      }}
-                    >
-                      Matières
-                    </span>
+                    <span style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 500 }}>Matières</span>
                     {canManageFilieres && (
-                      <Btn
-                        small
-                        onClick={() =>
-                          setMatiereModal({ filiereId: f.id, initial: null })
-                        }
-                      >
+                      <Btn small onClick={() => setMatiereModal({ filiereId: f.id, initial: null })}>
                         + Ajouter matière
                       </Btn>
                     )}
@@ -692,13 +480,7 @@ export default function FilieresPage() {
                       Aucune matière pour cette filière.
                     </p>
                   ) : (
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 6,
-                      }}
-                    >
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       {matieres[f.id].map((m) => (
                         <div
                           key={m.id}
@@ -711,35 +493,13 @@ export default function FilieresPage() {
                             padding: "10px 14px",
                           }}
                         >
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: 12,
-                              alignItems: "center",
-                              flexWrap: "wrap",
-                            }}
-                          >
+                          <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
                             <Badge color="muted">{m.semestre}</Badge>
-                            <span
-                              style={{ fontSize: 14, color: "var(--text)" }}
-                            >
-                              {m.nom}
-                            </span>
-                            <span
-                              style={{
-                                fontSize: 12,
-                                color: "var(--text-muted)",
-                                fontFamily: "monospace",
-                              }}
-                            >
+                            <span style={{ fontSize: 14, color: "var(--text)" }}>{m.nom}</span>
+                            <span style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "monospace" }}>
                               {m.code}
                             </span>
-                            <span
-                              style={{
-                                fontSize: 12,
-                                color: "var(--text-muted)",
-                              }}
-                            >
+                            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
                               Coeff. {m.coefficient}
                             </span>
                             {m.enseignant_nom ? (
@@ -769,46 +529,20 @@ export default function FilieresPage() {
                               </span>
                             )}
                           </div>
+
                           {canManageFilieres && (
                             <div style={{ display: "flex", gap: 6 }}>
+                              {/* ✅ Vert fixe — plus de onMouseEnter/onMouseLeave */}
                               <Btn
                                 small
                                 variant="ghost"
                                 onClick={() => {
                                   setActiveButton(`matiere-${m.id}`);
-                                  setMatiereModal({
-                                    filiereId: f.id,
-                                    initial: m,
-                                  });
+                                  setMatiereModal({ filiereId: f.id, initial: m });
                                 }}
-                                style={{
-                                  background: activeButton === `matiere-${m.id}` 
-                                    ? "linear-gradient(135deg, #15803d, #166534)" 
-                                    : "linear-gradient(135deg, #22c55e, #16a34a)",
-                                  color: "#fff",
-                                  border: "1px solid #16a34a",
-                                  transition: "all 0.2s ease",
-                                  transform: activeButton === `matiere-${m.id}` ? "translateY(0)" : "translateY(0)",
-                                  boxShadow: activeButton === `matiere-${m.id}` 
-                                    ? "0 2px 8px rgba(34, 197, 94, 0.4)" 
-                                    : "none",
-                                }}
-                                onMouseEnter={(e) => {
-                                  if (activeButton !== `matiere-${m.id}`) {
-                                    e.currentTarget.style.background = "linear-gradient(135deg, #16a34a, #15803d)";
-                                    e.currentTarget.style.transform = "translateY(-1px)";
-                                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(34, 197, 94, 0.3)";
-                                  }
-                                }}
-                                onMouseLeave={(e) => {
-                                  if (activeButton !== `matiere-${m.id}`) {
-                                    e.currentTarget.style.background = "linear-gradient(135deg, #22c55e, #16a34a)";
-                                    e.currentTarget.style.transform = "translateY(0)";
-                                    e.currentTarget.style.boxShadow = "none";
-                                  }
-                                }}
+                                style={BTN_VERT_STYLE}
                               >
-                                <Edit size={14} className="h-4 w-4" style={{ marginRight: 6 }} />
+                                <Edit size={14} style={{ marginRight: 6 }} />
                                 Modifier
                               </Btn>
                               {isAdmin && (
@@ -817,13 +551,13 @@ export default function FilieresPage() {
                                   variant="danger"
                                   onClick={() =>
                                     openConfirm(
-                                      "Supprimer cette matière ? Cette action est irréversible.",
-                                      () => handleDeleteMatiere(m.id, f.id),
+                                      `Supprimer la matière "${m.nom}" ? Cette action est irréversible.`,
+                                      () => handleDeleteMatiere(m.id, f.id, m.nom),
                                       "Suppression",
                                     )
                                   }
                                 >
-                                  <Trash2 size={14} className="h-4 w-4" style={{ marginRight: 6 }} />
+                                  <Trash2 size={14} style={{ marginRight: 6 }} />
                                   Suppr.
                                 </Btn>
                               )}
@@ -852,11 +586,14 @@ export default function FilieresPage() {
       {modal && (
         <FiliereModal
           initial={modal === "create" ? null : modal}
-          onClose={() => {
-            setModal(null);
-            setActiveButton(null);
-          }}
+          onClose={() => { setModal(null); setActiveButton(null); }}
           onSaved={() => {
+            const isEdit = modal !== "create";
+            success(
+              isEdit
+                ? `Filière "${modal.nom}" modifiée avec succès.`
+                : "Nouvelle filière créée avec succès."
+            );
             setModal(null);
             setActiveButton(null);
             load();
@@ -868,11 +605,14 @@ export default function FilieresPage() {
         <MatiereModal
           filiereId={matiereModal.filiereId}
           initial={matiereModal.initial}
-          onClose={() => {
-            setMatiereModal(null);
-            setActiveButton(null);
-          }}
+          onClose={() => { setMatiereModal(null); setActiveButton(null); }}
           onSaved={() => {
+            const isEdit = !!matiereModal.initial;
+            success(
+              isEdit
+                ? `Matière "${matiereModal.initial.nom}" modifiée avec succès.`
+                : "Nouvelle matière ajoutée avec succès."
+            );
             loadMatieres(matiereModal.filiereId);
             setMatiereModal(null);
             setActiveButton(null);

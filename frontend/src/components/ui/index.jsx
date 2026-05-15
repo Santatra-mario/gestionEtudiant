@@ -1011,35 +1011,39 @@ export function StatCard({
 /* ═══════════════════════════════════════════════════
    ALERT
 ═══════════════════════════════════════════════════ */
-export function Alert({ children, type = "danger" }) {
+export function Alert({ children, type = "danger", onClose }) {
   const map = {
     danger: {
-      bg: "rgba(239,68,68,0.1)",
+      bg: "rgba(239,68,68,0.12)",
       border: "rgba(239,68,68,0.3)",
-      text: "#fca5a5",
+      text: "#ef4444",
       Icon: AlertCircle,
       iconColor: "#ef4444",
+      title: "Erreur",
     },
     success: {
-      bg: "rgba(34,197,94,0.1)",
+      bg: "rgba(34,197,94,0.12)",
       border: "rgba(34,197,94,0.3)",
-      text: "#86efac",
+      text: "#22c55e",
       Icon: CheckCircle,
       iconColor: "#22c55e",
+      title: "Succès",
     },
     warning: {
-      bg: "rgba(245,158,11,0.1)",
+      bg: "rgba(245,158,11,0.12)",
       border: "rgba(245,158,11,0.3)",
-      text: "#fcd34d",
+      text: "#f59e0b",
       Icon: AlertTriangle,
       iconColor: "#f59e0b",
+      title: "Attention",
     },
     info: {
-      bg: "rgba(6,182,212,0.1)",
+      bg: "rgba(6,182,212,0.12)",
       border: "rgba(6,182,212,0.3)",
-      text: "#67e8f9",
+      text: "#06b6d4",
       Icon: Info,
       iconColor: "#06b6d4",
+      title: "Information",
     },
   };
   const c = map[type] || map.danger;
@@ -1048,23 +1052,50 @@ export function Alert({ children, type = "danger" }) {
     <div
       style={{
         background: c.bg,
-        border: `1px solid ${c.border}`,
-        borderRadius: "var(--radius-sm)",
-        padding: "11px 14px",
-        color: c.text,
+        border: `1.5px solid ${c.border}`,
+        borderRadius: "var(--radius-lg)",
+        padding: "13px 16px",
+        color: "var(--text)",
         fontSize: 14,
+        fontWeight: 500,
         display: "flex",
         alignItems: "flex-start",
-        gap: 10,
-        animation: "slideDown 0.2s ease",
+        gap: 12,
+        animation: "slideDown 0.25s cubic-bezier(0.34,1.56,0.64,1)",
+        boxShadow: `0 2px 8px ${c.text}15`,
+        backdropFilter: "blur(8px)",
       }}
     >
       <Icon
-        size={16}
-        color={c.iconColor}
-        style={{ flexShrink: 0, marginTop: 1 }}
+        size={18}
+        color={c.text}
+        style={{ flexShrink: 0, marginTop: 2 }}
+        strokeWidth={2}
       />
-      <span>{children}</span>
+      <span style={{ flex: 1, lineHeight: 1.5 }}>{children}</span>
+      {onClose && (
+        <button
+          onClick={onClose}
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: c.text,
+            fontSize: 18,
+            padding: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: 0.7,
+            transition: "opacity 0.15s",
+            flexShrink: 0,
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+          onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.7")}
+        >
+          ✕
+        </button>
+      )}
     </div>
   );
 }
