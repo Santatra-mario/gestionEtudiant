@@ -923,26 +923,26 @@ export default function NotesSaisiePage() {
                   {semestreData.map(({ sem, list }) => renderSaisieTable(sem, list))}
                   <Card style={{
                 borderColor: "#1e40af",
-                background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
+                background: "linear-gradient(135deg, #6ab1d1 0%, #31384d83 100%)",
                 color: "#eff6ff",
-                boxShadow: "0 18px 42px rgba(37,99,235,0.22)",
+                boxShadow: "0 18px 42px rgba(56, 93, 172, 0.84)",
               }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                       <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "0.03em", color: "#eff6ff" }}>Résumé général</div>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-                        <div style={{ padding: 14, borderRadius: 14, background: "#2563eb", border: "1px solid #1d4ed8", color: "#ffffff" }}>
+                        <div style={{ padding: 14, borderRadius: 14, background: "#1a243a", border: "1px solid #1d4ed8", color: "#ffffff" }}>
                           <div style={{ fontSize: 11, color: "#dbeafe", marginBottom: 6 }}>Total notes ({semesterRangeLabel})</div>
                           <div style={{ fontSize: 18, fontWeight: 700, color: "#ffffff" }}>{totalNotesSemestres.toFixed(2)}</div>
                         </div>
-                        <div style={{ padding: 14, borderRadius: 14, background: "#2563eb", border: "1px solid #1d4ed8", color: "#ffffff" }}>
+                        <div style={{ padding: 14, borderRadius: 14, background: "#1a243a", border: "1px solid #1d4ed8", color: "#ffffff" }}>
                           <div style={{ fontSize: 11, color: "#dbeafe", marginBottom: 6 }}>Somme moyennes semestrielles</div>
                           <div style={{ fontSize: 18, fontWeight: 700, color: "#ffffff" }}>{moyennesSemestresTotal ?? "—"}</div>
                         </div>
-                        <div style={{ padding: 14, borderRadius: 14, background: "#2563eb", border: "1px solid #041c5c", color: "#ffffff" }}>
+                        <div style={{ padding: 14, borderRadius: 14, background: "#1a243a", border: "1px solid #041c5c", color: "#ffffff" }}>
                           <div style={{ fontSize: 11, color: "#dbeafe", marginBottom: 6 }}>Moyenne générale</div>
                           <div style={{ fontSize: 18, fontWeight: 700, color: "#ffffff" }}>{moyenneGenerale ?? "—"}/20</div>
                         </div>
-                        <div style={{ padding: 14, borderRadius: 14, background: "#2563eb", border: "1px solid #1d4ed8", color: "#ffffff" }}>
+                        <div style={{ padding: 14, borderRadius: 14, background: "#1a243a", border: "1px solid #1d4ed8", color: "#ffffff" }}>
                           <div style={{ fontSize: 11, color: "#dbeafe", marginBottom: 6 }}>Total coefficient</div>
                           <div style={{ fontSize: 18, fontWeight: 700, color: "#ffffff" }}>{totalCoeffSemestres}</div>
                         </div>

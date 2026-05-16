@@ -26,8 +26,8 @@ const NAV = [
   { to: "/etudiants", label: "Étudiants", icon: GraduationCap, hint: "Gestion des étudiants" },
   { to: "/filieres", label: "Filières", icon: GitBranch, hint: "Gestion des filières", roles: ["administrateur", "secretaire"] },
   { to: "/inscriptions", label: "Inscriptions", icon: ClipboardList, hint: "Gestion des inscriptions" },
-  { to: "/notes", label: "Consultation Notes", icon: BookOpen, hint: "Consulter les notes", exact: true },
   { to: "/notes/saisie", label: "Saisie des notes", icon: PenLine, hint: "Saisir les notes", exact: true, roles: ["administrateur", "secretaire", "enseignant"] },
+  { to: "/notes", label: "Consultation Notes", icon: BookOpen, hint: "Consulter les notes", exact: true },
   { to: "/presence", label: "Présence", icon: Calendar, hint: "Gestion de présence", roles: ["administrateur", "secretaire", "enseignant"] },
   { to: "/utilisateurs", label: "Utilisateurs", icon: Users, hint: "Gestion des comptes", roles: ["administrateur"] },
 ];
