@@ -59,11 +59,13 @@ const getStats = async (req, res) => {
              ORDER BY FIELD(niveau,'L1','L2','L3','M1','M2')`
         );
 
-        // Derniers inscrits (5 derniers) avec décision
+        // Derniers inscrits (5 derniers) avec décision et notes
         const [derniers_inscrits] = await db.query(
             `SELECT e.matricule, CONCAT(e.nom,' ',e.prenom) AS nom_complet,
-                    f.nom AS filiere, i.niveau, i.statut, i.date_inscription,
-                    COALESCE(vb.mention, 'En attente') AS decision
+                    f.nom AS filiere, i.niveau, i.statut, i.date_inscription, i.id AS inscription_id,
+                    COALESCE(vb.mention, 'En attente') AS decision,
+                    COALESCE(vb.moyenne, NULL) AS moyenne,
+                    COALESCE(vb.notes_list, NULL) AS notes_list
              FROM inscriptions i
              JOIN etudiants e ON i.etudiant_id = e.id
              JOIN filieres  f ON i.filiere_id  = f.id
@@ -73,7 +75,9 @@ const getStats = async (req, res) => {
                            WHEN SUM(n.note * m.coefficient) / SUM(m.coefficient) >= 10 THEN 'Admis'
                            WHEN SUM(n.note * m.coefficient) / SUM(m.coefficient) >= 8  THEN 'Rattrapage'
                            ELSE 'Ajourné'
-                       END AS mention
+                       END AS mention,
+                       SUM(n.note * m.coefficient) / SUM(m.coefficient) AS moyenne,
+                       GROUP_CONCAT(CONCAT(m.nom, ':', n.note) ORDER BY m.nom SEPARATOR ', ') AS notes_list
                 FROM notes n
                 JOIN inscriptions i2 ON n.inscription_id = i2.id
                 JOIN matieres m ON n.matiere_id = m.id

@@ -87,8 +87,8 @@ const getMatieresByFiliere = async (req, res) => {
 };
 
 const createMatiere = async (req, res) => {
-    const { filiere_id, code, nom, coefficient, semestre, enseignant_id } = req.body;
-    if (!filiere_id || !code || !nom || !coefficient || !semestre) {
+    const { filiere_id, codemat, nom, coefficient, semestre, enseignant_id } = req.body;
+    if (!filiere_id || !codemat || !nom || !coefficient || !semestre) {
         return res.status(400).json({ success: false, message: 'Champs obligatoires manquants.' });
     }
 
@@ -114,8 +114,8 @@ const createMatiere = async (req, res) => {
         }
 
         const [result] = await db.query(
-            'INSERT INTO matieres (filiere_id, code, nom, coefficient, semestre, enseignant_id) VALUES (?, ?, ?, ?, ?, ?)',
-            [filiere_id, code, nom, coefficient, semestre, ensId]
+            'INSERT INTO matieres (filiere_id, codemat, nom, coefficient, semestre, enseignant_id) VALUES (?, ?, ?, ?, ?, ?)',
+            [filiere_id, codemat, nom, coefficient, semestre, ensId]
         );
         return res.status(201).json({ success: true, message: 'Matière ajoutée.', id: result.insertId });
     } catch (err) {

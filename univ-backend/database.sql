@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS matieres (
     id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     filiere_id     INT UNSIGNED NOT NULL,
     enseignant_id  INT UNSIGNED NULL,
-    code           VARCHAR(20) NOT NULL UNIQUE,
+    codemat           VARCHAR(20) NOT NULL UNIQUE,
     nom            VARCHAR(150) NOT NULL,
     coefficient    DECIMAL(4,2) NOT NULL DEFAULT 1.00,
     semestre       ENUM('S1','S2') NOT NULL DEFAULT 'S1',

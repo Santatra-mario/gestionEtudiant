@@ -8,7 +8,7 @@ router.get('/', async (req, res) => {
     const { matiere_id, date, inscription_id } = req.query;
     let query = `
       SELECT p.*, e.nom as etudiant_nom, e.matricule, f.nom as filiere_nom, i.niveau,
-             m.nom as matiere_nom, m.code as matiere_code
+             m.nom as matiere_nom, m.codemat as matiere_code
       FROM presences p
       JOIN inscriptions i ON p.inscription_id = i.id
       JOIN etudiants e ON i.etudiant_id = e.id
