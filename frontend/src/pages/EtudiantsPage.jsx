@@ -17,6 +17,12 @@ import {
   ChevronRight,
   AlertTriangle,
   GraduationCap,
+  CheckCircle2,
+  AlertCircle,
+  Sparkles,
+  RefreshCw,
+  UserCheck,
+  UserX,
 } from "lucide-react";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
@@ -39,6 +45,68 @@ import {
   EmptyState,
   Tooltip,
 } from "../components/ui";
+
+// ─── Composant Toast Notification Moderne avec Tailwind CSS ─────────────────────
+function ToastNotification({ message, type, onClose, details }) {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const config = {
+    success: {
+      bg: "from-emerald-500 to-teal-600",
+      icon: <CheckCircle2 className="w-5 h-5" />,
+      border: "border-emerald-300",
+      title: "Succès",
+    },
+    error: {
+      bg: "from-rose-500 to-red-600",
+      icon: <AlertCircle className="w-5 h-5" />,
+      border: "border-rose-300",
+      title: "Erreur",
+    },
+    warning: {
+      bg: "from-amber-500 to-orange-600",
+      icon: <AlertTriangle className="w-5 h-5" />,
+      border: "border-amber-300",
+      title: "Attention",
+    },
+    info: {
+      bg: "from-sky-500 to-blue-600",
+      icon: <Sparkles className="w-5 h-5" />,
+      border: "border-sky-300",
+      title: "Information",
+    },
+  };
+
+  const current = config[type] || config.success;
+
+  return (
+    <div className="fixed top-4 right-4 z-50 animate-slide-in">
+      <div className={`bg-gradient-to-r ${current.bg} text-white px-5 py-4 rounded-xl shadow-2xl flex items-start gap-3 min-w-[360px] max-w-md backdrop-blur-sm border-l-4 ${current.border}`}>
+        <div className="flex-shrink-0 mt-0.5">{current.icon}</div>
+        <div className="flex-1">
+          <div className="font-bold text-sm mb-1">{current.title}</div>
+          <div className="text-sm opacity-95">{message}</div>
+          {details && (
+            <div className="text-xs opacity-80 mt-1.5 pt-1.5 border-t border-white/20">
+              {details}
+            </div>
+          )}
+        </div>
+        <button 
+          onClick={onClose} 
+          className="hover:opacity-80 transition-opacity flex-shrink-0 -mt-1 -mr-1 p-1"
+        >
+          <X size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // ─── Palette de couleurs avatar ───────────────────────────────────────────
 const PALETTE = [
@@ -215,12 +283,10 @@ const STATUT_COLOR = {
   abandonne: "danger",
 };
 
-// ─── Modal étudiant (création / édition) ─────────────────────────────────
+// ─── Modal étudiant (création / édition) avec notifications modernes ─────────────────────────────────
 function EtudiantModal({ onClose, onSaved, initial }) {
   const isEdit = !!initial?.id;
-
-  // ✅ CORRECTION 1 : useNotification manquait dans EtudiantModal
-  const { notification, hideNotification, success, error: showError } = useNotification();
+  const [toast, setToast] = useState(null);
 
   const [form, setForm] = useState({
     nom: initial?.nom || "",
@@ -235,6 +301,10 @@ function EtudiantModal({ onClose, onSaved, initial }) {
   const [photoPreview, setPhotoPreview] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const showNotification = (message, type = "success", details = null) => {
+    setToast({ message, type, details });
+  };
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -272,16 +342,31 @@ function EtudiantModal({ onClose, onSaved, initial }) {
         await api.put(`/etudiants/${initial.id}`, fd, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        success(Messages.STUDENT_UPDATED(`${form.prenom} ${form.nom}`));
+        showNotification(
+          `Informations mises à jour avec succès`,
+          "success",
+          `${form.prenom} ${form.nom} · Modifications enregistrées`
+        );
       } else {
         await api.post("/etudiants", fd, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        success(Messages.STUDENT_CREATED(`${form.prenom} ${form.nom}`));
+        showNotification(
+          `Nouvel étudiant ajouté avec succès`,
+          "success",
+          `${form.prenom} ${form.nom} · Bienvenue dans la plateforme`
+        );
       }
-      setTimeout(onSaved, 500);
+      setTimeout(() => {
+        onSaved();
+      }, 500);
     } catch (err) {
       setError(formatErrorMessage(err) || Messages.STUDENT_ERROR);
+      showNotification(
+        "Une erreur est survenue",
+        "error",
+        "Veuillez vérifier les informations et réessayer"
+      );
     } finally {
       setLoading(false);
     }
@@ -289,7 +374,14 @@ function EtudiantModal({ onClose, onSaved, initial }) {
 
   return (
     <>
-      <NotificationDisplay notification={notification} onClose={hideNotification} />
+      {toast && (
+        <ToastNotification
+          message={toast.message}
+          type={toast.type}
+          details={toast.details}
+          onClose={() => setToast(null)}
+        />
+      )}
       <Modal
         title={isEdit ? "Modifier l'étudiant" : "Nouvel étudiant"}
         subtitle={
@@ -304,7 +396,6 @@ function EtudiantModal({ onClose, onSaved, initial }) {
           onSubmit={handleSubmit}
           style={{ display: "flex", flexDirection: "column", gap: 0 }}
         >
-          {/* Photo */}
           <PhotoPicker
             photo={initial?.photo}
             preview={photoPreview}
@@ -319,7 +410,6 @@ function EtudiantModal({ onClose, onSaved, initial }) {
             </div>
           )}
 
-          {/* Séparateur décoratif */}
           <div
             style={{
               height: 1,
@@ -330,7 +420,6 @@ function EtudiantModal({ onClose, onSaved, initial }) {
           />
 
           <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
-            {/* Section Identité */}
             <FormSection title="Identité" icon={User}>
               <FormRow>
                 <Input
@@ -360,15 +449,9 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                   value={form.date_naissance}
                   onChange={set("date_naissance")}
                   icon={Calendar}
-                  hint="Sélectionnez une date passée. Pas de date future."
+                  hint="Sélectionnez une date passée"
                   min="1900-01-01"
                   max={today}
-                  style={{
-                    borderRadius: "18px",
-                    padding: "12px 18px",
-                    background: "linear-gradient(180deg, var(--surface2), var(--surface))",
-                    boxShadow: "0 8px 20px rgba(79,142,247,0.12)",
-                  }}
                 />
                 <Select
                   label="Sexe"
@@ -382,7 +465,6 @@ function EtudiantModal({ onClose, onSaved, initial }) {
               </FormRow>
             </FormSection>
 
-            {/* Section Contact */}
             <FormSection title="Contact" icon={Phone}>
               <Input
                 label="Adresse e-mail"
@@ -404,7 +486,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                   icon={Phone}
                   maxLength={15}
                   error={phoneError}
-                  hint="Format Madagascar : 034 XX XXX XX (10 chiffres)"
+                  hint="Format Madagascar : 034 XX XXX XX"
                 />
                 <Input
                   label="Adresse"
@@ -417,7 +499,6 @@ function EtudiantModal({ onClose, onSaved, initial }) {
             </FormSection>
           </div>
 
-          {/* Actions */}
           <div
             style={{
               display: "flex",
@@ -446,85 +527,118 @@ function EtudiantModal({ onClose, onSaved, initial }) {
   );
 }
 
-// ─── Modal de confirmation de suppression ─────────────────────────────────
+// ─── Modal de confirmation de suppression moderne ─────────────────────────────────
 function DeleteModal({ student, onConfirm, onCancel, loading }) {
   if (!student) return null;
+  
+  const [localLoading, setLocalLoading] = useState(false);
+  
+  const handleConfirm = async () => {
+    setLocalLoading(true);
+    await onConfirm();
+    setLocalLoading(false);
+  };
+  
   return (
-    <Modal title="Confirmer la suppression" onClose={onCancel} width={440}>
+    <Modal title="Confirmer la suppression" onClose={onCancel} width={480}>
       <div
         style={{
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          gap: 16,
-          padding: "8px 0 24px",
+          gap: 20,
+          padding: "16px 0 24px",
         }}
       >
         <div
           style={{
-            width: 64,
-            height: 64,
+            width: 80,
+            height: 80,
             borderRadius: "50%",
-            background: "rgba(239,68,68,0.12)",
+            background: "linear-gradient(135deg, rgba(239,68,68,0.15), rgba(220,38,38,0.1))",
             border: "2px solid rgba(239,68,68,0.3)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            animation: "pulse 1.5s infinite",
           }}
         >
-          <AlertTriangle size={28} color="#ef4444" />
+          <UserX size={40} color="#ef4444" />
         </div>
 
         <div style={{ textAlign: "center" }}>
           <p
             style={{
-              fontSize: 15,
+              fontSize: 18,
               fontWeight: 700,
               color: "var(--text)",
-              margin: "0 0 6px",
+              margin: "0 0 8px",
             }}
           >
-            {student.prenom} {student.nom}
+            Supprimer {student.prenom} {student.nom}
           </p>
           <p
             style={{
               fontSize: 13,
               color: "var(--text-muted)",
-              lineHeight: 1.7,
-              maxWidth: 340,
+              lineHeight: 1.6,
+              maxWidth: 380,
               margin: "0 auto",
             }}
           >
-            Cette action supprimera définitivement l'étudiant ainsi que toutes
-            ses inscriptions et notes.{" "}
-            <strong style={{ color: "var(--text)" }}>
-              Cette action est irréversible.
-            </strong>
+            Cette action entraînera la suppression définitive de toutes les données associées :
+            inscriptions, notes, et documents.
           </p>
+          <div
+            style={{
+              marginTop: 16,
+              padding: "10px 16px",
+              background: "rgba(239,68,68,0.08)",
+              borderRadius: "var(--radius-md)",
+              border: "1px solid rgba(239,68,68,0.2)",
+            }}
+          >
+            <span style={{ fontSize: 12, color: "#ef4444", fontWeight: 500 }}>
+              ⚠️ Cette action est irréversible
+            </span>
+          </div>
         </div>
       </div>
 
       <div
         style={{
           display: "flex",
-          gap: 10,
+          gap: 12,
           justifyContent: "flex-end",
-          paddingTop: 16,
+          paddingTop: 20,
           borderTop: "1px solid var(--border)",
         }}
       >
-        <Btn variant="ghost" onClick={onCancel} disabled={loading}>
+        <Btn variant="ghost" onClick={onCancel} disabled={loading || localLoading}>
           Annuler
         </Btn>
         <Btn
           variant="danger"
-          onClick={onConfirm}
-          loading={loading}
+          onClick={handleConfirm}
+          loading={loading || localLoading}
           icon={<Trash2 size={14} />}
         >
           Supprimer définitivement
         </Btn>
       </div>
+      
+      <style>{`
+        @keyframes pulse {
+          0%, 100% {
+            transform: scale(1);
+            opacity: 1;
+          }
+          50% {
+            transform: scale(1.05);
+            opacity: 0.9;
+          }
+        }
+      `}</style>
     </Modal>
   );
 }
@@ -572,7 +686,7 @@ const LIMIT = 20;
 export default function EtudiantsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { notification, hideNotification, success, error: showError } = useNotification();
+  const [toast, setToast] = useState(null);
   const canEdit = ["administrateur", "secretaire"].includes(user?.role);
 
   const [etudiants, setEtudiants] = useState([]);
@@ -584,6 +698,10 @@ export default function EtudiantsPage() {
   const [toDelete, setToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
+  const showNotification = (message, type = "success", details = null) => {
+    setToast({ message, type, details });
+  };
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -594,6 +712,11 @@ export default function EtudiantsPage() {
       setTotal(data.total ?? 0);
     } catch {
       setEtudiants([]);
+      showNotification(
+        "Impossible de charger la liste des étudiants",
+        "error",
+        "Veuillez vérifier votre connexion"
+      );
     } finally {
       setLoading(false);
     }
@@ -608,11 +731,19 @@ export default function EtudiantsPage() {
     setDeleting(true);
     try {
       await api.delete(`/etudiants/${toDelete.id}`);
-      success(Messages.STUDENT_DELETED(`${toDelete.prenom} ${toDelete.nom}`));
+      showNotification(
+        `Étudiant supprimé avec succès`,
+        "success",
+        `${toDelete.prenom} ${toDelete.nom} · Toutes ses données ont été effacées`
+      );
       setToDelete(null);
       load();
     } catch (err) {
-      showError(formatErrorMessage(err) || Messages.STUDENT_ERROR);
+      showNotification(
+        "Erreur lors de la suppression",
+        "error",
+        "Veuillez réessayer ultérieurement"
+      );
     } finally {
       setDeleting(false);
     }
@@ -622,14 +753,33 @@ export default function EtudiantsPage() {
   const startRecord = (page - 1) * LIMIT + 1;
   const endRecord = Math.min(page * LIMIT, total);
 
-  // ✅ CORRECTION 2 : tout le JSX est dans UN SEUL return, DeleteModal inclus
   return (
     <>
-      <NotificationDisplay notification={notification} onClose={hideNotification} />
+      {toast && (
+        <ToastNotification
+          message={toast.message}
+          type={toast.type}
+          details={toast.details}
+          onClose={() => setToast(null)}
+        />
+      )}
       <style>{`
         @keyframes shimmer {
           0%   { background-position: 200% 0 }
           100% { background-position: -200% 0 }
+        }
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        .animate-slide-in {
+          animation: slideIn 0.3s ease-out;
         }
       `}</style>
 
@@ -637,7 +787,6 @@ export default function EtudiantsPage() {
         className="page-enter"
         style={{ display: "flex", flexDirection: "column", gap: 0 }}
       >
-        {/* En-tête */}
         <PageHeader
           title="Étudiants"
           subtitle={
@@ -657,7 +806,6 @@ export default function EtudiantsPage() {
           }
         />
 
-        {/* Barre de recherche */}
         <div style={{ marginBottom: 24, position: "relative", maxWidth: 460 }}>
           <Search
             size={16}
@@ -725,7 +873,6 @@ export default function EtudiantsPage() {
           )}
         </div>
 
-        {/* Tableau */}
         <div
           style={{
             background: "var(--surface)",
@@ -798,7 +945,6 @@ export default function EtudiantsPage() {
                     e.currentTarget.style.boxShadow = "none";
                   }}
                 >
-                  {/* Avatar */}
                   <Td style={{ width: 56, paddingRight: 4, paddingLeft: 16 }}>
                     <Avatar
                       photo={e.photo}
@@ -808,7 +954,6 @@ export default function EtudiantsPage() {
                     />
                   </Td>
 
-                  {/* Matricule */}
                   <Td>
                     <span
                       style={{
@@ -826,7 +971,6 @@ export default function EtudiantsPage() {
                     </span>
                   </Td>
 
-                  {/* Nom complet + email */}
                   <Td>
                     <div
                       style={{
@@ -850,7 +994,6 @@ export default function EtudiantsPage() {
                     )}
                   </Td>
 
-                  {/* Date de naissance */}
                   <Td>
                     <span style={{ color: "var(--text-muted)", fontSize: 13, whiteSpace: "nowrap" }}>
                       {e.date_naissance
@@ -859,28 +1002,24 @@ export default function EtudiantsPage() {
                     </span>
                   </Td>
 
-                  {/* Sexe */}
                   <Td>
-                    <span style={{ fontSize: 12.15 }}>
+                    <span style={{ fontSize: 14, fontWeight: 500 }}>
                       {e.sexe === "M" ? "👦 M" : e.sexe === "F" ? "👧 F" : "—"}
                     </span>
                   </Td>
 
-                  {/* Téléphone */}
                   <Td>
                     <span style={{ color: "var(--text-muted)", fontSize: 13, whiteSpace: "nowrap" }}>
                       {e.telephone || "—"}
                     </span>
                   </Td>
 
-                  {/* Adresse */}
                   <Td>
                     <span style={{ color: "var(--text-muted)", fontSize: 13 }}>
                       {e.adresse || "—"}
                     </span>
                   </Td>
 
-                  {/* Actions */}
                   <Td>
                     <div
                       onClick={(ev) => ev.stopPropagation()}
@@ -917,7 +1056,6 @@ export default function EtudiantsPage() {
             )}
           </Table>
 
-          {/* Pagination */}
           {!loading && total > LIMIT && (
             <div
               style={{
@@ -975,19 +1113,21 @@ export default function EtudiantsPage() {
         </div>
       </div>
 
-      {/* Modal création / édition */}
       {modal && (
         <EtudiantModal
           initial={modal === "create" ? null : modal}
           onClose={() => setModal(null)}
           onSaved={() => {
             setModal(null);
-            load();
+            if (page !== 1) {
+              setPage(1); // useEffect re-déclenche load() automatiquement
+            } else {
+              load();
+            }
           }}
         />
       )}
 
-      {/* ✅ CORRECTION 2 : DeleteModal déplacé DANS le return, avant </> */}
       <DeleteModal
         student={toDelete}
         onConfirm={handleDelete}

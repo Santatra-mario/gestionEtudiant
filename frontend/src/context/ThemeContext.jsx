@@ -1,29 +1,29 @@
 // frontend/src/context/ThemeContext.jsx
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect } from "react";
 
-const ThemeContext = createContext(null)
+const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => {
-    // Lire le thème sauvegardé, sinon mode clair par défaut
-    return localStorage.getItem('theme') || 'light'
-  })
+    // Lire le thème sauvegardé, sinon mode sombre par défaut (cohérent avec index.css)
+    return localStorage.getItem("theme") || "dark";
+  });
 
   useEffect(() => {
     // Appliquer l'attribut data-theme sur <html>
-    document.documentElement.setAttribute('data-theme', theme)
-    localStorage.setItem('theme', theme)
-  }, [theme])
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
 
   const toggleTheme = () => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark')
-  }
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  };
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
-  )
+  );
 }
 
-export const useTheme = () => useContext(ThemeContext)
+export const useTheme = () => useContext(ThemeContext);

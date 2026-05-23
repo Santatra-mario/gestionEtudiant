@@ -11,9 +11,9 @@ export const Messages = {
   STUDENT_ERROR: "Une erreur s'est produite lors de la gestion de l'étudiant.",
 
   // Inscriptions
-  INSCRIPTION_CREATED: "✓ Inscription créée avec succès.",
-  INSCRIPTION_UPDATED: "✓ Inscription mise à jour avec succès.",
-  INSCRIPTION_DELETED: "✓ Inscription supprimée avec succès.",
+  INSCRIPTION_CREATED: (info) => info ? `✓ Inscription créée avec succès (réf. ${info}).` : "✓ Inscription créée avec succès.",
+  INSCRIPTION_UPDATED: (name) => name ? `✓ Inscription de ${name} mise à jour avec succès.` : "✓ Inscription mise à jour avec succès.",
+  INSCRIPTION_DELETED: (name) => name ? `✓ Inscription de ${name} supprimée avec succès.` : "✓ Inscription supprimée avec succès.",
   INSCRIPTION_ERROR: "Une erreur s'est produite lors de la gestion de l'inscription.",
 
   // Filières

@@ -14,12 +14,32 @@ import {
   Spinner,
 } from "../components/ui";
 
-// ─── Style bouton Modifier : vert fixe ───────────────────────────────────
-const BTN_VERT_STYLE = {
-  background: "#16a34a",
-  color: "#fff",
-  border: "1px solid #15803d",
-};
+// ─── Bouton "Modifier" vert fixe — pas de hover qui change le fond ────────
+function BtnModifier({ onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "5px 12px",
+        fontSize: 13,
+        fontWeight: 500,
+        borderRadius: 6,
+        border: "1px solid #15803d",
+        background: "#16a34a",   // ← vert toujours fixe
+        color: "#fff",
+        cursor: "pointer",
+        transition: "opacity 0.15s",
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.88"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
+    >
+      {children}
+    </button>
+  );
+}
 
 // --- MODAL DE CONFIRMATION STYLISÉE ---
 function ConfirmModal({ open, title, message, onConfirm, onCancel, loading = false }) {
@@ -120,7 +140,7 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
   const [form, setForm] = useState(
     initial
       ? { ...initial, enseignant_id: initial.enseignant_id ?? "" }
-      : { filiere_id: filiereId, code: "", nom: "", coefficient: 1, semestre: "S1", enseignant_id: "" },
+      : { filiere_id: filiereId, codemat: "", nom: "", coefficient: 1, semestre: "S1", enseignant_id: "" },
   );
   const [enseignants, setEnseignants] = useState([]);
   const [error, setError] = useState("");
@@ -138,7 +158,7 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
   }, []);
 
   const isFormValid = () => {
-    const codeOk = form.code.trim() !== "";
+    const codeOk = form.codemat.trim() !== "";
     const nomOk = form.nom.trim() !== "";
     const coeff = parseFloat(form.coefficient);
     const coeffOk = !isNaN(coeff) && coeff >= 0.5 && coeff <= 10;
@@ -178,7 +198,7 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
         {error && <Alert style={{ width: "100%" }}>{error}</Alert>}
 
         <div style={{ width: "100%", maxWidth: 320 }}>
-          <Input label="Code *" value={form.code} onChange={set("code")} placeholder="ex: ALGO1" required disabled={!!initial?.id} />
+          <Input label="Code *" value={form.codemat} onChange={set("codemat")} placeholder="ex: ALGO1" required disabled={!!initial?.id} />
         </div>
 
         <div style={{ width: "100%", maxWidth: 320 }}>
@@ -416,20 +436,17 @@ export default function FilieresPage() {
 
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   {canManageFilieres && (
-                    // ✅ Vert fixe — plus de onMouseEnter/onMouseLeave qui écrasaient le style
-                    <Btn
-                      small
-                      variant="ghost"
+                    // ✅ BtnModifier : vert fixe, le hover change seulement l'opacité
+                    <BtnModifier
                       onClick={(e) => {
                         e.stopPropagation();
                         setActiveButton(`filiere-${f.id}`);
                         setModal(f);
                       }}
-                      style={BTN_VERT_STYLE}
                     >
-                      <Edit size={14} style={{ marginRight: 6 }} />
+                      <Edit size={14} />
                       Modifier
-                    </Btn>
+                    </BtnModifier>
                   )}
                   {isAdmin && (
                     <Btn
@@ -497,7 +514,7 @@ export default function FilieresPage() {
                             <Badge color="muted">{m.semestre}</Badge>
                             <span style={{ fontSize: 14, color: "var(--text)" }}>{m.nom}</span>
                             <span style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "monospace" }}>
-                              {m.code}
+                              {m.codemat}
                             </span>
                             <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
                               Coeff. {m.coefficient}
@@ -532,19 +549,16 @@ export default function FilieresPage() {
 
                           {canManageFilieres && (
                             <div style={{ display: "flex", gap: 6 }}>
-                              {/* ✅ Vert fixe — plus de onMouseEnter/onMouseLeave */}
-                              <Btn
-                                small
-                                variant="ghost"
+                              {/* ✅ BtnModifier : vert fixe, hover = opacité seulement */}
+                              <BtnModifier
                                 onClick={() => {
                                   setActiveButton(`matiere-${m.id}`);
                                   setMatiereModal({ filiereId: f.id, initial: m });
                                 }}
-                                style={BTN_VERT_STYLE}
                               >
-                                <Edit size={14} style={{ marginRight: 6 }} />
+                                <Edit size={14} />
                                 Modifier
-                              </Btn>
+                              </BtnModifier>
                               {isAdmin && (
                                 <Btn
                                   small

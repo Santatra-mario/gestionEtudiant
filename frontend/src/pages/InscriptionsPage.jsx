@@ -222,7 +222,6 @@ function StatutPicker({ value, onChange }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
         {STATUTS.map((s) => {
           const active = value === s;
-          // couleur d'accent selon statut
           const colors = {
             actif:     { bg: "#22c55e", ring: "rgba(34,197,94,0.22)"  },
             suspendu:  { bg: "#f59e0b", ring: "rgba(245,158,11,0.22)" },
@@ -270,7 +269,7 @@ function InscriptionModal({ onClose, onSaved, onSuccess, onError }) {
     etudiant_id:         "",
     filiere_id:          "",
     niveau:              "L1",
-    statut:              "actif",          // ← nouveau champ
+    statut:              "actif",
     annee_universitaire: getCurrentAcademicYear(),
     date_inscription:    getTodayDate(),
   });
@@ -294,9 +293,12 @@ function InscriptionModal({ onClose, onSaved, onSuccess, onError }) {
     setError("");
     setLoading(true);
     try {
-      await api.post("/inscriptions", form);
+      const response = await api.post("/inscriptions", form);
       onSuccess && onSuccess(Messages.INSCRIPTION_CREATED(form.etudiant_id));
-      setTimeout(onSaved, 300);
+      onClose();
+      setTimeout(() => {
+        onSaved();
+      }, 300);
     } catch (err) {
       const errMsg = formatErrorMessage(err) || Messages.INSCRIPTION_ERROR;
       setError(errMsg);
@@ -365,7 +367,6 @@ function InscriptionModal({ onClose, onSaved, onSuccess, onError }) {
 
           {/* ── Section Cursus ── */}
           <FormSection title="Cursus académique" icon={BookOpen}>
-            {/* Select filière natif (custom n'est pas encore utilisé ici) */}
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <label style={{
                 fontSize: 13, fontWeight: 600, color: "var(--text-soft)",
@@ -420,7 +421,6 @@ function InscriptionModal({ onClose, onSaved, onSuccess, onError }) {
               </div>
             </div>
 
-            {/* Niveau + Année */}
             <FormRow>
               <Select
                 label="Niveau d'études"
@@ -443,15 +443,13 @@ function InscriptionModal({ onClose, onSaved, onSuccess, onError }) {
             </FormRow>
           </FormSection>
 
-          {/* ── Section Statut ── NEW ── */}
+          {/* ── Section Statut & Date ── */}
           <FormSection title="Statut & Date" icon={Tag}>
-            {/* Picker statut visuel */}
             <StatutPicker
               value={form.statut}
               onChange={(val) => setForm((f) => ({ ...f, statut: val }))}
             />
 
-            {/* Date d'inscription */}
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <Input
                 label="Date d'inscription"
@@ -489,7 +487,6 @@ function InscriptionModal({ onClose, onSaved, onSuccess, onError }) {
 
         </div>
 
-        {/* ── Actions ── */}
         <div style={{
           display: "flex", gap: 10, justifyContent: "flex-end",
           marginTop: 28, paddingTop: 20,
@@ -524,7 +521,10 @@ function StatutModal({ inscription, onClose, onSaved, onSuccess, onError }) {
     try {
       await api.patch(`/inscriptions/${inscription.id}/statut`, { statut });
       onSuccess && onSuccess(Messages.INSCRIPTION_UPDATED(inscription.etudiant_nom));
-      setTimeout(onSaved, 300);
+      onClose();
+      setTimeout(() => {
+        onSaved();
+      }, 300);
     } catch (err) {
       const errMsg = formatErrorMessage(err) || Messages.INSCRIPTION_ERROR;
       setError(errMsg);
@@ -544,7 +544,6 @@ function StatutModal({ inscription, onClose, onSaved, onSuccess, onError }) {
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 0 }}>
         {error && <div style={{ marginBottom: 16 }}><Alert type="danger">{error}</Alert></div>}
 
-        {/* Statut actuel */}
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "12px 16px", background: "var(--surface2)",
@@ -557,10 +556,8 @@ function StatutModal({ inscription, onClose, onSaved, onSuccess, onError }) {
           </Badge>
         </div>
 
-        {/* Picker statut */}
         <StatutPicker value={statut} onChange={setStatut} />
 
-        {/* Actions */}
         <div style={{
           display: "flex", gap: 10, justifyContent: "flex-end",
           marginTop: 24, paddingTop: 20,
@@ -650,7 +647,6 @@ export default function InscriptionsPage() {
         background: "transparent",
       }}>
 
-        {/* En-tête */}
         <PageHeader
           title="Inscriptions"
           subtitle={`${inscriptions.length} inscription${inscriptions.length !== 1 ? "s" : ""}${hasFilters ? " (filtrées)" : ""}`}
@@ -684,7 +680,6 @@ export default function InscriptionsPage() {
               <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: "var(--text)" }}>
                 Administration des inscriptions universitaires
               </h2>
-             
             </div>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
@@ -697,7 +692,6 @@ export default function InscriptionsPage() {
           </div>
         </div>
 
-        {/* Barre filtres */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
           <Btn
             small
@@ -723,7 +717,6 @@ export default function InscriptionsPage() {
             </Btn>
           )}
 
-          {/* Chips */}
           {filters.annee && (
             <span style={{
               display: "inline-flex", alignItems: "center", gap: 6,
@@ -754,7 +747,6 @@ export default function InscriptionsPage() {
           )}
         </div>
 
-        {/* Panneau filtres */}
         {showFilters && (
           <div style={{
             display: "flex", flexDirection: "column", gap: 14,
@@ -763,7 +755,6 @@ export default function InscriptionsPage() {
             borderRadius: "var(--radius-lg)", animation: "slideDown 0.18s ease",
             boxShadow: "var(--shadow-sm)",
           }}>
-            {/* Année */}
             <Input
               label="Année universitaire"
               value={filters.annee}
@@ -772,7 +763,6 @@ export default function InscriptionsPage() {
               icon={Calendar}
             />
 
-            {/* Filtre statut — mêmes boutons visuels que le formulaire */}
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <label style={{
                 fontSize: 13, fontWeight: 600, color: "var(--text-soft)",
@@ -782,7 +772,6 @@ export default function InscriptionsPage() {
                 Filtrer par statut
               </label>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
-                {/* Bouton "Tous" */}
                 {[{ key: "", label: "Tous" }, ...STATUTS.map(s => ({ key: s, label: STATUT_LABELS[s] }))].map(({ key, label }) => {
                   const active = filters.statut === key;
                   const colors = {
@@ -823,7 +812,6 @@ export default function InscriptionsPage() {
           </div>
         )}
 
-        {/* Tableau */}
         <div style={{
           background: "var(--surface)", borderRadius: "var(--radius-lg)",
           border: "1px solid var(--border)", overflow: "hidden",
@@ -885,11 +873,10 @@ export default function InscriptionsPage() {
         </div>
       </div>
 
-      {/* Modals */}
       {showModal && (
         <InscriptionModal
           onClose={() => setShowModal(false)}
-          onSaved={() => { setShowModal(false); load(); }}
+          onSaved={() => { load(); }}
           onSuccess={showSuccess}
           onError={showError}
         />
@@ -898,7 +885,7 @@ export default function InscriptionsPage() {
         <StatutModal
           inscription={statutModal}
           onClose={() => setStatutModal(null)}
-          onSaved={() => { setStatutModal(null); load(); }}
+          onSaved={() => { load(); }}
           onSuccess={showSuccess}
           onError={showError}
         />

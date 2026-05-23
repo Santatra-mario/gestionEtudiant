@@ -20,7 +20,7 @@ import {
 import api from "../services/api";
 import { useNotification, NotificationDisplay } from "../hooks/useNotification";
 import { PageHeader, Card, Badge, Btn, Spinner, Alert } from "../components/ui";
- 
+
 /* ─── Palettes ───────────────────────────────────────────────────────────── */
 const STATUT_COLOR = {
   actif: "success",
@@ -41,14 +41,14 @@ const AVATAR_COLORS = [
   ["#ec4899", "#be185d"],
   ["#14b8a6", "#0d9488"],
 ];
- 
+
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
 const mention_icon = {
   Admis: CheckCircle2,
   Rattrapage: AlertCircle,
   Ajourné: AlertCircle,
 };
- 
+
 function fmtDate(d) {
   if (!d) return null;
   return new Date(d).toLocaleDateString("fr", {
@@ -57,15 +57,30 @@ function fmtDate(d) {
     year: "numeric",
   });
 }
- 
+
 function moyenneColor(m) {
   if (m === null || m === undefined) return "var(--text-muted)";
   return parseFloat(m) >= 10 ? "var(--success)" : "var(--danger)";
 }
- 
-/* ─── Composant : Ligne d'information ───────────────────────────────────── */
+
+/* ─── Composant : Ligne d'information avec emojis pour le sexe ───────────────────── */
 function InfoRow({ label, value, icon: Icon, last = false }) {
   if (!value) return null;
+  
+  // Ajouter des emojis pour le sexe
+  let displayValue = value;
+  let SexeIcon = null;
+  
+  if (label === "Genre" || label === "Sexe") {
+    if (value.includes("Masculin") || value === "M" || value === "♂ Masculin") {
+      displayValue = "♂ Masculin";
+      SexeIcon = () => <span className="text-blue-500 mr-2">👨</span>;
+    } else if (value.includes("Féminin") || value === "F" || value === "♀ Féminin") {
+      displayValue = "♀ Féminin";
+      SexeIcon = () => <span className="text-pink-500 mr-2">👩</span>;
+    }
+  }
+  
   return (
     <div
       style={{
@@ -90,7 +105,11 @@ function InfoRow({ label, value, icon: Icon, last = false }) {
             justifyContent: "center",
           }}
         >
-          <Icon size={13} color="var(--accent)" />
+          {label === "Genre" || label === "Sexe" ? (
+            SexeIcon ? <SexeIcon /> : <Icon size={13} color="var(--accent)" />
+          ) : (
+            <Icon size={13} color="var(--accent)" />
+          )}
         </div>
       )}
       <div style={{ minWidth: 0 }}>
@@ -112,15 +131,24 @@ function InfoRow({ label, value, icon: Icon, last = false }) {
             color: "var(--text)",
             fontWeight: 500,
             wordBreak: "break-word",
+            display: "flex",
+            alignItems: "center",
           }}
         >
-          {value}
+          {label === "Genre" || label === "Sexe" ? (
+            <>
+              {SexeIcon && <SexeIcon />}
+              <span>{displayValue}</span>
+            </>
+          ) : (
+            displayValue
+          )}
         </div>
       </div>
     </div>
   );
 }
- 
+
 /* ─── Composant : Stat résumé ────────────────────────────────────────────── */
 function StatPill({ label, value, color = "var(--text)" }) {
   return (
@@ -138,13 +166,13 @@ function StatPill({ label, value, color = "var(--text)" }) {
     </div>
   );
 }
- 
+
 /* ─── Composant : Carte d'inscription (historique) ──────────────────────── */
 function InscriptionCard({ h, onViewNotes }) {
   const moyenne = h.moyenne != null ? parseFloat(h.moyenne) : null;
   const MIcon = mention_icon[h.mention] || Clock;
-  const pct = moyenne != null ? Math.min(100, (moyenne / 20) * 100) : 0;
- 
+  const pct = moyenne != null ? Math.min(100, (moyenne / 20) * 100) : null;
+
   return (
     <div
       style={{
@@ -220,7 +248,7 @@ function InscriptionCard({ h, onViewNotes }) {
           )}
         </div>
       </div>
- 
+
       {/* Bloc moyenne */}
       {moyenne != null ? (
         <div
@@ -250,7 +278,7 @@ function InscriptionCard({ h, onViewNotes }) {
             >
               <TrendingUp size={18} color={moyenneColor(moyenne)} />
             </div>
- 
+
             <div>
               <div
                 style={{
@@ -278,7 +306,7 @@ function InscriptionCard({ h, onViewNotes }) {
                 </span>
               </div>
             </div>
- 
+
             {/* Barre de progression */}
             <div style={{ flex: 1, marginLeft: 8 }}>
               <div
@@ -328,7 +356,7 @@ function InscriptionCard({ h, onViewNotes }) {
               </div>
             </div>
           </div>
- 
+
           {/* Seuil de passage */}
           <div
             style={{
@@ -376,7 +404,7 @@ function InscriptionCard({ h, onViewNotes }) {
           <Clock size={14} /> Aucune moyenne enregistrée pour cette inscription.
         </div>
       )}
- 
+
       {/* Action */}
       <Btn
         small
@@ -389,21 +417,41 @@ function InscriptionCard({ h, onViewNotes }) {
     </div>
   );
 }
- 
+
+/* ─── Composant amélioré pour afficher le sexe avec emoji ───────────────── */
+function GenderDisplay({ sexe }) {
+  if (!sexe) return null;
+  
+  const isMale = sexe === "M" || sexe === "Masculin" || sexe === "♂";
+  const genderText = isMale ? "Masculin" : "Féminin";
+  const genderEmoji = isMale ? "👨" : "👩";
+  const genderIcon = isMale ? "♂" : "♀";
+  const colorClass = isMale ? "text-blue-500" : "text-pink-500";
+  
+  return (
+    <div className="flex items-center gap-2">
+      <span className={`text-xl ${colorClass}`}>{genderEmoji}</span>
+      <span className="font-medium">
+        {genderIcon} {genderText}
+      </span>
+    </div>
+  );
+}
+
 /* ─── Page principale ────────────────────────────────────────────────────── */
 export default function EtudiantDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
- 
+
   // ✅ Notifications
   const { notification, hideNotification, success, error: showError } = useNotification();
- 
+
   const [etudiant, setEtudiant] = useState(null);
   const [historique, setHistorique] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [imgError, setImgError] = useState(false);
- 
+
   useEffect(() => {
     setLoading(true);
     Promise.all([
@@ -423,13 +471,13 @@ export default function EtudiantDetailPage() {
       })
       .finally(() => setLoading(false));
   }, [id]);
- 
+
   // ✅ Handler navigation vers notes avec notification
   const handleViewNotes = (h) => {
     success(`Ouverture des notes — ${h.filiere_nom} (${h.annee_universitaire}, ${h.niveau})`);
     setTimeout(() => navigate(`/notes?inscription=${h.id}`), 600);
   };
- 
+
   if (loading)
     return (
       <div
@@ -445,14 +493,14 @@ export default function EtudiantDetailPage() {
     );
   if (error) return <Alert type="danger">{error}</Alert>;
   if (!etudiant) return <Alert type="warning">Étudiant introuvable.</Alert>;
- 
+
   /* Avatar */
   const photoSrc =
     etudiant.photo && !imgError ? `/uploads/${etudiant.photo}` : null;
   const idx = (etudiant.prenom?.charCodeAt(0) || 0) % AVATAR_COLORS.length;
   const [gradFrom, gradTo] = AVATAR_COLORS[idx];
   const initials = `${(etudiant.prenom?.[0] || "").toUpperCase()}${(etudiant.nom?.[0] || "").toUpperCase()}`;
- 
+
   /* Stats */
   const nbAdmis = historique.filter((h) => h.mention === "Admis").length;
   const nbRattrapage = historique.filter((h) => h.mention === "Rattrapage").length;
@@ -464,19 +512,42 @@ export default function EtudiantDetailPage() {
     moyennes.length > 0
       ? (moyennes.reduce((a, b) => a + b, 0) / moyennes.length).toFixed(2)
       : null;
- 
+
+  // Déterminer le sexe avec emoji pour l'affichage
+  const getGenderDisplay = () => {
+    const sexe = etudiant.sexe;
+    if (sexe === "M") {
+      return {
+        text: "♂ Masculin",
+        emoji: "👨",
+        icon: "♂",
+        color: "text-blue-500"
+      };
+    } else if (sexe === "F") {
+      return {
+        text: "♀ Féminin",
+        emoji: "👩",
+        icon: "♀",
+        color: "text-pink-500"
+      };
+    }
+    return { text: sexe || "Non spécifié", emoji: "❓", icon: "", color: "text-gray-500" };
+  };
+
+  const genderInfo = getGenderDisplay();
+
   return (
     <div className="page-enter">
       {/* ✅ NotificationDisplay en haut de page */}
       <NotificationDisplay notification={notification} onClose={hideNotification} />
- 
+
       {/* ── En-tête ── */}
       <PageHeader
         title={`${etudiant.prenom} ${etudiant.nom}`}
         subtitle={`Matricule : ${etudiant.matricule}`}
         back={() => navigate(-1)}
       />
- 
+
       <div
         style={{
           display: "grid",
@@ -517,7 +588,7 @@ export default function EtudiantDetailPage() {
                 }}
               />
             </div>
- 
+
             <div style={{ padding: "0 20px 20px", position: "relative" }}>
               {/* Photo / Avatar */}
               <div
@@ -563,7 +634,7 @@ export default function EtudiantDetailPage() {
                     {initials}
                   </div>
                 )}
- 
+
                 {/* Nom & Matricule */}
                 <div style={{ marginTop: 12, textAlign: "center" }}>
                   <div
@@ -591,7 +662,7 @@ export default function EtudiantDetailPage() {
                     {etudiant.matricule}
                   </div>
                 </div>
- 
+
                 {etudiant.statut && (
                   <div style={{ marginTop: 10 }}>
                     <Badge color={STATUT_COLOR[etudiant.statut] || "muted"} dot>
@@ -600,8 +671,8 @@ export default function EtudiantDetailPage() {
                   </div>
                 )}
               </div>
- 
-              {/* Informations personnelles */}
+
+              {/* Informations personnelles avec emojis pour le sexe */}
               <div>
                 <InfoRow
                   label="Genre"
@@ -632,7 +703,7 @@ export default function EtudiantDetailPage() {
               </div>
             </div>
           </div>
- 
+
           {/* ── Bouton retour ── */}
           <Btn
             variant="ghost"
@@ -643,7 +714,7 @@ export default function EtudiantDetailPage() {
             Retour à la liste
           </Btn>
         </div>
- 
+
         {/* ════════════════════ COLONNE DROITE ════════════════════ */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {/* ── Titre section historique ── */}
@@ -699,7 +770,7 @@ export default function EtudiantDetailPage() {
               </Badge>
             </div>
           </div>
- 
+
           {/* ── Liste des inscriptions ── */}
           {historique.length === 0 ? (
             <div
@@ -757,7 +828,7 @@ export default function EtudiantDetailPage() {
               />
             ))
           )}
- 
+
           {/* ── Résumé académique ── */}
           {historique.length > 0 && (
             <div
@@ -801,12 +872,12 @@ export default function EtudiantDetailPage() {
                   Résumé académique
                 </span>
               </div>
- 
+
               <StatPill label="Total inscriptions" value={historique.length} />
               <StatPill label="Admis" value={nbAdmis} color="var(--success)" />
               <StatPill label="Rattrapages" value={nbRattrapage} color="var(--warning)" />
               <StatPill label="Ajournés" value={nbAjourn} color="var(--danger)" />
- 
+
               {moyGlobale !== null && (
                 <div
                   style={{

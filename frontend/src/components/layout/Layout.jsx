@@ -19,7 +19,7 @@ import {
   Moon,
   Calendar,
 } from "lucide-react";
-
+ 
 /* ─── Navigation ─────────────────────────────────────────────────────────── */
 const NAV = [
   { to: "/", label: "Tableau de bord", icon: LayoutDashboard, exact: true, hint: "Vue d'ensemble" },
@@ -31,14 +31,14 @@ const NAV = [
   { to: "/presence", label: "Présence", icon: Calendar, hint: "Gestion de présence", roles: ["administrateur", "secretaire", "enseignant"] },
   { to: "/utilisateurs", label: "Utilisateurs", icon: Users, hint: "Gestion des comptes", roles: ["administrateur"] },
 ];
-
+ 
 /* ─── Couleurs par rôle ──────────────────────────────────────────────────── */
 const ROLE_CONFIG = {
   administrateur: { color: "#4f8ef7", bg: "rgba(79,142,247,0.12)", label: "Administrateur" },
   secretaire:     { color: "#22c55e", bg: "rgba(34,197,94,0.12)",  label: "Secrétaire"     },
   enseignant:     { color: "#f59e0b", bg: "rgba(245,158,11,0.12)", label: "Enseignant"      },
 };
-
+ 
 /* ─── Séparateur de section nav ─────────────────────────────────────────── */
 function NavSeparator({ label, collapsed }) {
   if (collapsed)
@@ -49,7 +49,7 @@ function NavSeparator({ label, collapsed }) {
     </div>
   );
 }
-
+ 
 /* ─── Modal de déconnexion ───────────────────────────────────────────────── */
 function LogoutDialog({ user, onConfirm, onCancel }) {
   const rc = ROLE_CONFIG[user?.role] || { color: "var(--accent)", bg: "rgba(79,142,247,0.12)", label: user?.role };
@@ -87,12 +87,12 @@ function LogoutDialog({ user, onConfirm, onCancel }) {
     </>
   );
 }
-
+ 
 /* ─── Élément de navigation ─────────────────────────────────────────────── */
 function NavItem({ item, collapsed }) {
   const { to, label, icon: Icon, hint, exact } = item;
   const [hovered, setHovered] = useState(false);
-
+ 
   return (
     <NavLink to={to} end={exact}
       style={({ isActive }) => ({
@@ -113,7 +113,7 @@ function NavItem({ item, collapsed }) {
     >
       <Icon size={17} style={{ flexShrink: 0 }} />
       {!collapsed && <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>}
-
+ 
       {/* Tooltip en mode collapsed */}
       {collapsed && hovered && (
         <div style={{ position: "fixed", left: 70, zIndex: 9999, background: "var(--surface3)", color: "var(--text)", fontSize: 13, fontWeight: 500, padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border)", boxShadow: "0 4px 16px rgba(0,0,0,0.4)", pointerEvents: "none", whiteSpace: "nowrap", animation: "fadeIn 0.12s ease" }}>
@@ -124,19 +124,19 @@ function NavItem({ item, collapsed }) {
     </NavLink>
   );
 }
-
+ 
 /* ─── Bouton Toggle Thème ────────────────────────────────────────────────── */
 function ThemeToggleButton({ collapsed, theme, onToggle }) {
   const [spinning, setSpinning] = useState(false);
-
+ 
   const handleClick = () => {
     setSpinning(true);
     onToggle();
     setTimeout(() => setSpinning(false), 400);
   };
-
+ 
   const isDark = theme === "dark";
-
+ 
   return (
     <button
       onClick={handleClick}
@@ -178,7 +178,122 @@ function ThemeToggleButton({ collapsed, theme, onToggle }) {
     </button>
   );
 }
+ 
+/* ─── Logo moderne avec bouton réduire intégré ───────────────────────────── */
+function AppLogo({ collapsed, onToggleCollapse }) {
+  return (
+    <div style={{
+      padding: collapsed ? "18px 8px" : "16px 16px 14px",
+      borderBottom: "1px solid var(--border)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 11,
+      minHeight: 68,
+      flexShrink: 0,
+    }}>
+      {/* Partie gauche: Icône + Texte */}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 11,
+        flex: 1,
+        overflow: "hidden",
+      }}>
+        {/* Icône */}
+        <div style={{ position: "relative", flexShrink: 0 }}>
+          <div style={{
+            position: "absolute",
+            inset: -3,
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(var(--accent-rgb, 201,162,39), 0.15) 0%, transparent 70%)",
+            pointerEvents: "none",
+          }} />
+          <GraduationCap
+            size={28}
+            strokeWidth={1.6}
+            style={{
+              color: "var(--accent)",
+              filter: "drop-shadow(0 0 6px rgba(var(--accent-rgb, 201,162,39), 0.5))",
+              display: "block",
+            }}
+          />
+        </div>
 
+        {/* Texte — visible seulement en mode étendu */}
+        {!collapsed && (
+          <div style={{ overflow: "hidden", lineHeight: 1, flex: 1 }}>
+            <div style={{
+              fontSize: 13,
+              fontWeight: 700,
+              color: "var(--text)",
+              letterSpacing: "0.01em",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}>
+              Gestion d'étudiant
+            </div>
+            <div style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: "var(--accent)",
+              textTransform: "uppercase",
+              letterSpacing: "0.12em",
+              marginTop: 3,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}>
+              Universitaire
+            </div>
+            <div style={{
+              marginTop: 5,
+              height: 2,
+              width: "100%",
+              borderRadius: 2,
+              background: "linear-gradient(90deg, var(--accent) 0%, transparent 100%)",
+              opacity: 0.5,
+            }} />
+          </div>
+        )}
+      </div>
+
+      {/* Bouton Réduire/Agrandir - à droite de l'icône et du texte */}
+      <button 
+        onClick={onToggleCollapse}
+        title={collapsed ? "Agrandir le menu" : "Réduire le menu"}
+        aria-label={collapsed ? "Agrandir le menu de navigation" : "Réduire le menu de navigation"}
+        style={{
+          padding: collapsed ? "6px" : "6px 8px",
+          borderRadius: "var(--radius-sm)",
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          color: "var(--text-muted)",
+          fontSize: 12,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 4,
+          transition: "all 0.15s",
+          fontFamily: "var(--font-body)",
+          flexShrink: 0,
+        }}
+        onMouseEnter={e => { 
+          e.currentTarget.style.background = "var(--surface2)"; 
+          e.currentTarget.style.color = "var(--text)"; 
+        }}
+        onMouseLeave={e => { 
+          e.currentTarget.style.background = "transparent"; 
+          e.currentTarget.style.color = "var(--text-muted)"; 
+        }}>
+        {collapsed ? <ChevronRight size={15} aria-hidden="true" /> : <ChevronLeft size={15} aria-hidden="true" />}
+      </button>
+    </div>
+  );
+}
+ 
 /* ─── Layout principal ───────────────────────────────────────────────────── */
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -187,14 +302,14 @@ export default function Layout() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
-
+ 
   const visibleNav = NAV.filter(n => !n.roles || n.roles.includes(user?.role));
   const rc = ROLE_CONFIG[user?.role] || { color: "var(--accent)", bg: "rgba(79,142,247,0.12)", label: user?.role };
-
+ 
   /* Groupes de nav */
   const mainNav  = visibleNav.filter(n => n.to !== "/utilisateurs");
   const adminNav = visibleNav.filter(n => n.to === "/utilisateurs");
-
+ 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}>
       {showLogout && (
@@ -202,7 +317,7 @@ export default function Layout() {
           onConfirm={() => { setShowLogout(false); logout(); navigate("/login"); }}
           onCancel={() => setShowLogout(false)} />
       )}
-
+ 
       {/* ══════════════════════ SIDEBAR ══════════════════════ */}
       <aside style={{
         width: collapsed ? 64 : 280,
@@ -216,27 +331,15 @@ export default function Layout() {
         backdropFilter: "blur(10px)",
         WebkitBackdropFilter: "blur(10px)",
       }}>
-
-        {/* ── Logo / Marque ── */}
-        <div style={{ padding: "20px 16px 18px", borderBottom: "2px solid var(--border)", display: "flex", alignItems: "center", gap: 12, minHeight: 72, flexShrink: 0 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, background: "linear-gradient(135deg, var(--accent), var(--accent-dark))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#fff", fontFamily: "var(--font-display)", fontWeight: 700, boxShadow: "0 4px 16px rgba(201,162,39,0.4)", letterSpacing: "-0.02em", border: "2px solid var(--accent-glow)" }}>
-            <GraduationCap size={20} aria-hidden="true" />
-          </div>
-          {!collapsed && (
-            <div style={{ overflow: "hidden", flex: 1 }}>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 18, color: "var(--text)", lineHeight: 1.2, fontWeight: 700, letterSpacing: "-0.01em" }}>UniGest</div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 2, fontWeight: 600 }}>Gestion d'etudiant universitaire</div>
-            </div>
-          )}
-        </div>
-
+ 
+        {/* ── Logo moderne avec bouton réduire intégré ── */}
+        <AppLogo collapsed={collapsed} onToggleCollapse={() => setCollapsed(!collapsed)} />
+ 
         {/* ── Navigation principale ── */}
         <nav style={{ flex: 1, padding: "8px 8px 4px", display: "flex", flexDirection: "column", gap: 2, overflowY: "auto", overflowX: "hidden" }}>
-          {/* Groupe principal */}
           {!collapsed && <NavSeparator label="Principal" collapsed={collapsed} />}
           {mainNav.map(item => <NavItem key={item.to} item={item} collapsed={collapsed} />)}
-
-          {/* Groupe administration */}
+ 
           {adminNav.length > 0 && (
             <>
               <NavSeparator label="Administration" collapsed={collapsed} />
@@ -244,10 +347,10 @@ export default function Layout() {
             </>
           )}
         </nav>
-
+ 
         {/* ── Zone utilisateur & actions bas ── */}
         <div style={{ padding: "8px 8px 10px", borderTop: "1px solid var(--border)", flexShrink: 0 }}>
-
+ 
           {/* Carte utilisateur — mode étendu */}
           {!collapsed && (
             <div style={{ padding: "12px 14px", marginBottom: 8, borderRadius: "var(--radius-lg)", background: rc.bg, border: `2px solid ${rc.color}40`, overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.1)", transition: "transform 0.2s ease" }}
@@ -268,7 +371,7 @@ export default function Layout() {
               </div>
             </div>
           )}
-
+ 
           {/* Avatar seul — mode collapsed */}
           {collapsed && (
             <div style={{ display: "flex", justifyContent: "center", marginBottom: 6 }}>
@@ -278,53 +381,44 @@ export default function Layout() {
               </div>
             </div>
           )}
-
+ 
           {/* ── Toggle Dark / Light ── */}
           <ThemeToggleButton collapsed={collapsed} theme={theme} onToggle={toggleTheme} />
-
+ 
           {/* ── Bouton déconnexion ── */}
           <button onClick={() => setShowLogout(true)}
             title={collapsed ? "Déconnexion" : undefined}
+            aria-label="Se déconnecter de l'application"
             style={{ width: "100%", padding: collapsed ? "8px 0" : "8px 10px", borderRadius: "var(--radius-sm)", background: "transparent", border: "none", cursor: "pointer", color: "var(--danger)", fontSize: 13, display: "flex", alignItems: "center", justifyContent: collapsed ? "center" : "flex-start", gap: 8, transition: "background 0.15s", fontFamily: "var(--font-body)" }}
             onMouseEnter={e => e.currentTarget.style.background = "rgba(239,68,68,0.1)"}
             onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-            <LogOut size={15} style={{ flexShrink: 0 }} />
+            <LogOut size={15} style={{ flexShrink: 0 }} aria-hidden="true" />
             {!collapsed && <span>Déconnexion</span>}
-          </button>
-
-          {/* ── Bouton réduire / agrandir ── */}
-          <button onClick={() => setCollapsed(c => !c)}
-            title={collapsed ? "Agrandir le menu" : "Réduire le menu"}
-            style={{ width: "100%", padding: collapsed ? "7px 0" : "7px 10px", borderRadius: "var(--radius-sm)", background: "transparent", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: 12, display: "flex", alignItems: "center", justifyContent: collapsed ? "center" : "flex-start", gap: 8, marginTop: 2, transition: "background 0.15s", fontFamily: "var(--font-body)" }}
-            onMouseEnter={e => { e.currentTarget.style.background = "var(--surface2)"; e.currentTarget.style.color = "var(--text)"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-muted)"; }}>
-            {collapsed ? <ChevronRight size={15} style={{ flexShrink: 0 }} /> : <ChevronLeft size={15} style={{ flexShrink: 0 }} />}
-            {!collapsed && "Réduire le menu"}
           </button>
         </div>
       </aside>
-
+ 
       {/* ══════════════════════ CONTENU ══════════════════════ */}
       <main style={{ flex: 1, overflow: "auto", minWidth: 0 }}>
-
+ 
         {/* Barre de contexte supérieure */}
         <div style={{ position: "sticky", top: 0, zIndex: 50, background: "var(--topbar-bg)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "2px solid var(--border)", padding: "0 36px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 2px 12px rgba(0,0,0,0.1)" }}>
           {/* Fil d'ariane */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "var(--text-muted)" }}>
-            <span style={{ opacity: 0.6, fontWeight: 500 }}>UniGest</span>
+            <span style={{ opacity: 0.6, fontWeight: 500 }}>Gestion Universitaire</span>
             <span style={{ opacity: 0.4, fontSize: 16 }}>/</span>
             <span style={{ color: "var(--text)", fontWeight: 600 }}>
               {NAV.find(n => n.to === location.pathname)?.label || "Page"}
             </span>
           </div>
-
+ 
           {/* Indicateur rôle */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 12px", borderRadius: 99, background: rc.bg, border: `2px solid ${rc.color}40`, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: rc.color, flexShrink: 0, boxShadow: `0 0 8px ${rc.color}60` }} />
             <span style={{ fontSize: 13, color: rc.color, fontWeight: 600 }}>{rc.label}</span>
           </div>
         </div>
-
+ 
         {/* Zone de page */}
         <div style={{ padding: "36px 40px", maxWidth: 1400, margin: "0 auto", minHeight: "calc(100vh - 52px)" }}>
           <ErrorBoundary>

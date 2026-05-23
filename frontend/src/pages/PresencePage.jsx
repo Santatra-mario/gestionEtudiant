@@ -1,403 +1,250 @@
-import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useSearchParams, useLocation } from "react-router-dom";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import {
-  Calendar, CheckCircle, XCircle, Clock, Save, Search,
-  ChevronDown, ChevronUp, AlertCircle, UserPlus, Edit,
-  Trash2, BarChart3, BookOpen, User, StickyNote, Timer, X,
-  InboxIcon,
+  Calendar,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Users,
+  Save,
+  Filter,
+  Search,
+  ChevronDown,
+  ChevronUp,
+  AlertCircle,
+  Download,
+  RefreshCw,
+  UserPlus,
+  UserMinus,
+  Edit,
+  Trash2,
+  FileText,
+  AlertTriangle,
+  BarChart3,
+  BookOpen,
+  User,
+  StickyNote,
+  Timer,
+  X,
 } from "lucide-react";
-import { PageHeader, Card, Btn, Alert } from "../components/ui";
+import {
+  PageHeader,
+  Card,
+  Btn,
+  Badge,
+  Alert,
+  Spinner,
+  Modal,
+} from "../components/ui";
 
 // ══════════════════════════════════════════════════════════════════════════════
-// STYLES GLOBAUX
+// STYLES GLOBAUX DES INPUTS MODERNES
 // ══════════════════════════════════════════════════════════════════════════════
+
+const fieldWrapStyle = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 6,
+  position: "relative",
+};
+
 const labelStyle = {
-  fontSize: 12, fontWeight: 700, color: "var(--text-muted)",
-  textTransform: "uppercase", letterSpacing: "0.05em",
-  display: "flex", alignItems: "center", gap: 4,
+  fontSize: 12,
+  fontWeight: 700,
+  color: "var(--text-muted)",
+  textTransform: "uppercase",
+  letterSpacing: "0.05em",
+  display: "flex",
+  alignItems: "center",
+  gap: 4,
 };
+
+const requiredDotStyle = {
+  color: "#ef4444",
+  fontSize: 16,
+  lineHeight: 1,
+};
+
 const baseInputStyle = {
-  width: "100%", padding: "10px 13px 10px 36px", fontSize: 14,
-  background: "var(--surface2)", border: "1.5px solid var(--border)",
-  borderRadius: 8, color: "var(--text)", outline: "none",
-  transition: "border-color 0.2s, box-shadow 0.2s", boxSizing: "border-box",
+  width: "100%",
+  padding: "10px 13px",
+  fontSize: 14,
+  background: "var(--surface2)",
+  border: "1.5px solid var(--border)",
+  borderRadius: "var(--radius-sm, 8px)",
+  color: "var(--text)",
+  outline: "none",
+  transition: "border-color 0.2s, box-shadow 0.2s",
+  boxSizing: "border-box",
 };
+
 const baseSelectStyle = {
-  ...baseInputStyle, paddingLeft: 13,
-  appearance: "none", WebkitAppearance: "none",
-  cursor: "pointer", paddingRight: 36, colorScheme: "dark",
+  ...baseInputStyle,
+  appearance: "none",
+  WebkitAppearance: "none",
+  cursor: "pointer",
+  paddingRight: 36,
+  colorScheme: "dark",
 };
+
 const modalInputBase = {
-  width: "100%", padding: "11px 14px 11px 38px", fontSize: 14,
-  background: "var(--surface2)", border: "1.5px solid var(--border)",
-  borderRadius: 10, color: "var(--text)", outline: "none",
-  transition: "border-color 0.2s, box-shadow 0.2s", boxSizing: "border-box",
+  width: "100%",
+  padding: "11px 40px 11px 38px",
+  fontSize: 14,
+  background: "var(--surface2)",
+  border: "1.5px solid var(--border)",
+  borderRadius: 10,
+  color: "var(--text)",
+  outline: "none",
+  transition: "border-color 0.2s, box-shadow 0.2s, background 0.2s",
+  boxSizing: "border-box",
 };
-const getInputStyle = (value, hasError = false) => ({
+
+const modalSelectBase = {
   ...modalInputBase,
-  borderColor: hasError ? "#ef4444" : value ? "var(--accent)" : "var(--border)",
-  boxShadow:   value    ? "0 0 0 3px rgba(99,102,241,0.12)" : "none",
-});
-const getSelectStyle = (value, hasError = false) => ({
-  ...modalInputBase,
-  appearance: "none", WebkitAppearance: "none",
-  cursor: "pointer", paddingRight: 36, colorScheme: "dark",
-  borderColor: hasError ? "#ef4444" : value ? "var(--accent)" : "var(--border)",
-  boxShadow:   value    ? "0 0 0 3px rgba(99,102,241,0.12)" : "none",
-});
+  appearance: "none",
+  WebkitAppearance: "none",
+  cursor: "pointer",
+  colorScheme: "dark",
+};
+
+function getInputStyle(value, hasError = false) {
+  return {
+    ...modalInputBase,
+    borderColor: hasError ? "#ef4444" : value ? "var(--accent)" : "var(--border)",
+    boxShadow: value ? "0 0 0 3px rgba(99,102,241,0.12)" : "none",
+  };
+}
+
+function getSelectStyle(value, hasError = false) {
+  return {
+    ...modalSelectBase,
+    borderColor: hasError ? "#ef4444" : value ? "var(--accent)" : "var(--border)",
+    boxShadow: value ? "0 0 0 3px rgba(99,102,241,0.12)" : "none",
+  };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// COMPOSANT : SELECT NATIF
+// ══════════════════════════════════════════════════════════════════════════════
+
+function NativeSelect({ label, value, onChange, children, disabled }) {
+  return (
+    <div style={fieldWrapStyle}>
+      {label && <label style={labelStyle}>{label}</label>}
+      <div style={{ position: "relative" }}>
+        <select
+          value={value}
+          onChange={onChange}
+          disabled={disabled}
+          style={baseSelectStyle}
+          onFocus={(e) => {
+            e.currentTarget.style.borderColor = "var(--accent)";
+            e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.15)";
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.borderColor = "var(--border)";
+            e.currentTarget.style.boxShadow = "none";
+          }}
+        >
+          {children}
+        </select>
+        <ChevronDown
+          size={15}
+          style={{
+            position: "absolute", right: 11, top: "50%",
+            transform: "translateY(-50%)",
+            color: "var(--text-muted)", pointerEvents: "none",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// COMPOSANT : CHAMP INPUT MODAL
+// ══════════════════════════════════════════════════════════════════════════════
+
+function ModalField({ label, required, icon: Icon, error, children }) {
+  return (
+    <div style={fieldWrapStyle}>
+      <label style={labelStyle}>
+        {Icon && <Icon size={13} style={{ opacity: 0.7 }} />}
+        {label}
+        {required && <span style={requiredDotStyle}>*</span>}
+      </label>
+      <div style={{ position: "relative" }}>
+        {children}
+      </div>
+      {error && (
+        <span style={{ fontSize: 11, color: "#ef4444", marginTop: 2 }}>
+          {error}
+        </span>
+      )}
+    </div>
+  );
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // HELPERS
 // ══════════════════════════════════════════════════════════════════════════════
-function extractArray(d) {
-  if (Array.isArray(d))          return d;
-  if (Array.isArray(d?.data))    return d.data;
-  if (Array.isArray(d?.matieres)) return d.matieres;
+
+function extractArray(responseData) {
+  if (Array.isArray(responseData)) return responseData;
+  if (Array.isArray(responseData?.data)) return responseData.data;
+  if (Array.isArray(responseData?.matieres)) return responseData.matieres;
   return [];
 }
-function getStudentFullName(s) {
-  if (!s) return "";
-  const nom    = s.etudiant_nom || s.nom || "";
-  const prenom = s.prenom || "";
-  if (nom && prenom) return `${nom} ${prenom}`;
+
+function getStudentFullName(student) {
+  if (!student) return "";
+  const nom = student.etudiant_nom || student.nom || "";
+  const prenom = student.prenom || "";
+  if (prenom && nom) return `${nom} ${prenom}`;
   return nom || prenom || "Étudiant inconnu";
 }
-function formatDate(dateStr) {
-  if (!dateStr) return "";
-  try {
-    return new Date(dateStr).toLocaleDateString("fr-FR", {
-      weekday: "short", day: "numeric", month: "long", year: "numeric",
-    });
-  } catch { return dateStr; }
-}
 
 // ══════════════════════════════════════════════════════════════════════════════
-// COMPOSANT : NativeSelect
+// COMPOSANT : MODAL D'AJOUT D'ABSENCE
 // ══════════════════════════════════════════════════════════════════════════════
-function NativeSelect({ label, value, onChange, children, disabled }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      {label && <label style={labelStyle}>{label}</label>}
-      <div style={{ position: "relative" }}>
-        <select value={value} onChange={onChange} disabled={disabled} style={baseSelectStyle}
-          onFocus={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.15)"; }}
-          onBlur={(e)  => { e.currentTarget.style.borderColor = "var(--border)";  e.currentTarget.style.boxShadow = "none"; }}
-        >{children}</select>
-        <ChevronDown size={15} style={{ position: "absolute", right: 11, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }} />
-      </div>
-    </div>
-  );
-}
 
-// ══════════════════════════════════════════════════════════════════════════════
-// COMPOSANT : ModalField
-// ══════════════════════════════════════════════════════════════════════════════
-function ModalField({ label, required, icon: Icon, error, children }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <label style={labelStyle}>
-        {Icon && <Icon size={13} style={{ opacity: 0.7 }} />}
-        {label}
-        {required && <span style={{ color: "#ef4444", fontSize: 16, lineHeight: 1 }}>*</span>}
-      </label>
-      <div style={{ position: "relative" }}>{children}</div>
-      {error && <span style={{ fontSize: 11, color: "#ef4444", marginTop: 2 }}>{error}</span>}
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// COMPOSANT : StudentSearch — recherche dynamique avec dropdown
-// ══════════════════════════════════════════════════════════════════════════════
-function StudentSearch({ inscriptions, value, onChange, hasError }) {
-  const [query,       setQuery]       = useState("");
-  const [open,        setOpen]        = useState(false);
-  const [highlighted, setHighlighted] = useState(0);
-  const wrapRef  = useRef(null);
-  const inputRef = useRef(null);
-  const listRef  = useRef(null);
-
-  const selectedStudent = inscriptions.find((s) => String(s.id) === String(value));
-  const displayName     = selectedStudent
-    ? getStudentFullName(selectedStudent) + (selectedStudent.matricule ? ` (${selectedStudent.matricule})` : "")
-    : "";
-
-  const inputValue = open ? query : displayName;
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return inscriptions.slice(0, 8);
-    return inscriptions.filter((s) =>
-      getStudentFullName(s).toLowerCase().includes(q) ||
-      (s.matricule   || "").toLowerCase().includes(q) ||
-      (s.filiere_nom || "").toLowerCase().includes(q)
-    ).slice(0, 10);
-  }, [query, inscriptions]);
-
-  const handleSelect = (student) => { onChange(String(student.id)); setQuery(""); setOpen(false); };
-  const handleChange = (e) => { setQuery(e.target.value); setHighlighted(0); setOpen(true); if (e.target.value === "") onChange(""); };
-  const handleFocus  = () => { setQuery(displayName); setOpen(true); setHighlighted(0); };
-  const handleKeyDown = (e) => {
-    if (!open) { setOpen(true); return; }
-    if (e.key === "ArrowDown") { e.preventDefault(); setHighlighted((h) => Math.min(h + 1, filtered.length - 1)); }
-    else if (e.key === "ArrowUp")  { e.preventDefault(); setHighlighted((h) => Math.max(h - 1, 0)); }
-    else if (e.key === "Enter")    { e.preventDefault(); if (filtered[highlighted]) handleSelect(filtered[highlighted]); }
-    else if (e.key === "Escape")   { setOpen(false); setQuery(""); }
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    const h = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) { setOpen(false); setQuery(""); } };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [open]);
-
-  useEffect(() => {
-    if (!listRef.current) return;
-    const el = listRef.current.children[highlighted + 1];
-    if (el) el.scrollIntoView({ block: "nearest" });
-  }, [highlighted]);
-
-  const active      = !!(value || query);
-  const borderColor = hasError ? "#ef4444" : active ? "var(--accent)" : "var(--border)";
-  const boxShadow   = active ? "0 0 0 3px rgba(99,102,241,0.12)" : "none";
-
-  const hl = (text) => {
-    const q = query.trim().toLowerCase();
-    if (!q) return text;
-    const i = text.toLowerCase().indexOf(q);
-    if (i === -1) return text;
-    return (<>{text.slice(0, i)}<mark style={{ background: "rgba(99,102,241,0.28)", color: "var(--accent)", borderRadius: 3, padding: "0 2px", fontWeight: 700 }}>{text.slice(i, i + q.length)}</mark>{text.slice(i + q.length)}</>);
-  };
-
-  return (
-    <div ref={wrapRef} style={{ position: "relative" }}>
-      <div style={{ position: "relative" }}>
-        <Search size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: active ? "var(--accent)" : "var(--text-muted)", pointerEvents: "none", transition: "color 0.2s", zIndex: 1 }} />
-        <input ref={inputRef} type="text" autoComplete="off" spellCheck={false}
-          placeholder="Tapez un nom ou matricule…"
-          value={inputValue} onChange={handleChange} onFocus={handleFocus} onKeyDown={handleKeyDown}
-          style={{ ...modalInputBase, borderColor, boxShadow, paddingLeft: 38, paddingRight: value ? 34 : 14 }}
-        />
-        {value && (
-          <button type="button"
-            onMouseDown={(e) => { e.preventDefault(); onChange(""); setQuery(""); setTimeout(() => inputRef.current?.focus(), 0); }}
-            style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "var(--surface3)", border: "none", borderRadius: "50%", width: 20, height: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, color: "var(--text-muted)" }}
-            title="Effacer"
-          ><X size={12} /></button>
-        )}
-      </div>
-
-      {open && (
-        <div ref={listRef} style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, background: "var(--surface)", border: "1.5px solid var(--accent)", borderRadius: 12, boxShadow: "0 12px 32px rgba(0,0,0,0.22)", maxHeight: 240, overflowY: "auto", zIndex: 99999, animation: "ssDropIn 0.14s cubic-bezier(0.34,1.2,0.64,1)" }}>
-          {/* En-tête compteur */}
-          <div style={{ padding: "6px 14px 5px", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", borderBottom: "1px solid var(--border)", background: "var(--surface2)", borderRadius: "10px 10px 0 0", letterSpacing: "0.04em" }}>
-            {filtered.length === 0 ? `Aucun résultat pour « ${query} »` : `${filtered.length} étudiant${filtered.length > 1 ? "s" : ""} trouvé${filtered.length > 1 ? "s" : ""}`}
-          </div>
-          {filtered.length === 0 ? (
-            <div style={{ padding: "18px 16px", textAlign: "center" }}>
-              <User size={28} style={{ opacity: 0.2, display: "block", margin: "0 auto 6px" }} />
-              <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Aucun étudiant ne correspond à <strong>« {query} »</strong></div>
-            </div>
-          ) : filtered.map((s, idx) => {
-            const name  = getStudentFullName(s);
-            const isHov = idx === highlighted;
-            const isSel = String(s.id) === String(value);
-            return (
-              <div key={s.id}
-                onMouseDown={(e) => { e.preventDefault(); handleSelect(s); }}
-                onMouseEnter={() => setHighlighted(idx)}
-                style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: isSel ? "rgba(99,102,241,0.10)" : isHov ? "var(--surface2)" : "transparent", borderBottom: idx < filtered.length - 1 ? "1px solid var(--border)" : "none", cursor: "pointer", transition: "background 0.1s", borderLeft: isSel ? "3px solid var(--accent)" : isHov ? "3px solid rgba(99,102,241,0.3)" : "3px solid transparent" }}
-              >
-                <div style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0, background: isSel ? "rgba(99,102,241,0.18)" : "var(--surface2)", border: isSel ? "2px solid var(--accent)" : "2px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: isSel ? "var(--accent)" : "var(--text-muted)" }}>
-                  {name.charAt(0).toUpperCase()}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{hl(name)}</div>
-                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{[s.matricule, s.filiere_nom, s.niveau].filter(Boolean).join(" · ")}</div>
-                </div>
-                {isSel && <CheckCircle size={15} style={{ color: "var(--accent)", flexShrink: 0 }} />}
-              </div>
-            );
-          })}
-        </div>
-      )}
-      <style>{`@keyframes ssDropIn { from { opacity:0; transform:translateY(-6px) scale(0.98); } to { opacity:1; transform:translateY(0) scale(1); } }`}</style>
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// COMPOSANT : EmptyState — état vide d'une colonne (EN ROUGE)
-// ══════════════════════════════════════════════════════════════════════════════
-function EmptyState({ label, Icon, color, isFiltered }) {
-  return (
-    <div style={{
-      textAlign: "center", padding: "32px 16px",
-      background: "rgba(239,68,68,0.04)",
-      border: "1.5px dashed rgba(239,68,68,0.35)",
-      borderRadius: 10, margin: "4px 0",
-    }}>
-      {/* Icône cercle rouge */}
-      <div style={{
-        width: 48, height: 48, borderRadius: "50%",
-        background: "rgba(239,68,68,0.10)",
-        border: "2px solid rgba(239,68,68,0.25)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        margin: "0 auto 12px",
-      }}>
-        <Icon size={22} style={{ color: "#ef4444", opacity: 0.7 }} />
-      </div>
-
-      {/* Texte principal */}
-      <div style={{ fontSize: 13, fontWeight: 700, color: "#ef4444", marginBottom: 4 }}>
-        Aucun étudiant {label.toLowerCase()}
-      </div>
-
-      {/* Sous-texte contextuel */}
-      <div style={{ fontSize: 11, color: "rgba(239,68,68,0.7)", lineHeight: 1.5 }}>
-        {isFiltered
-          ? "Aucun résultat ne correspond à votre filtre."
-          : "Aucune absence enregistrée pour cette catégorie."}
-      </div>
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// COMPOSANT : StudentCard — carte d'un étudiant dans une colonne
-// ══════════════════════════════════════════════════════════════════════════════
-function StudentCard({ student, color, canManage, onDelete }) {
-  const statusLabel = student.statut === "retard" ? "En retard le" : student.statut === "excuse" ? "Excusé le" : "Absent le";
-
-  return (
-    <div
-      style={{ padding: "12px 8px", borderBottom: "1px solid var(--border)", borderRadius: 6, transition: "background 0.15s" }}
-      onMouseEnter={(e) => e.currentTarget.style.background = "var(--surface2)"}
-      onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-    >
-      {/* ── Ligne 1 : Avatar + Nom + Actions ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        {/* Avatar */}
-        <div style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0, background: `${color}18`, border: `2px solid ${color}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color }}>
-          {student.fullName.charAt(0).toUpperCase()}
-        </div>
-
-        {/* Nom */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, color: "var(--text)", fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {student.fullName}
-          </div>
-        </div>
-
-        {/* Boutons action */}
-        {canManage && (
-          <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
-            <button title="Modifier"
-              style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", padding: "5px 8px", color: "var(--text-muted)", display: "flex", alignItems: "center", transition: "all 0.15s" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent)"; e.currentTarget.style.color = "#fff"; e.currentTarget.style.borderColor = "var(--accent)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--surface2)"; e.currentTarget.style.color = "var(--text-muted)"; e.currentTarget.style.borderColor = "var(--border)"; }}
-            ><Edit size={13} /></button>
-            <button title="Supprimer" onClick={() => onDelete(student.id, student.fullName)}
-              style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", padding: "5px 8px", color: "var(--text-muted)", display: "flex", alignItems: "center", transition: "all 0.15s" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "#ef4444"; e.currentTarget.style.color = "#fff"; e.currentTarget.style.borderColor = "#ef4444"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--surface2)"; e.currentTarget.style.color = "var(--text-muted)"; e.currentTarget.style.borderColor = "var(--border)"; }}
-            ><Trash2 size={13} /></button>
-          </div>
-        )}
-      </div>
-
-      {/* ── Grille d'informations détaillées ── */}
-      <div style={{ marginTop: 10, marginLeft: 50, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 12px" }}>
-
-        {/* Matricule */}
-        {student.matricule && (
-          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <User size={11} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text)" }}>{student.matricule}</span>
-          </div>
-        )}
-
-        {/* Niveau */}
-        {student.niveau && (
-          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <BarChart3 size={11} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
-            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-              Niveau <span style={{ fontWeight: 700, color: "var(--text)" }}>{student.niveau}</span>
-            </span>
-          </div>
-        )}
-
-        {/* Matière (pleine largeur) */}
-        {student.matiere_nom && (
-          <div style={{ display: "flex", alignItems: "center", gap: 5, gridColumn: "1 / -1" }}>
-            <BookOpen size={11} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
-            <span style={{ fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              <span style={{ fontWeight: 700, color: "var(--text)" }}>{student.matiere_nom}</span>
-              {student.filiere_nom && <span style={{ color: "var(--text-muted)" }}> — {student.filiere_nom}</span>}
-            </span>
-          </div>
-        )}
-
-        {/* Date d'absence (pleine largeur) */}
-        {student.date && (
-          <div style={{ display: "flex", alignItems: "center", gap: 5, gridColumn: "1 / -1" }}>
-            <Calendar size={11} style={{ color, flexShrink: 0 }} />
-            <span style={{ fontSize: 11 }}>
-              <span style={{ color: "var(--text-muted)" }}>{statusLabel} </span>
-              <span style={{ fontWeight: 700, color }}>{formatDate(student.date)}</span>
-            </span>
-          </div>
-        )}
-
-        {/* Durée */}
-        {student.duree && (
-          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <Timer size={11} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
-            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-              Durée : <span style={{ fontWeight: 700, color: "var(--text)" }}>{student.duree}</span>
-            </span>
-          </div>
-        )}
-
-        {/* Motif (pleine largeur) */}
-        {student.motif && (
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 5, gridColumn: "1 / -1" }}>
-            <StickyNote size={11} style={{ color: "var(--text-muted)", flexShrink: 0, marginTop: 1 }} />
-            <span style={{ fontSize: 11, color: "var(--text-muted)", fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {student.motif}
-            </span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// COMPOSANT : AddAbsenceModal
-// ══════════════════════════════════════════════════════════════════════════════
 function AddAbsenceModal({ open, onClose, onSave, saving, inscriptions, matieres, matLoading }) {
-  const [form, setForm]     = useState({ inscription_id: "", matiere_id: "", date: "", statut: "absent", motif: "", duree: "" });
+  const [form, setForm] = useState({
+    inscription_id: "",
+    matiere_id: "",
+    date: "",
+    statut: "absent",
+    motif: "",
+    duree: "",
+  });
   const [touched, setTouched] = useState({});
 
   useEffect(() => {
-    if (open) { setForm({ inscription_id: "", matiere_id: "", date: "", statut: "absent", motif: "", duree: "" }); setTouched({}); }
+    if (open) {
+      setForm({ inscription_id: "", matiere_id: "", date: "", statut: "absent", motif: "", duree: "" });
+      setTouched({});
+    }
   }, [open]);
 
   if (!open) return null;
 
-  const set   = (field) => (e) => { setForm((p) => ({ ...p, [field]: e.target.value })); setTouched((p) => ({ ...p, [field]: true })); };
-  const touch = (field) => ()  => setTouched((p) => ({ ...p, [field]: true }));
+  const set = (field) => (e) => {
+    setForm((prev) => ({ ...prev, [field]: e.target.value }));
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  };
+
+  const touch = (field) => () => setTouched((prev) => ({ ...prev, [field]: true }));
 
   const errors = {
-    inscription_id: touched.inscription_id && !form.inscription_id ? "Étudiant requis"  : "",
-    matiere_id:     touched.matiere_id     && !form.matiere_id     ? "Matière requise"  : "",
-    date:           touched.date           && !form.date           ? "Date requise"     : "",
+    inscription_id: touched.inscription_id && !form.inscription_id ? "Étudiant requis" : "",
+    matiere_id: touched.matiere_id && !form.matiere_id ? "Matière requise" : "",
+    date: touched.date && !form.date ? "Date requise" : "",
   };
-  const isFormValid      = !!form.inscription_id && !!form.matiere_id && !!form.date && !!form.statut;
-  const completedFields  = [form.inscription_id, form.matiere_id, form.date, form.statut].filter(Boolean).length;
+
+  const isFormValid = !!form.inscription_id && !!form.matiere_id && !!form.date && !!form.statut;
 
   const handleSubmit = () => {
     setTouched({ inscription_id: true, matiere_id: true, date: true });
@@ -405,142 +252,339 @@ function AddAbsenceModal({ open, onClose, onSave, saving, inscriptions, matieres
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+    <div
+      style={{
+        position: "fixed", inset: 0, zIndex: 9999,
+        background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 16,
+      }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, width: "100%", maxWidth: 600, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.35)", animation: "modalIn 0.25s cubic-bezier(0.34,1.4,0.64,1)" }}>
-
+      <div
+        style={{
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          borderRadius: 16,
+          width: "100%",
+          maxWidth: 580,
+          maxHeight: "90vh",
+          overflowY: "auto",
+          boxShadow: "0 25px 50px -12px rgba(0,0,0,0.35)",
+          animation: "modalIn 0.25s cubic-bezier(0.34,1.4,0.64,1)",
+        }}
+      >
         {/* En-tête */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          padding: "20px 24px", borderBottom: "1px solid var(--border)",
+        }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(99,102,241,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 10,
+              background: "rgba(99,102,241,0.12)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
               <UserPlus size={18} style={{ color: "var(--accent)" }} />
             </div>
             <div>
-              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--text)" }}>Ajouter une absence</h3>
-              <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)" }}>Les champs <span style={{ color: "#ef4444" }}>*</span> sont obligatoires</p>
+              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--text)" }}>
+                Ajouter une absence
+              </h3>
+              <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)" }}>
+                Les champs marqués <span style={{ color: "#ef4444" }}>*</span> sont obligatoires
+              </p>
             </div>
           </div>
-          <button onClick={onClose}
-            style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", padding: 6, color: "var(--text-muted)", display: "flex", alignItems: "center", transition: "all 0.15s" }}
+          <button
+            onClick={onClose}
+            style={{
+              background: "var(--surface2)", border: "1px solid var(--border)",
+              borderRadius: 8, cursor: "pointer", padding: 6,
+              color: "var(--text-muted)", display: "flex", alignItems: "center",
+              transition: "all 0.15s",
+            }}
             onMouseEnter={(e) => { e.currentTarget.style.background = "var(--surface3)"; e.currentTarget.style.color = "var(--text)"; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = "var(--surface2)"; e.currentTarget.style.color = "var(--text-muted)"; }}
-          ><X size={16} /></button>
+          >
+            <X size={16} />
+          </button>
         </div>
 
-        {/* Corps */}
+        {/* Corps du formulaire */}
         <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 18 }}>
 
-          {/* Étudiant */}
-          <ModalField label="Étudiant" required icon={User} error={errors.inscription_id}>
-            <StudentSearch
-              inscriptions={inscriptions}
-              value={form.inscription_id}
-              onChange={(id) => { setForm((p) => ({ ...p, inscription_id: id })); setTouched((p) => ({ ...p, inscription_id: true })); }}
-              hasError={!!errors.inscription_id}
-            />
-          </ModalField>
+          {/* Ligne 1 : Étudiant + Matière */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <ModalField label="Étudiant" required icon={User} error={errors.inscription_id}>
+              <select
+                value={form.inscription_id}
+                onChange={set("inscription_id")}
+                onBlur={touch("inscription_id")}
+                style={getSelectStyle(form.inscription_id, !!errors.inscription_id)}
+                onFocus={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.15)"; }}
+              >
+                <option value="">Choisir un étudiant…</option>
+                {inscriptions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {getStudentFullName(s)}
+                    {s.matricule ? ` (${s.matricule})` : ""}
+                  </option>
+                ))}
+              </select>
+              <User size={15} style={{
+                position: "absolute", left: 12, top: "50%",
+                transform: "translateY(-50%)",
+                color: form.inscription_id ? "var(--accent)" : "var(--text-muted)",
+                pointerEvents: "none", transition: "color 0.2s",
+              }} />
+              <ChevronDown size={14} style={{
+                position: "absolute", right: 11, top: "50%",
+                transform: "translateY(-50%)",
+                color: "var(--text-muted)", pointerEvents: "none",
+              }} />
+            </ModalField>
 
-          {/* Matière */}
-          <ModalField label="Matière" required icon={BookOpen} error={errors.matiere_id}>
-            <select value={form.matiere_id} onChange={set("matiere_id")} onBlur={touch("matiere_id")} disabled={matLoading}
-              style={getSelectStyle(form.matiere_id, !!errors.matiere_id)}
-              onFocus={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.15)"; }}
-            >
-              <option value="">{matLoading ? "Chargement…" : "Choisir une matière…"}</option>
-              {matieres.map((m) => <option key={m.id} value={m.id}>{m.nom}{m.filiere_nom ? ` — ${m.filiere_nom}` : ""}</option>)}
-            </select>
-            <BookOpen size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: form.matiere_id ? "var(--accent)" : "var(--text-muted)", pointerEvents: "none" }} />
-            <ChevronDown size={14} style={{ position: "absolute", right: 11, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }} />
-          </ModalField>
+            <ModalField label="Matière" required icon={BookOpen} error={errors.matiere_id}>
+              <select
+                value={form.matiere_id}
+                onChange={set("matiere_id")}
+                onBlur={touch("matiere_id")}
+                disabled={matLoading}
+                style={getSelectStyle(form.matiere_id, !!errors.matiere_id)}
+                onFocus={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.15)"; }}
+              >
+                <option value="">{matLoading ? "Chargement…" : "Choisir une matière…"}</option>
+                {matieres.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.nom}{m.filiere_nom ? ` — ${m.filiere_nom}` : ""}
+                  </option>
+                ))}
+              </select>
+              <BookOpen size={15} style={{
+                position: "absolute", left: 12, top: "50%",
+                transform: "translateY(-50%)",
+                color: form.matiere_id ? "var(--accent)" : "var(--text-muted)",
+                pointerEvents: "none", transition: "color 0.2s",
+              }} />
+              <ChevronDown size={14} style={{
+                position: "absolute", right: 11, top: "50%",
+                transform: "translateY(-50%)",
+                color: "var(--text-muted)", pointerEvents: "none",
+              }} />
+            </ModalField>
+          </div>
 
-          {/* Date + Statut + Durée */}
+          {/* Ligne 2 : Date + Statut + Durée */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
             <ModalField label="Date" required icon={Calendar} error={errors.date}>
-              <input type="date" value={form.date} onChange={set("date")} onBlur={touch("date")}
+              <input
+                type="date"
+                value={form.date}
+                onChange={set("date")}
+                onBlur={touch("date")}
                 style={getInputStyle(form.date, !!errors.date)}
                 onFocus={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.15)"; }}
                 onBlurCapture={(e) => { if (!form.date) { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.boxShadow = "none"; } }}
               />
-              <Calendar size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: form.date ? "var(--accent)" : "var(--text-muted)", pointerEvents: "none" }} />
+              <Calendar size={15} style={{
+                position: "absolute", left: 12, top: "50%",
+                transform: "translateY(-50%)",
+                color: form.date ? "var(--accent)" : "var(--text-muted)",
+                pointerEvents: "none", transition: "color 0.2s",
+              }} />
             </ModalField>
 
             <ModalField label="Statut" required icon={AlertCircle}>
-              <select value={form.statut} onChange={set("statut")} style={getSelectStyle(form.statut)}
+              <select
+                value={form.statut}
+                onChange={set("statut")}
+                style={getSelectStyle(form.statut)}
                 onFocus={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.15)"; }}
               >
                 <option value="absent">🔴 Absent</option>
                 <option value="retard">🟡 Retard</option>
                 <option value="excuse">🔵 Excusé</option>
               </select>
-              <AlertCircle size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--accent)", pointerEvents: "none" }} />
-              <ChevronDown size={14} style={{ position: "absolute", right: 11, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }} />
+              <AlertCircle size={15} style={{
+                position: "absolute", left: 12, top: "50%",
+                transform: "translateY(-50%)",
+                color: form.statut ? "var(--accent)" : "var(--text-muted)",
+                pointerEvents: "none",
+              }} />
+              <ChevronDown size={14} style={{
+                position: "absolute", right: 11, top: "50%",
+                transform: "translateY(-50%)",
+                color: "var(--text-muted)", pointerEvents: "none",
+              }} />
             </ModalField>
 
             <ModalField label="Durée" icon={Timer}>
-              <input type="text" value={form.duree} onChange={set("duree")} placeholder="Ex : 2h, 1 jour…"
+              <input
+                type="text"
+                value={form.duree}
+                onChange={set("duree")}
+                placeholder="Ex : 2h, 1 jour…"
                 style={getInputStyle(form.duree)}
                 onFocus={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.15)"; }}
                 onBlur={(e) => { if (!form.duree) { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.boxShadow = "none"; } }}
               />
-              <Timer size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: form.duree ? "var(--accent)" : "var(--text-muted)", pointerEvents: "none" }} />
+              <Timer size={15} style={{
+                position: "absolute", left: 12, top: "50%",
+                transform: "translateY(-50%)",
+                color: form.duree ? "var(--accent)" : "var(--text-muted)",
+                pointerEvents: "none", transition: "color 0.2s",
+              }} />
             </ModalField>
           </div>
 
           {/* Motif */}
           <ModalField label="Motif de l'absence" icon={StickyNote}>
-            <textarea value={form.motif} onChange={set("motif")} placeholder="Décrire le motif (facultatif)…" rows={3}
-              style={{ ...getInputStyle(form.motif), padding: "11px 14px 11px 38px", resize: "vertical", minHeight: 80, fontFamily: "inherit" }}
+            <textarea
+              value={form.motif}
+              onChange={set("motif")}
+              placeholder="Décrire le motif de l'absence (facultatif)…"
+              rows={3}
+              style={{
+                ...getInputStyle(form.motif),
+                padding: "11px 14px 11px 38px",
+                resize: "vertical",
+                minHeight: 80,
+                fontFamily: "inherit",
+              }}
               onFocus={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.15)"; }}
               onBlur={(e) => { if (!form.motif) { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.boxShadow = "none"; } }}
             />
-            <StickyNote size={15} style={{ position: "absolute", left: 12, top: 13, color: form.motif ? "var(--accent)" : "var(--text-muted)", pointerEvents: "none" }} />
+            <StickyNote size={15} style={{
+              position: "absolute", left: 12, top: 13,
+              color: form.motif ? "var(--accent)" : "var(--text-muted)",
+              pointerEvents: "none", transition: "color 0.2s",
+            }} />
           </ModalField>
 
           {/* Barre de progression */}
-          <div style={{ padding: "10px 14px", background: "var(--surface2)", borderRadius: 8, border: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{
+            padding: "10px 14px",
+            background: "var(--surface2)",
+            borderRadius: 8,
+            border: "1px solid var(--border)",
+            display: "flex", alignItems: "center", gap: 10,
+          }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 5 }}>Complétion du formulaire</div>
-              <div style={{ height: 5, background: "var(--border)", borderRadius: 4, overflow: "hidden" }}>
-                <div style={{ height: "100%", borderRadius: 4, transition: "width 0.35s ease, background 0.35s", width: `${(completedFields / 4) * 100}%`, background: isFormValid ? "#22c55e" : "var(--accent)" }} />
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>
+                Complétion du formulaire
+              </div>
+              <div style={{ height: 4, background: "var(--border)", borderRadius: 4, overflow: "hidden" }}>
+                <div style={{
+                  height: "100%",
+                  borderRadius: 4,
+                  background: isFormValid ? "var(--success)" : "var(--accent)",
+                  width: `${[form.inscription_id, form.matiere_id, form.date, form.statut].filter(Boolean).length / 4 * 100}%`,
+                  transition: "width 0.3s ease, background 0.3s",
+                }} />
               </div>
             </div>
-            <span style={{ fontSize: 13, fontWeight: 800, color: isFormValid ? "#22c55e" : "var(--accent)", minWidth: 28, textAlign: "right" }}>{completedFields}/4</span>
+            <span style={{
+              fontSize: 12, fontWeight: 700,
+              color: isFormValid ? "var(--success)" : "var(--accent)",
+            }}>
+              {[form.inscription_id, form.matiere_id, form.date, form.statut].filter(Boolean).length}/4
+            </span>
           </div>
         </div>
 
-        {/* Pied */}
-        <div style={{ padding: "16px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: 10 }}>
-          <Btn variant="ghost" onClick={onClose} disabled={saving}>Annuler</Btn>
-          <button onClick={handleSubmit} disabled={!isFormValid || saving}
-            title={!isFormValid ? "Remplissez tous les champs obligatoires" : ""}
-            style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 22px", borderRadius: 8, border: "none", fontSize: 14, fontWeight: 600, cursor: !isFormValid || saving ? "not-allowed" : "pointer", transition: "all 0.2s", background: !isFormValid || saving ? "var(--surface3)" : "var(--accent)", color: !isFormValid || saving ? "var(--text-muted)" : "#fff", opacity: !isFormValid ? 0.55 : 1, boxShadow: isFormValid && !saving ? "0 2px 10px rgba(99,102,241,0.35)" : "none" }}
+        {/* Pied du modal */}
+        <div style={{
+          padding: "16px 24px",
+          borderTop: "1px solid var(--border)",
+          display: "flex", justifyContent: "flex-end", gap: 10,
+          background: "var(--surface)",
+        }}>
+          <Btn variant="ghost" onClick={onClose} disabled={saving}>
+            Annuler
+          </Btn>
+          <button
+            onClick={handleSubmit}
+            disabled={!isFormValid || saving}
+            style={{
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "10px 20px",
+              borderRadius: 8,
+              border: "none",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: !isFormValid || saving ? "not-allowed" : "pointer",
+              transition: "all 0.2s",
+              background: !isFormValid || saving ? "var(--surface3)" : "var(--accent)",
+              color: !isFormValid || saving ? "var(--text-muted)" : "#fff",
+              opacity: !isFormValid ? 0.6 : 1,
+              boxShadow: isFormValid && !saving ? "0 2px 8px rgba(99,102,241,0.35)" : "none",
+            }}
+            title={!isFormValid ? "Veuillez remplir tous les champs obligatoires" : ""}
           >
-            {saving
-              ? (<><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: "spin 1s linear infinite" }}><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>Enregistrement…</>)
-              : (<><Save size={15} />Enregistrer{!isFormValid && <span style={{ fontSize: 10, background: "rgba(0,0,0,0.12)", borderRadius: 4, padding: "1px 6px" }}>incomplet</span>}</>)
-            }
+            {saving ? (
+              <>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: "spin 1s linear infinite" }}>
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                </svg>
+                Enregistrement…
+              </>
+            ) : (
+              <>
+                <Save size={15} />
+                Enregistrer
+                {!isFormValid && (
+                  <span style={{
+                    fontSize: 10, background: "rgba(0,0,0,0.15)",
+                    borderRadius: 4, padding: "1px 5px",
+                  }}>
+                    incomplet
+                  </span>
+                )}
+              </>
+            )}
           </button>
         </div>
       </div>
+
       <style>{`
-        @keyframes modalIn { from { opacity:0; transform:scale(0.94) translateY(12px); } to { opacity:1; transform:scale(1) translateY(0); } }
-        @keyframes spin    { from { transform:rotate(0deg); }                          to { transform:rotate(360deg); } }
+        @keyframes modalIn {
+          from { opacity: 0; transform: scale(0.94) translateY(12px); }
+          to   { opacity: 1; transform: scale(1)    translateY(0);    }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to   { transform: rotate(360deg); }
+        }
       `}</style>
     </div>
   );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// COMPOSANT : ConfirmDeleteModal
+// COMPOSANT : MODAL DE CONFIRMATION DE SUPPRESSION
 // ══════════════════════════════════════════════════════════════════════════════
+
 function ConfirmDeleteModal({ open, title, message, onConfirm, onCancel, loading }) {
   if (!open) return null;
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, maxWidth: 440, width: "100%", padding: 28, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.35)", animation: "modalIn 0.22s cubic-bezier(0.34,1.4,0.64,1)" }}>
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 9999,
+      background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
+    }}>
+      <div style={{
+        background: "var(--surface)", border: "1px solid var(--border)",
+        borderRadius: 14, maxWidth: 440, width: "100%",
+        padding: 28, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.35)",
+        animation: "modalIn 0.22s cubic-bezier(0.34,1.4,0.64,1)",
+      }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(239,68,68,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 10,
+            background: "rgba(239,68,68,0.12)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
             <Trash2 size={18} style={{ color: "#ef4444" }} />
           </div>
           <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--text)" }}>{title}</h3>
@@ -548,10 +592,12 @@ function ConfirmDeleteModal({ open, title, message, onConfirm, onCancel, loading
         <p style={{ margin: "0 0 22px 0", color: "var(--text-muted)", lineHeight: 1.6, fontSize: 14 }}>{message}</p>
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
           <Btn variant="ghost" onClick={onCancel} disabled={loading}>Annuler</Btn>
-          <Btn variant="danger" onClick={onConfirm} disabled={loading}>{loading ? "Suppression…" : "Supprimer"}</Btn>
+          <Btn variant="danger" onClick={onConfirm} disabled={loading}>
+            {loading ? "Suppression…" : "Supprimer"}
+          </Btn>
         </div>
       </div>
-      <style>{`@keyframes modalIn { from { opacity:0; transform:scale(.93) translateY(10px); } to { opacity:1; transform:scale(1) translateY(0); } }`}</style>
+      <style>{`@keyframes modalIn { from { opacity:0; transform:scale(.93) translateY(10px);} to { opacity:1; transform:scale(1) translateY(0);} }`}</style>
     </div>
   );
 }
@@ -559,182 +605,369 @@ function ConfirmDeleteModal({ open, title, message, onConfirm, onCancel, loading
 // ══════════════════════════════════════════════════════════════════════════════
 // PAGE PRINCIPALE
 // ══════════════════════════════════════════════════════════════════════════════
+
 export default function PresencePage() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
 
-  // ── Données ───────────────────────────────────────────────────────────────
-  const [inscriptions,  setInscriptions]  = useState([]);
-  const [allAbsences,   setAllAbsences]   = useState([]);
-  const [allMatieres,   setAllMatieres]   = useState([]);
-  const [matieres,      setMatieres]      = useState([]);
+  // ── Données ──────────────────────────────────────────────────────────────
+  const [inscriptions, setInscriptions] = useState([]);
+  const [filteredInscriptions, setFilteredInscriptions] = useState([]);
+  const [absenceData, setAbsenceData] = useState([]);
+  const [matieres, setMatieres] = useState([]);
+  const [allMatieres, setAllMatieres] = useState([]);
+  const [filieres, setFilieres] = useState([]);
 
   // ── Filtres ───────────────────────────────────────────────────────────────
-  const [searchTerm,      setSearchTerm]      = useState("");
-  const [filterFiliere,   setFilterFiliere]   = useState("");
-  const [filterNiveau,    setFilterNiveau]    = useState("");
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedMatiere, setSelectedMatiere] = useState("");
-  const [selectedDate,    setSelectedDate]    = useState("");
+  const [selectedFiliere, setSelectedFiliere] = useState("");
+  const [selectedNiveau, setSelectedNiveau] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterFiliere, setFilterFiliere] = useState("");
+  const [filterNiveau, setFilterNiveau] = useState("");
 
   // ── UI ────────────────────────────────────────────────────────────────────
-  const [loading,      setLoading]      = useState(false);
-  const [saving,       setSaving]       = useState(false);
-  const [inscLoading,  setInscLoading]  = useState(true);
-  const [matLoading,   setMatLoading]   = useState(true);
-  const [msg,          setMsg]          = useState({ text: "", type: "" });
-  const [msgVisible,   setMsgVisible]   = useState(true);
-  const [showStats,    setShowStats]    = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [confirmState, setConfirmState] = useState({ open: false, title: "", message: "", onConfirm: null, loading: false });
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [inscLoading, setInscLoading] = useState(true);
+  const [matLoading, setMatLoading] = useState(true);
+  const [msg, setMsg] = useState({ text: "", type: "" });
+  const [showStats, setShowStats] = useState(false);
+  // showAddModal : persiste via sessionStorage (navigation) mais reset au F5/rechargement
+  const [showAddModal, setShowAddModal] = useState(() => {
+    try {
+      // history.state est null lors d'un vrai rechargement (F5)
+      // Il contient des données lors d'une navigation SPA (react-router)
+      const isNavigation = window.history.state && window.history.state.key;
+      if (isNavigation) {
+        return sessionStorage.getItem("presence_showAddModal") === "true";
+      }
+      // F5 ou accès direct → toujours fermer le modal + nettoyer
+      sessionStorage.removeItem("presence_showAddModal");
+      return false;
+    } catch { return false; }
+  });
+
+  // Persister dans sessionStorage à chaque changement
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("presence_showAddModal", showAddModal ? "true" : "false");
+    } catch { /* silencieux */ }
+  }, [showAddModal]);
+
+  // Restaurer à la navigation SPA (retour depuis autre page)
+  useEffect(() => {
+    try {
+      const isNavigation = window.history.state && window.history.state.key;
+      if (isNavigation) {
+        const saved = sessionStorage.getItem("presence_showAddModal") === "true";
+        setShowAddModal(saved);
+      }
+    } catch { /* silencieux */ }
+  }, [location.pathname]);
+  const [confirmState, setConfirmState] = useState({
+    open: false, title: "", message: "", onConfirm: null, loading: false,
+  });
+
+  // ✅ Flag pour éviter le chargement automatique au montage
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
 
   // ── Permissions ───────────────────────────────────────────────────────────
-  const canManage = ["administrateur", "secretaire", "enseignant"].includes(user?.role);
-  const canStats  = ["administrateur", "secretaire"].includes(user?.role);
+  const canManagePresence = ["administrateur", "secretaire", "enseignant"].includes(user?.role);
+  const canViewStats = ["administrateur", "secretaire"].includes(user?.role);
 
   // ══════════════════════════════════════════════════════════════════════════
-  // CHARGEMENTS INITIAUX
+  // CHARGEMENT DES DONNÉES DE BASE (inscriptions, filières, matières)
+  // Ces données ne changent pas et sont persistées
   // ══════════════════════════════════════════════════════════════════════════
+
+  // Inscriptions
   useEffect(() => {
     setInscLoading(true);
     api.get("/inscriptions")
-      .then((r) => setInscriptions(extractArray(r.data)))
-      .catch(() => setInscriptions([]))
+      .then((r) => {
+        const list = extractArray(r.data);
+        setInscriptions(list);
+        setFilteredInscriptions(list);
+      })
+      .catch(() => { setInscriptions([]); setFilteredInscriptions([]); })
       .finally(() => setInscLoading(false));
   }, []);
 
+  // Filières
+  useEffect(() => {
+    api.get("/filieres")
+      .then((r) => setFilieres(extractArray(r.data)))
+      .catch(() => setFilieres([]));
+  }, []);
+
+  // Toutes les matières
   useEffect(() => {
     setMatLoading(true);
-    api.get("/filieres").then(async (fRes) => {
-      const fils = extractArray(fRes.data);
-      const all  = [];
-      for (const f of fils) {
-        try {
-          const mRes = await api.get(`/filieres/${f.id}/matieres`);
-          extractArray(mRes.data).forEach((m) => all.push({ ...m, filiere_nom: f.nom, filiere_id: f.id }));
-        } catch { /**/ }
-      }
-      setAllMatieres(all); setMatieres(all);
-    }).catch(() => { setAllMatieres([]); setMatieres([]); }).finally(() => setMatLoading(false));
+    api.get("/filieres")
+      .then(async (fRes) => {
+        const filieresData = extractArray(fRes.data);
+        const all = [];
+        for (const fil of filieresData) {
+          try {
+            const mRes = await api.get(`/filieres/${fil.id}/matieres`);
+            extractArray(mRes.data).forEach((m) =>
+              all.push({ ...m, filiere_nom: fil.nom, filiere_id: fil.id })
+            );
+          } catch { /* silencieux */ }
+        }
+        setAllMatieres(all);
+      })
+      .catch(() => setAllMatieres([]))
+      .finally(() => setMatLoading(false));
   }, []);
 
+  // Filtrer matières selon filière
   useEffect(() => {
-    setMatieres(filterFiliere ? allMatieres.filter((m) => m.filiere_nom === filterFiliere) : allMatieres);
+    setMatieres(filterFiliere
+      ? allMatieres.filter((m) => m.filiere_nom === filterFiliere)
+      : allMatieres
+    );
   }, [filterFiliere, allMatieres]);
 
+  // Filtrer inscriptions
+  useEffect(() => {
+    let f = [...inscriptions];
+    if (searchTerm) {
+      const q = searchTerm.toLowerCase();
+      f = f.filter((i) =>
+        i.etudiant_nom?.toLowerCase().includes(q) ||
+        i.matricule?.toLowerCase().includes(q)
+      );
+    }
+    if (filterFiliere) f = f.filter((i) => i.filiere_nom === filterFiliere);
+    if (filterNiveau)  f = f.filter((i) => i.niveau === filterNiveau);
+    setFilteredInscriptions(f);
+  }, [searchTerm, filterFiliere, filterNiveau, inscriptions]);
+
   // ══════════════════════════════════════════════════════════════════════════
-  // MESSAGE HELPER + AUTO-DISMISS
+  // ✅ CHARGEMENT INITIAL DES ABSENCES - UNE SEULE FOIS AU MONTAGE
   // ══════════════════════════════════════════════════════════════════════════
-  const showMsg = useCallback((text, type) => {
-    setMsg({ text, type });
-    setMsgVisible(true);
-  }, []);
 
   useEffect(() => {
-    if (!msg.text) { setMsgVisible(true); return; }
-    setMsgVisible(true);
-    const t1 = setTimeout(() => setMsgVisible(false), 3000);
-    const t2 = setTimeout(() => setMsg({ text: "", type: "" }), 6000);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [msg.text]);
+    // Ne charger qu'une seule fois au montage du composant
+    if (!initialLoadDone) {
+      loadAbsenceData();
+      setInitialLoadDone(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // ✅ Dépendances vides = exécution unique au montage
 
   // ══════════════════════════════════════════════════════════════════════════
-  // CHARGEMENT ABSENCES
+  // CHARGEMENT ABSENCES DEPUIS L'API
+  // Cette fonction ne doit PAS être appelée automatiquement lors des changements
+  // de filtres, seulement explicitement via le bouton "Rechercher"
   // ══════════════════════════════════════════════════════════════════════════
-  const loadAbsences = useCallback(async (opts = {}) => {
+
+  const loadAbsenceData = useCallback(async (showMessage = false, useFilters = false) => {
     setLoading(true);
     try {
+      // Chargement initial : aucun filtre → toutes les absences
+      // Recherche manuelle : appliquer les filtres sélectionnés
       const params = new URLSearchParams();
-      if (selectedDate)    params.set("date",       selectedDate);
-      if (selectedMatiere) params.set("matiere_id", selectedMatiere);
+      if (useFilters) {
+        if (selectedDate)    params.append("date",       selectedDate);
+        if (selectedMatiere) params.append("matiere_id", selectedMatiere);
+        if (selectedFiliere) params.append("filiere",    selectedFiliere);
+        if (selectedNiveau)  params.append("niveau",     selectedNiveau);
+        if (searchTerm)      params.append("search",     searchTerm);
+      }
 
-      const res      = await api.get(`/presences?${params.toString()}`);
-      const raw      = Array.isArray(res.data) ? res.data : [];
-      const absences = raw.filter((p) => ["absent", "retard", "excuse"].includes(p.statut));
-      setAllAbsences(absences);
+      const pRes = await api.get(`/presences?${params.toString()}`);
+      const absences = Array.isArray(pRes.data) ? pRes.data : [];
+      const filtered = absences.filter((p) =>
+        ["absent", "retard", "excuse"].includes(p.statut)
+      );
+      setAbsenceData(filtered);
 
-      if (opts.afterSave && opts.studentName) {
-        showMsg(`✅ Absence enregistrée pour ${opts.studentName}. Total : ${absences.length} absence(s).`, "success");
-      } else if (!opts.silent) {
-        showMsg(
-          absences.length === 0
-            ? "📋 Aucune absence pour les critères sélectionnés."
-            : `✅ ${absences.length} absence(s) trouvée(s).`,
-          "success"
+      if (showMessage) {
+        showAutoMsg(
+          filtered.length === 0
+            ? "📋 Aucune absence enregistrée pour les critères sélectionnés."
+            : `📊 ${filtered.length} absence(s) trouvée(s).`,
+          filtered.length === 0 ? "info" : "success"
         );
       }
     } catch (e) {
-      showMsg(`❌ Erreur : ${e.response?.data?.message || "Impossible de charger les absences"}`, "danger");
+      if (showMessage) {
+        showAutoMsg(
+          `❌ Erreur : ${e.response?.data?.message || "Impossible de charger les absences"}`,
+          "danger"
+        );
+      }
+      setAbsenceData([]);
     } finally {
       setLoading(false);
     }
-  }, [selectedDate, selectedMatiere, showMsg]);
-
-  // Chargement silencieux au montage
-  useEffect(() => {
-    loadAbsences({ silent: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [selectedDate, selectedMatiere, selectedFiliere, selectedNiveau, searchTerm]);
 
   // ══════════════════════════════════════════════════════════════════════════
-  // FILTRAGE CLIENT (temps réel)
+  // RECHERCHE MANUELLE (bouton "Rechercher") — appelle l'API avec les filtres
   // ══════════════════════════════════════════════════════════════════════════
-  const displayedAbsences = useMemo(() => {
-    let list = [...allAbsences];
-    if (searchTerm) {
-      const q = searchTerm.toLowerCase();
-      list = list.filter((a) =>
-        (a.etudiant_nom || "").toLowerCase().includes(q) ||
-        (a.prenom       || "").toLowerCase().includes(q) ||
-        (a.matricule    || "").toLowerCase().includes(q)
+
+  const handleManualSearch = async () => {
+    // Recherche avec filtres actifs
+    await loadAbsenceData(true, true);
+  };
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // GROUPER absenceData PAR STATUT
+  // ══════════════════════════════════════════════════════════════════════════
+
+  const getStudentsByStatus = useCallback(() => {
+    const result = { absent: [], retard: [], excuse: [] };
+
+    absenceData.forEach((absence) => {
+      const statut = absence.statut;
+      if (!result[statut]) return;
+
+      const matchedInscription = inscriptions.find(
+        (i) => i.id === (absence.inscription_id ?? absence.inscriptionId ?? absence.id)
       );
-    }
-    if (filterFiliere) list = list.filter((a) => a.filiere_nom === filterFiliere);
-    if (filterNiveau)  list = list.filter((a) => a.niveau      === filterNiveau);
-    return list;
-  }, [allAbsences, searchTerm, filterFiliere, filterNiveau]);
 
-  const byStatus = useMemo(() => {
-    const r = { absent: [], retard: [], excuse: [] };
-    displayedAbsences.forEach((a) => {
-      const st = a.statut;
-      if (!r[st]) return;
-      r[st].push({
-        id:           a.id,
-        inscription_id: a.inscription_id,
-        fullName:     a.etudiant_nom ? a.etudiant_nom + (a.prenom ? ` ${a.prenom}` : "") : getStudentFullName(a),
-        matricule:    a.matricule    || "",
-        filiere_nom:  a.filiere_nom  || "",
-        niveau:       a.niveau       || "",
-        matiere_nom:  a.matiere_nom  || a.matiere || "",
-        date:         a.date         || "",
-        motif:        a.motif        || "",
-        duree:        a.duree        || "",
-        statut:       st,
-      });
+      const enriched = {
+        absenceId: absence.id,
+        statut,
+        date: absence.date,
+        motif: absence.motif,
+        duree: absence.duree,
+        matiere_nom: absence.matiere_nom || absence.matiere?.nom || "",
+        id: matchedInscription?.id ?? absence.inscription_id,
+        matricule:
+          matchedInscription?.matricule ??
+          absence.matricule ??
+          absence.etudiant_matricule ?? "",
+        filiere_nom:
+          matchedInscription?.filiere_nom ??
+          absence.filiere_nom ??
+          absence.filiere ?? "",
+        niveau:
+          matchedInscription?.niveau ??
+          absence.niveau ?? "",
+        fullName: matchedInscription
+          ? getStudentFullName(matchedInscription)
+          : (
+              absence.etudiant_nom ||
+              absence.nom ||
+              `${absence.prenom ?? ""} ${absence.nom ?? ""}`.trim() ||
+              "Étudiant inconnu"
+            ),
+      };
+
+      result[statut].push(enriched);
     });
-    return r;
-  }, [displayedAbsences]);
 
-  const stats          = { absent: byStatus.absent.length, retard: byStatus.retard.length, excuse: byStatus.excuse.length, total: displayedAbsences.length };
-  const isFiltered     = !!(searchTerm || filterFiliere || filterNiveau);
-  const filiereOptions = [...new Set(allAbsences.map((a) => a.filiere_nom).filter(Boolean))];
-  const niveauOptions  = ["L1", "L2", "L3", "M1", "M2"];
+    return result;
+  }, [absenceData, inscriptions]);
+
+  const studentsByStatus = getStudentsByStatus();
+
+  const stats = {
+    absent:  studentsByStatus.absent.length,
+    retard:  studentsByStatus.retard.length,
+    excuse:  studentsByStatus.excuse.length,
+    total:   absenceData.length,
+  };
 
   // ══════════════════════════════════════════════════════════════════════════
-  // ACTIONS
+  // HELPER : afficher un message qui disparaît automatiquement après 4s
   // ══════════════════════════════════════════════════════════════════════════
+
+  const msgTimerRef = useRef(null);
+
+  const showAutoMsg = (text, type = "success") => {
+    if (msgTimerRef.current) clearTimeout(msgTimerRef.current);
+    setMsg({ text, type });
+    msgTimerRef.current = setTimeout(() => setMsg({ text: "", type: "" }), 4000);
+  };
+
+  // Labels selon statut
+  const statutLabel = { absent: "Absent", retard: "Retard", excuse: "Excusé" };
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // AJOUTER UNE ABSENCE
+  // ══════════════════════════════════════════════════════════════════════════
+
   const handleAddAbsence = async (formData) => {
     setSaving(true);
     try {
-      await api.post("/presences", formData);
-      const student = inscriptions.find((i) => i.id === parseInt(formData.inscription_id));
-      setShowAddModal(false);
-      await loadAbsences({ afterSave: true, studentName: getStudentFullName(student) });
+      const response = await api.post("/presences", formData);
+      const created = response.data;
+
+      const matchedInscription = inscriptions.find(
+        (i) => i.id === parseInt(formData.inscription_id)
+      );
+      const matiere = allMatieres.find(
+        (m) => m.id === parseInt(formData.matiere_id)
+      );
+
+      const newEntry = {
+        id: created?.id ?? Date.now(),
+        statut: formData.statut,
+        date: formData.date,
+        motif: formData.motif || "",
+        duree: formData.duree || "",
+        inscription_id: parseInt(formData.inscription_id),
+        matiere_nom: matiere?.nom || created?.matiere_nom || "",
+        etudiant_nom: matchedInscription
+          ? getStudentFullName(matchedInscription)
+          : created?.etudiant_nom || "Étudiant inconnu",
+        matricule: matchedInscription?.matricule || "",
+        filiere_nom: matchedInscription?.filiere_nom || "",
+        niveau: matchedInscription?.niveau || "",
+      };
+
+      setAbsenceData((prev) => [...prev, newEntry]);
+
+      const label = statutLabel[formData.statut] || "Absence";
+      const studentName = getStudentFullName(matchedInscription);
+      showAutoMsg(`✅ ${label} enregistré(e) pour ${studentName}.`, "success");
+
+      setShowAddModal(false); // Fermer après ajout réussi → retour à la liste
+      await loadAbsenceData(false, false); // Recharger la liste complète
     } catch (err) {
-      showMsg(err.response?.data?.message || "Erreur lors de l'enregistrement.", "danger");
+      showAutoMsg(err.response?.data?.message || "Erreur lors de l'enregistrement.", "danger");
     } finally {
       setSaving(false);
     }
   };
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // MODIFIER UNE ABSENCE
+  // ══════════════════════════════════════════════════════════════════════════
+
+  const handleEditAbsence = async (absenceId, newStatut, newMotif) => {
+    try {
+      const response = await api.put(`/presences/${absenceId}`, {
+        statut: newStatut,
+        motif: newMotif,
+      });
+
+      // Mettre à jour localement
+      setAbsenceData((prev) =>
+        prev.map((a) =>
+          a.id === absenceId
+            ? { ...a, statut: newStatut, motif: newMotif }
+            : a
+        )
+      );
+
+      showAutoMsg(`✅ Absence modifiée avec succès.`, "success");
+    } catch (err) {
+      showAutoMsg(err.response?.data?.message || "Erreur lors de la modification.", "danger");
+    }
+  };
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // SUPPRIMER UNE ABSENCE
+  // ══════════════════════════════════════════════════════════════════════════
 
   const handleDeleteAbsence = (absenceId, studentName) => {
     setConfirmState({
@@ -742,39 +975,48 @@ export default function PresencePage() {
       title: "Supprimer l'absence",
       message: `Confirmez-vous la suppression de l'absence de ${studentName} ? Cette action est irréversible.`,
       onConfirm: async () => {
-        setConfirmState((p) => ({ ...p, loading: true }));
+        setConfirmState((prev) => ({ ...prev, loading: true }));
         try {
           await api.delete(`/presences/${absenceId}`);
-          showMsg(`✅ Absence de ${studentName} supprimée.`, "success");
-          await loadAbsences({ silent: true });
+          // ✅ Retirer directement de la liste locale sans recharger l'API
+          setAbsenceData((prev) => prev.filter((a) => a.id !== absenceId));
+          showAutoMsg(`✅ Absence de ${studentName} supprimée.`, "success");
         } catch (err) {
-          showMsg(err.response?.data?.message || "Erreur de suppression.", "danger");
+          showAutoMsg(err.response?.data?.message || "Erreur de suppression.", "danger");
         } finally {
           setConfirmState({ open: false, title: "", message: "", onConfirm: null, loading: false });
         }
       },
-      onCancel: () => setConfirmState({ open: false, title: "", message: "", onConfirm: null, loading: false }),
+      onCancel: () =>
+        setConfirmState({ open: false, title: "", message: "", onConfirm: null, loading: false }),
     });
   };
+
+  const filiereOptions = [...new Set(inscriptions.map((i) => i.filiere_nom).filter(Boolean))];
+  const niveauOptions  = ["L1", "L2", "L3", "M1", "M2"];
 
   // ══════════════════════════════════════════════════════════════════════════
   // RENDU
   // ══════════════════════════════════════════════════════════════════════════
   return (
     <div>
-      {/* ── En-tête ── */}
+      {/* En-tête de page */}
       <PageHeader
         title="Gestion des Absences"
         subtitle="Suivi, classification et enregistrement des absences des étudiants"
         action={
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            {canManage && (
+            {canManagePresence && (
               <Btn onClick={() => setShowAddModal(true)} icon={<UserPlus size={16} />}>
                 Ajouter une absence
               </Btn>
             )}
-            {canStats && (
-              <Btn variant="ghost" onClick={() => setShowStats((v) => !v)} icon={showStats ? <ChevronUp size={16} /> : <BarChart3 size={16} />}>
+            {canViewStats && (
+              <Btn
+                variant="ghost"
+                onClick={() => setShowStats((v) => !v)}
+                icon={showStats ? <ChevronUp size={16} /> : <BarChart3 size={16} />}
+              >
                 {showStats ? "Masquer stats" : "Statistiques"}
               </Btn>
             )}
@@ -782,29 +1024,32 @@ export default function PresencePage() {
         }
       />
 
-      {/* ── Barre de filtres ── */}
+      {/* Barre de filtres */}
       <Card style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-end" }}>
 
-          {/* Recherche texte */}
-          <div style={{ flex: 1, minWidth: 220 }}>
-            <label style={{ ...labelStyle, marginBottom: 6, display: "flex" }}>
-              <Search size={13} style={{ opacity: 0.7 }} />Rechercher un étudiant
+          {/* Recherche */}
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <label style={labelStyle}>
+              <Search size={13} style={{ opacity: 0.7 }} />
+              Rechercher un étudiant
             </label>
-            <div style={{ position: "relative" }}>
-              <Search size={14} style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }} />
-              <input type="text" placeholder="Nom, prénom ou matricule…" value={searchTerm}
+            <div style={{ position: "relative", marginTop: 6 }}>
+              <input
+                type="text"
+                placeholder="Nom ou matricule…"
+                value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ ...baseInputStyle }}
+                style={{ ...baseInputStyle, paddingLeft: 34 }}
                 onFocus={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.12)"; }}
                 onBlur={(e)  => { e.currentTarget.style.borderColor = "var(--border)";  e.currentTarget.style.boxShadow = "none"; }}
+                onKeyDown={(e) => e.key === "Enter" && handleManualSearch()}
               />
-              {searchTerm && (
-                <button onClick={() => setSearchTerm("")}
-                  style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: 0 }}>
-                  <X size={14} />
-                </button>
-              )}
+              <Search size={14} style={{
+                position: "absolute", left: 11, top: "50%",
+                transform: "translateY(-50%)",
+                color: "var(--text-muted)", pointerEvents: "none",
+              }} />
             </div>
           </div>
 
@@ -826,88 +1071,142 @@ export default function PresencePage() {
 
           {/* Matière */}
           <div style={{ minWidth: 160 }}>
-            <NativeSelect label="Matière" value={selectedMatiere} onChange={(e) => setSelectedMatiere(e.target.value)} disabled={matLoading}>
+            <NativeSelect
+              label="Matière"
+              value={selectedMatiere}
+              onChange={(e) => setSelectedMatiere(e.target.value)}
+              disabled={matLoading}
+            >
               <option value="">{matLoading ? "Chargement…" : "Toutes les matières"}</option>
-              {matieres.map((m) => <option key={m.id} value={m.id}>{m.nom} — {m.filiere_nom}</option>)}
+              {matieres.map((m) => (
+                <option key={m.id} value={m.id}>{m.nom} — {m.filiere_nom}</option>
+              ))}
             </NativeSelect>
           </div>
 
-          {/* Date optionnelle */}
-          <div style={{ minWidth: 160 }}>
+          {/* Date */}
+          <div style={{ minWidth: 150 }}>
             <label style={{ ...labelStyle, marginBottom: 6, display: "flex" }}>
-              <Calendar size={13} style={{ opacity: 0.7 }} />Date (optionnel)
+              <Calendar size={13} style={{ opacity: 0.7 }} /> Date
             </label>
             <div style={{ position: "relative" }}>
-              <Calendar size={14} style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }} />
-              <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)}
-                style={{ ...baseInputStyle }}
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                style={{ ...baseInputStyle, paddingLeft: 34 }}
                 onFocus={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.12)"; }}
                 onBlur={(e)  => { e.currentTarget.style.borderColor = "var(--border)";  e.currentTarget.style.boxShadow = "none"; }}
               />
+              <Calendar size={14} style={{
+                position: "absolute", left: 11, top: "50%",
+                transform: "translateY(-50%)",
+                color: "var(--text-muted)", pointerEvents: "none",
+              }} />
             </div>
           </div>
 
-          {/* Bouton Rechercher */}
+          {/* ✅ Bouton Rechercher → appelle handleManualSearch avec message */}
           <div style={{ alignSelf: "flex-end" }}>
-            <Btn onClick={() => loadAbsences()} disabled={loading} icon={<Search size={15} />}>
+            <Btn
+              onClick={handleManualSearch}
+              disabled={loading}
+              loading={loading}
+              icon={<Search size={15} />}
+            >
               {loading ? "Chargement…" : "Rechercher"}
             </Btn>
           </div>
         </div>
       </Card>
 
-      {/* ── Badges filtres actifs ── */}
-      {isFiltered && (
-        <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>Filtre actif :</span>
-          {searchTerm && (
-            <span style={{ fontSize: 12, background: "rgba(99,102,241,0.12)", color: "var(--accent)", borderRadius: 20, padding: "2px 10px", display: "flex", alignItems: "center", gap: 5 }}>
-              « {searchTerm} »
-              <button onClick={() => setSearchTerm("")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--accent)", padding: 0, display: "flex" }}><X size={11} /></button>
-            </span>
-          )}
-          {filterFiliere && (
-            <span style={{ fontSize: 12, background: "rgba(99,102,241,0.12)", color: "var(--accent)", borderRadius: 20, padding: "2px 10px", display: "flex", alignItems: "center", gap: 5 }}>
-              {filterFiliere}
-              <button onClick={() => setFilterFiliere("")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--accent)", padding: 0, display: "flex" }}><X size={11} /></button>
-            </span>
-          )}
-          {filterNiveau && (
-            <span style={{ fontSize: 12, background: "rgba(99,102,241,0.12)", color: "var(--accent)", borderRadius: 20, padding: "2px 10px", display: "flex", alignItems: "center", gap: 5 }}>
-              {filterNiveau}
-              <button onClick={() => setFilterNiveau("")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--accent)", padding: 0, display: "flex" }}><X size={11} /></button>
-            </span>
-          )}
-          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>→ {displayedAbsences.length} résultat(s)</span>
-        </div>
-      )}
-
-      {/* ── Message feedback ── */}
+      {/* ── TOAST NOTIFICATION ── disparaît après 4s ─────────────────────── */}
       {msg.text && (
-        <div style={{ marginBottom: 20, opacity: msgVisible ? 1 : 0, transition: "opacity 1.5s ease", pointerEvents: msgVisible ? "auto" : "none" }}>
-          <Alert type={msg.type === "success" ? "success" : msg.type === "warning" ? "warning" : "danger"}>
-            {msg.text}
-          </Alert>
+        <div style={{
+          position: "fixed",
+          bottom: 28,
+          right: 28,
+          zIndex: 99999,
+          minWidth: 320,
+          maxWidth: 440,
+          background: msg.type === "success" ? "#166534" : msg.type === "info" ? "#1e3a5f" : msg.type === "warning" ? "#78350f" : "#7f1d1d",
+          border: `1px solid ${msg.type === "success" ? "#22c55e44" : msg.type === "info" ? "#3b82f644" : msg.type === "warning" ? "#f59e0b44" : "#ef444444"}`,
+          borderRadius: 12,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
+          overflow: "hidden",
+          animation: "toastIn 0.3s cubic-bezier(0.34,1.4,0.64,1)",
+        }}>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 12,
+            padding: "14px 16px",
+          }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+              background: msg.type === "success" ? "rgba(34,197,94,0.2)" : msg.type === "info" ? "rgba(59,130,246,0.2)" : "rgba(239,68,68,0.2)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              {msg.type === "success" && <CheckCircle size={17} style={{ color: "#22c55e" }} />}
+              {msg.type === "info"    && <AlertCircle size={17} style={{ color: "#3b82f6" }} />}
+              {msg.type === "danger"  && <XCircle     size={17} style={{ color: "#ef4444" }} />}
+              {msg.type === "warning" && <AlertTriangle size={17} style={{ color: "#f59e0b" }} />}
+            </div>
+            <span style={{ fontSize: 14, fontWeight: 500, color: "#fff", flex: 1, lineHeight: 1.45 }}>
+              {msg.text}
+            </span>
+            <button
+              onClick={() => setMsg({ text: "", type: "" })}
+              style={{
+                background: "transparent", border: "none", cursor: "pointer",
+                color: "rgba(255,255,255,0.5)", padding: 2, flexShrink: 0,
+                display: "flex", alignItems: "center",
+              }}
+            >
+              <X size={14} />
+            </button>
+          </div>
+          <div style={{ height: 3, background: "rgba(255,255,255,0.1)" }}>
+            <div style={{
+              height: "100%",
+              background: msg.type === "success" ? "#22c55e" : msg.type === "info" ? "#3b82f6" : msg.type === "warning" ? "#f59e0b" : "#ef4444",
+              animation: "toastProgress 4s linear forwards",
+              transformOrigin: "left",
+            }} />
+          </div>
         </div>
       )}
+      <style>{`
+        @keyframes toastIn {
+          from { opacity: 0; transform: translateY(20px) scale(0.95); }
+          to   { opacity: 1; transform: translateY(0)    scale(1);    }
+        }
+        @keyframes toastProgress {
+          from { width: 100%; }
+          to   { width: 0%; }
+        }
+      `}</style>
 
-      {/* ── Statistiques ── */}
+      {/* Statistiques */}
       {showStats && (
         <Card style={{ marginBottom: 20 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
             <BarChart3 size={20} style={{ color: "var(--accent)" }} />
-            <h3 style={{ margin: 0, fontSize: 16, color: "var(--text)" }}>Statistiques</h3>
+            <h3 style={{ margin: 0, fontSize: 16, color: "var(--text)" }}>Statistiques des Absences</h3>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16 }}>
             {[
-              { key: "absent", label: "Absents",  color: "#ef4444",        Icon: XCircle    },
-              { key: "retard", label: "Retards",  color: "#f59e0b",        Icon: Clock      },
-              { key: "excuse", label: "Excusés",  color: "#3b82f6",        Icon: AlertCircle },
-              { key: "total",  label: "Total",    color: "var(--accent)",  Icon: BarChart3  },
-            ].map(({ key, label, color, Icon }) => (
-              <div key={key} style={{ textAlign: "center", padding: "16px 10px", background: "var(--surface2)", borderRadius: 10, border: `1px solid ${color}22` }}>
-                <Icon size={20} style={{ color, marginBottom: 6 }} />
-                <div style={{ fontSize: 28, fontWeight: 800, color, lineHeight: 1.1, marginBottom: 3 }}>{stats[key]}</div>
+              { key: "absent",  label: "Absents",  color: "#ef4444", icon: XCircle },
+              { key: "retard",  label: "Retards",  color: "#f59e0b", icon: Clock },
+              { key: "excuse",  label: "Excusés",  color: "#3b82f6", icon: AlertCircle },
+            ].map(({ key, label, color, icon: Icon }) => (
+              <div key={key} style={{
+                textAlign: "center", padding: "18px 12px",
+                background: "var(--surface2)", borderRadius: 10,
+                border: `1px solid ${color}22`,
+              }}>
+                <Icon size={22} style={{ color, marginBottom: 6 }} />
+                <div style={{ fontSize: 30, fontWeight: 800, color, lineHeight: 1.1, marginBottom: 4 }}>
+                  {stats[key]}
+                </div>
                 <div style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>{label}</div>
               </div>
             ))}
@@ -915,53 +1214,134 @@ export default function PresencePage() {
         </Card>
       )}
 
-      {/* ── Colonnes Absent / Retard / Excusé ── */}
-      {loading ? (
-        <div style={{ textAlign: "center", padding: 60, color: "var(--text-muted)" }}>
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: "spin 1s linear infinite", display: "block", margin: "0 auto 12px", opacity: 0.4 }}><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
-          <div style={{ fontSize: 13 }}>Chargement des absences…</div>
-          <style>{`@keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }`}</style>
-        </div>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 18, marginBottom: 20 }}>
-          {[
-            { key: "absent", label: "Absents",  Icon: XCircle,     color: "#ef4444" },
-            { key: "retard", label: "Retards",  Icon: Clock,       color: "#f59e0b" },
-            { key: "excuse", label: "Excusés",  Icon: AlertCircle, color: "#3b82f6" },
-          ].map(({ key, label, Icon, color }) => (
-            <Card key={key}>
-              {/* En-tête colonne */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: `${color}18`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Icon size={16} style={{ color }} />
-                </div>
-                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text)" }}>{label}</h3>
-                <span style={{ marginLeft: "auto", fontSize: 12, fontWeight: 800, background: byStatus[key].length === 0 ? "rgba(239,68,68,0.12)" : `${color}18`, color: byStatus[key].length === 0 ? "#ef4444" : color, padding: "3px 10px", borderRadius: 20 }}>
-                  {byStatus[key].length}
+      {/* ══════════════════════════════════════════════════════════════════════
+          COLONNES PAR STATUT
+          ══════════════════════════════════════════════════════════════════════ */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 18, marginBottom: 20 }}>
+        {[
+          { key: "absent",  label: "Absents",  icon: XCircle,     color: "#ef4444" },
+          { key: "retard",  label: "Retards",  icon: Clock,       color: "#f59e0b" },
+          { key: "excuse",  label: "Excusés",  icon: AlertCircle, color: "#3b82f6" },
+        ].map(({ key, label, icon: Icon, color }) => (
+          <Card key={key}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+              <Icon size={18} style={{ color }} />
+              <h3 style={{ margin: 0, fontSize: 15, color: "var(--text)" }}>
+                {label}
+                <span style={{
+                  marginLeft: 8, fontSize: 12, fontWeight: 700,
+                  background: `${color}22`, color, padding: "2px 7px", borderRadius: 20,
+                }}>
+                  {studentsByStatus[key].length}
                 </span>
-              </div>
+              </h3>
+            </div>
 
-              {/* Liste */}
-              <div style={{ maxHeight: 460, overflowY: "auto" }}>
-                {byStatus[key].length === 0
-                  ? <EmptyState label={label} Icon={Icon} color={color} isFiltered={isFiltered} />
-                  : byStatus[key].map((student) => (
-                      <StudentCard
-                        key={student.id}
-                        student={student}
-                        color={color}
-                        canManage={canManage}
-                        onDelete={handleDeleteAbsence}
-                      />
-                    ))
-                }
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+            <div style={{ maxHeight: 380, overflowY: "auto" }}>
+              {studentsByStatus[key].length === 0 ? (
+                <div style={{ textAlign: "center", padding: "32px 16px", color: "var(--text-muted)" }}>
+                  <Icon size={28} style={{ opacity: 0.25, marginBottom: 8 }} />
+                  <div style={{ fontSize: 13 }}>Aucun étudiant</div>
+                </div>
+              ) : (
+                studentsByStatus[key].map((student, idx) => (
+                  <div
+                    key={student.absenceId ?? `${student.id}-${idx}`}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 12,
+                      padding: "10px 4px", borderBottom: "1px solid var(--border)",
+                      transition: "background 0.15s",
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "var(--surface2)"}
+                    onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  >
+                    {/* Avatar */}
+                    <div style={{
+                      width: 38, height: 38, borderRadius: "50%",
+                      background: `${color}20`, border: `2px solid ${color}40`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      flexShrink: 0,
+                    }}>
+                      <span style={{ fontSize: 15, fontWeight: 700, color }}>
+                        {(student.fullName || "?").charAt(0).toUpperCase()}
+                      </span>
+                    </div>
 
-      {/* ── Modals ── */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        fontWeight: 600, color: "var(--text)", fontSize: 14,
+                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                      }}>
+                        {student.fullName}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                        {[
+                          student.matricule,
+                          student.filiere_nom,
+                          student.niveau,
+                          student.matiere_nom,
+                          student.date,
+                        ].filter(Boolean).join(" · ")}
+                      </div>
+                      {student.motif && (
+                        <div style={{
+                          fontSize: 11, color: "var(--text-muted)",
+                          fontStyle: "italic", marginTop: 2,
+                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                        }}>
+                          {student.motif}
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                      <button
+                        title="Modifier"
+                        onClick={() => {
+                          const newStatut = prompt(
+                            "Nouveau statut (absent/retard/excuse) :",
+                            student.statut
+                          );
+                          if (newStatut && ["absent", "retard", "excuse"].includes(newStatut)) {
+                            const newMotif = prompt("Nouveau motif :", student.motif || "");
+                            handleEditAbsence(student.absenceId, newStatut, newMotif || "");
+                          }
+                        }}
+                        style={{
+                          background: "var(--surface2)", border: "1px solid var(--border)",
+                          borderRadius: 6, cursor: "pointer", padding: "5px 8px",
+                          color: "var(--text-muted)", display: "flex", alignItems: "center",
+                          transition: "all 0.15s",
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent)"; e.currentTarget.style.color = "#fff"; e.currentTarget.style.borderColor = "var(--accent)"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = "var(--surface2)"; e.currentTarget.style.color = "var(--text-muted)"; e.currentTarget.style.borderColor = "var(--border)"; }}
+                      >
+                        <Edit size={13} />
+                      </button>
+                      <button
+                        title="Supprimer"
+                        onClick={() => handleDeleteAbsence(student.absenceId, student.fullName)}
+                        style={{
+                          background: "var(--surface2)", border: "1px solid var(--border)",
+                          borderRadius: 6, cursor: "pointer", padding: "5px 8px",
+                          color: "var(--text-muted)", display: "flex", alignItems: "center",
+                          transition: "all 0.15s",
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = "#ef4444"; e.currentTarget.style.color = "#fff"; e.currentTarget.style.borderColor = "#ef4444"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = "var(--surface2)"; e.currentTarget.style.color = "var(--text-muted)"; e.currentTarget.style.borderColor = "var(--border)"; }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Modal d'ajout d'absence */}
       <AddAbsenceModal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
@@ -971,6 +1351,8 @@ export default function PresencePage() {
         matieres={matieres}
         matLoading={matLoading}
       />
+
+      {/* Modal de confirmation de suppression */}
       <ConfirmDeleteModal
         open={confirmState.open}
         title={confirmState.title}
