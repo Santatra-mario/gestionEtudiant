@@ -18,6 +18,7 @@ import {
   Sun,
   Moon,
   Calendar,
+  ArrowLeftRight,
 } from "lucide-react";
  
 /* ─── Navigation ─────────────────────────────────────────────────────────── */
@@ -29,6 +30,7 @@ const NAV = [
   { to: "/notes/saisie", label: "Saisie des notes", icon: PenLine, hint: "Saisir les notes", exact: true, roles: ["administrateur", "secretaire", "enseignant"] },
   { to: "/notes", label: "Consultation Notes", icon: BookOpen, hint: "Consulter les notes", exact: true },
   { to: "/presence", label: "Présence", icon: Calendar, hint: "Gestion de présence", roles: ["administrateur", "secretaire", "enseignant"] },
+  { to: "/transferts", label: "Transferts", icon: ArrowLeftRight, hint: "Gestion des transferts", roles: ["administrateur", "secretaire"] },
   { to: "/utilisateurs", label: "Utilisateurs", icon: Users, hint: "Gestion des comptes", roles: ["administrateur"] },
 ];
  

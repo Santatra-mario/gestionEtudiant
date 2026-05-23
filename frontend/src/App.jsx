@@ -13,6 +13,7 @@ import NotesSaisiePage from "./pages/NotesSaisiePage";
 import FilieresPage from "./pages/FilieresPage";
 import UtilisateursPage from "./pages/UtilisateursPage";
 import PresencePage from "./pages/PresencePage";
+import TransfertPage from "./pages/TransfertPage";
 
 function PrivateRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -48,6 +49,7 @@ function AppRoutes() {
             <PresencePage />
           </PrivateRoute>
         } />
+        <Route path="transferts" element={<TransfertPage />} />
         <Route path="filieres" element={
           <PrivateRoute roles={["administrateur", "secretaire"]}>
             <FilieresPage />

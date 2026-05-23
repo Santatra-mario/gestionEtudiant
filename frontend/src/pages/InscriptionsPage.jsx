@@ -17,6 +17,8 @@ import {
   Tag,
   Layers,
   Sparkles,
+  ArrowLeftRight,
+  Building2,
 } from "lucide-react";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
@@ -510,6 +512,202 @@ function InscriptionModal({ onClose, onSaved, onSuccess, onError }) {
 }
 
 // ─── Modal changement de statut ───────────────────────────────────────────────
+
+// ─── Modal Transfert ─────────────────────────────────────────────────────────
+function TransfertModal({ onClose, onSaved, onSuccess, onError }) {
+  const [filieres, setFilieres]   = useState([]);
+  const [selected, setSelected]   = useState(null);
+  const [error, setError]         = useState("");
+  const [loading, setLoading]     = useState(false);
+  const [form, setForm] = useState({
+    etudiant_id:            "",
+    etablissement_origine:  "",
+    filiere_origine:        "",
+    filiere_destination_id: "",
+    niveau:                 "L1",
+    annee_universitaire:    getCurrentAcademicYear(),
+    motif:                  "",
+  });
+
+  useEffect(() => {
+    api.get("/filieres")
+      .then(r => setFilieres(r.data?.data ?? r.data ?? []))
+      .catch(() => {});
+  }, []);
+
+  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
+  const isValid = form.etudiant_id && form.etablissement_origine &&
+                  form.filiere_origine && form.filiere_destination_id;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!isValid) return;
+    setError("");
+    setLoading(true);
+    try {
+      await api.post("/transferts", form);
+      onSuccess && onSuccess("Demande de transfert créée avec succès.");
+      onClose();
+      setTimeout(() => onSaved(), 300);
+    } catch (err) {
+      const msg = err.response?.data?.message || "Erreur lors de la création du transfert.";
+      setError(msg);
+      onError && onError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal
+      title="Nouvelle demande de transfert"
+      subtitle="Transfert depuis un autre établissement"
+      onClose={onClose}
+      width={580}
+    >
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+        {error && <div style={{ marginBottom: 16 }}><Alert type="danger">{error}</Alert></div>}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+
+          {/* ── Étudiant ── */}
+          <FormSection title="Étudiant" icon={Users}>
+            <StudentSearch
+              onSelect={(s) => {
+                setSelected(s);
+                setForm(f => ({ ...f, etudiant_id: s.id }));
+              }}
+            />
+            {selected ? (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "12px 16px",
+                background: "rgba(34,197,94,0.07)",
+                border: "1px solid rgba(34,197,94,0.25)",
+                borderRadius: "var(--radius-sm)",
+              }}>
+                <MiniAvatar prenom={selected.prenom} nom={selected.nom} size={36} />
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <CheckCircle size={14} color="#22c55e" />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+                      Étudiant sélectionné
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+                    {selected.label}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "10px 14px",
+                background: "rgba(99,102,241,0.05)",
+                border: "1px dashed var(--border)",
+                borderRadius: "var(--radius-sm)",
+                fontSize: 13, color: "var(--text-muted)",
+              }}>
+                <AlertCircle size={14} color="var(--text-muted)" />
+                Recherchez et sélectionnez un étudiant ci-dessus
+              </div>
+            )}
+          </FormSection>
+
+          {/* ── Établissement origine ── */}
+          <FormSection title="Établissement d'origine" icon={GraduationCap}>
+            <FormRow>
+              <Input
+                label="Code établissement *"
+                value={form.etablissement_origine}
+                onChange={e => setForm(f => ({ ...f, etablissement_origine: e.target.value.toUpperCase() }))}
+                placeholder="ex: TOL"
+                hint="Code court ex: TOL, FNR, TNR"
+              />
+              <Input
+                label="Filière d'origine *"
+                value={form.filiere_origine}
+                onChange={set("filiere_origine")}
+                placeholder="ex: Informatique"
+              />
+            </FormRow>
+          </FormSection>
+
+          {/* ── Destination ── */}
+          <FormSection title="Cursus académique" icon={BookOpen}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-soft)",
+                display: "flex", alignItems: "center", gap: 6 }}>
+                <BookOpen size={14} color="var(--accent)" />
+                Filière destination <span style={{ color: "var(--danger, #ef4444)" }}>*</span>
+              </label>
+              <select
+                value={form.filiere_destination_id}
+                onChange={set("filiere_destination_id")}
+                required
+                style={{
+                  width: "100%", boxSizing: "border-box",
+                  background: "var(--surface2)", border: "1.5px solid var(--border)",
+                  borderRadius: "var(--radius-sm)",
+                  color: form.filiere_destination_id ? "var(--text)" : "var(--text-muted)",
+                  padding: "10px 14px", fontSize: 14, outline: "none",
+                }}
+              >
+                <option value="">— Sélectionner une filière —</option>
+                {filieres.map(f => (
+                  <option key={f.id} value={f.id}>{f.nom} ({f.code})</option>
+                ))}
+              </select>
+            </div>
+            <FormRow>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-soft)" }}>Niveau *</label>
+                <select value={form.niveau} onChange={set("niveau")}
+                  style={{ background: "var(--surface2)", border: "1.5px solid var(--border)",
+                    borderRadius: "var(--radius-sm)", color: "var(--text)",
+                    padding: "10px 14px", fontSize: 14, outline: "none" }}>
+                  {NIVEAUX.map(n => <option key={n}>{n}</option>)}
+                </select>
+              </div>
+              <Input
+                label="Année universitaire *"
+                value={form.annee_universitaire}
+                onChange={set("annee_universitaire")}
+                placeholder="2026-2027"
+              />
+            </FormRow>
+          </FormSection>
+
+          {/* ── Motif ── */}
+          <FormSection title="Motif du transfert" icon={Tag}>
+            <textarea
+              value={form.motif}
+              onChange={set("motif")}
+              placeholder="Raison du transfert (optionnel)"
+              style={{
+                width: "100%", minHeight: 80, padding: "10px 14px",
+                borderRadius: 8, border: "1.5px solid var(--border)",
+                background: "var(--surface2)", color: "var(--text)",
+                fontSize: 14, resize: "vertical", boxSizing: "border-box",
+              }}
+            />
+          </FormSection>
+
+        </div>
+
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end",
+          marginTop: 28, paddingTop: 20, borderTop: "1px solid var(--border)" }}>
+          <Btn variant="ghost" onClick={onClose} icon={<X size={15}/>}>Annuler</Btn>
+          <Btn type="submit" loading={loading} disabled={!isValid}
+            icon={<ArrowLeftRight size={15}/>}>
+            Créer la demande
+          </Btn>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function StatutModal({ inscription, onClose, onSaved, onSuccess, onError }) {
   const [statut, setStatut]   = useState(inscription.statut);
   const [loading, setLoading] = useState(false);
@@ -606,6 +804,7 @@ export default function InscriptionsPage() {
   const [inscriptions, setInscriptions] = useState([]);
   const [loading, setLoading]           = useState(true);
   const [showModal, setShowModal]       = useState(false);
+  const [showTransfertModal, setShowTransfertModal] = useState(false);
   const [statutModal, setStatutModal]   = useState(null);
   const [filters, setFilters]           = useState({ annee: "", statut: "" });
   const [showFilters, setShowFilters]   = useState(false);
@@ -651,9 +850,14 @@ export default function InscriptionsPage() {
           title="Inscriptions"
           subtitle={`${inscriptions.length} inscription${inscriptions.length !== 1 ? "s" : ""}${hasFilters ? " (filtrées)" : ""}`}
           action={canEdit && (
-            <Btn onClick={() => setShowModal(true)} icon={<UserPlus size={16} />}>
-              Nouvelle inscription
-            </Btn>
+            <div style={{ display: "flex", gap: 10 }}>
+              <Btn onClick={() => setShowTransfertModal(true)} icon={<ArrowLeftRight size={16} />} variant="ghost">
+                Transfert
+              </Btn>
+              <Btn onClick={() => setShowModal(true)} icon={<UserPlus size={16} />}>
+                Nouvelle inscription
+              </Btn>
+            </div>
           )}
         />
         <div style={{
@@ -885,6 +1089,14 @@ export default function InscriptionsPage() {
         <StatutModal
           inscription={statutModal}
           onClose={() => setStatutModal(null)}
+          onSaved={() => { load(); }}
+          onSuccess={showSuccess}
+          onError={showError}
+        />
+      )}
+      {showTransfertModal && (
+        <TransfertModal
+          onClose={() => setShowTransfertModal(false)}
           onSaved={() => { load(); }}
           onSuccess={showSuccess}
           onError={showError}
