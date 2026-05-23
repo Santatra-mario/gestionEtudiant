@@ -67,4 +67,4 @@ coverage/
 # Fichiers de session / temporaires
 *.pid
 *.seed
-*.pid.lock
+*.pid.lock.env
