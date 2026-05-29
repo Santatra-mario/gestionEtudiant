@@ -1,32 +1,42 @@
 // controllers/transfertController.js — Logique transferts UniGest
 //
-// Fonctions exportées :
-//   getAll         → liste tous les transferts
-//   getOne         → détail d'un transfert
-//   create         → nouvelle demande inter-établissement
-//   changerFiliere → transaction interne : archive inscription + crée nouvelle (secrétaire + admin)
-//   accepter       → accepte une demande en_attente + crée inscription automatique
-//   refuser        → refuse une demande en_attente avec motif
-//   annuler        → remet un transfert traité en en_attente (admin seulement)
+// CORRECTIONS APPORTÉES :
+//  1. ensureSnapshotColumns() — crée automatiquement les colonnes snapshot
+//     si elles manquent (règle l'erreur "Unknown column ... in INSERT INTO")
+//  2. exports.accepter — entouré d'une transaction pour éviter les états partiels
+//  3. exports.refuser  — statut 409 cohérent avec la vérification côté frontend
+//  4. exports.annuler  — utilise les snapshots pour remettre l'étudiant
 
 const db = require('../config/db');
 
-/* ── helpers ────────────────────────────────────────────────────────────── */
+/* ── helper : garantit l'existence des colonnes snapshot ────────────────── */
 
 /**
- * Récupère une inscription active d'un étudiant.
- * Retourne null si introuvable.
+ * Crée les colonnes snapshot si elles n'existent pas encore dans la table
+ * transferts. Appelé avant chaque INSERT pour éviter l'erreur MySQL :
+ *   "Unknown column 'etudiant_nom_snapshot' in 'INSERT INTO'"
+ *
+ * Compatible MySQL 5.7+ et MySQL 8+.
  */
-async function getInscriptionActive(etudiantId) {
-    const [rows] = await db.query(
-        `SELECT i.*, f.nom as filiere_nom
-         FROM inscriptions i
-         LEFT JOIN filieres f ON i.filiere_id = f.id
-         WHERE i.etudiant_id = ? AND i.statut = 'actif'
-         LIMIT 1`,
-        [etudiantId]
-    );
-    return rows[0] || null;
+async function ensureSnapshotColumns() {
+    const cols = [
+        { name: 'etudiant_nom_snapshot',       def: 'VARCHAR(100) NULL' },
+        { name: 'etudiant_prenom_snapshot',    def: 'VARCHAR(100) NULL' },
+        { name: 'matricule_etudiant_snapshot', def: 'VARCHAR(50)  NULL' },
+    ];
+
+    for (const { name, def } of cols) {
+        try {
+            // MySQL 8+ supporte IF NOT EXISTS
+            await db.query(`ALTER TABLE transferts ADD COLUMN IF NOT EXISTS ${name} ${def}`);
+        } catch (e) {
+            if (e.code === 'ER_DUP_FIELDNAME' || (e.message && e.message.includes('Duplicate column'))) {
+                // Colonne déjà présente → OK, continuer
+            } else {
+                throw e;
+            }
+        }
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -36,15 +46,16 @@ exports.getAll = async (req, res) => {
     try {
         const [rows] = await db.query(`
             SELECT t.*,
-                   COALESCE(e.nom,    t.etudiant_nom_snapshot)    AS etudiant_nom,
-                   COALESCE(e.prenom, t.etudiant_prenom_snapshot)  AS etudiant_prenom,
-                   COALESCE(e.matricule, t.matricule_etudiant_snapshot) AS matricule,
-                   f.nom        AS filiere_destination,
-                   u.nom        AS traite_par_nom
+                   COALESCE(e.nom,      t.etudiant_nom_snapshot)         AS etudiant_nom,
+                   COALESCE(e.prenom,   t.etudiant_prenom_snapshot)      AS etudiant_prenom,
+                   COALESCE(e.matricule,t.matricule_etudiant_snapshot)    AS matricule,
+                   e.id                                                   AS etudiant_id,
+                   f.nom  AS filiere_destination,
+                   u.nom  AS traite_par_nom
             FROM   transferts t
-            LEFT JOIN etudiants  e ON t.etudiant_id           = e.id
-            LEFT JOIN filieres   f ON t.filiere_destination_id = f.id
-            LEFT JOIN users      u ON t.traite_par             = u.id
+            LEFT JOIN etudiants e ON t.etudiant_id            = e.id
+            LEFT JOIN filieres  f ON t.filiere_destination_id = f.id
+            LEFT JOIN users     u ON t.traite_par              = u.id
             ORDER  BY t.created_at DESC
         `);
         res.json({ success: true, data: rows });
@@ -60,19 +71,19 @@ exports.getOne = async (req, res) => {
     try {
         const [rows] = await db.query(`
             SELECT t.*,
-                   COALESCE(e.nom,      t.etudiant_nom_snapshot)       AS etudiant_nom,
-                   COALESCE(e.prenom,   t.etudiant_prenom_snapshot)    AS etudiant_prenom,
-                   COALESCE(e.matricule,t.matricule_etudiant_snapshot)  AS matricule,
+                   COALESCE(e.nom,      t.etudiant_nom_snapshot)         AS etudiant_nom,
+                   COALESCE(e.prenom,   t.etudiant_prenom_snapshot)      AS etudiant_prenom,
+                   COALESCE(e.matricule,t.matricule_etudiant_snapshot)    AS matricule,
                    e.date_naissance,
                    e.sexe,
                    e.telephone,
-                   e.email           AS etudiant_email,
-                   f.nom             AS filiere_destination,
-                   u.nom             AS traite_par_nom
+                   e.email AS etudiant_email,
+                   f.nom   AS filiere_destination,
+                   u.nom   AS traite_par_nom
             FROM   transferts t
-            LEFT JOIN etudiants  e ON t.etudiant_id           = e.id
-            LEFT JOIN filieres   f ON t.filiere_destination_id = f.id
-            LEFT JOIN users      u ON t.traite_par             = u.id
+            LEFT JOIN etudiants e ON t.etudiant_id            = e.id
+            LEFT JOIN filieres  f ON t.filiere_destination_id = f.id
+            LEFT JOIN users     u ON t.traite_par              = u.id
             WHERE  t.id = ?
         `, [req.params.id]);
 
@@ -87,7 +98,7 @@ exports.getOne = async (req, res) => {
 
 /* ══════════════════════════════════════════════════════════════════════════
    POST /transferts — Créer une demande de transfert inter-établissement
-   Droits : secrétaire + administrateur  (garanti par le middleware de la route)
+   Droits : secrétaire + administrateur
    ══════════════════════════════════════════════════════════════════════════ */
 exports.create = async (req, res) => {
     try {
@@ -96,11 +107,13 @@ exports.create = async (req, res) => {
             filiere_destination_id, niveau, annee_universitaire, motif
         } = req.body;
 
+        /* ── Validation ── */
         if (!etudiant_id || !etablissement_origine || !filiere_origine ||
             !filiere_destination_id || !niveau || !annee_universitaire) {
             return res.status(400).json({ success: false, message: 'Champs obligatoires manquants' });
         }
 
+        /* ── Récupérer les infos de l'étudiant pour les snapshots ── */
         const [etudiantRows] = await db.query(
             'SELECT nom, prenom, matricule FROM etudiants WHERE id = ?',
             [etudiant_id]
@@ -110,11 +123,22 @@ exports.create = async (req, res) => {
         }
         const etud = etudiantRows[0];
 
+        /* ── S'assurer que les colonnes snapshot existent ── */
+        await ensureSnapshotColumns();
+
+        /* ── Insérer le transfert avec les snapshots ── */
         await db.query(`
             INSERT INTO transferts
-              (etudiant_id, etudiant_nom_snapshot, etudiant_prenom_snapshot, matricule_etudiant_snapshot,
-               etablissement_origine, filiere_origine,
-               filiere_destination_id, niveau, annee_universitaire, motif)
+              (etudiant_id,
+               etudiant_nom_snapshot,
+               etudiant_prenom_snapshot,
+               matricule_etudiant_snapshot,
+               etablissement_origine,
+               filiere_origine,
+               filiere_destination_id,
+               niveau,
+               annee_universitaire,
+               motif)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
             etudiant_id,
@@ -129,11 +153,22 @@ exports.create = async (req, res) => {
             motif || null
         ]);
 
-        const [rows] = await db.query('SELECT * FROM transferts ORDER BY id DESC LIMIT 1');
+        /* ── Retourner le transfert créé avec les jointures ── */
+        const [rows] = await db.query(`
+            SELECT t.*,
+                   COALESCE(e.nom,    t.etudiant_nom_snapshot)    AS etudiant_nom,
+                   COALESCE(e.prenom, t.etudiant_prenom_snapshot) AS etudiant_prenom,
+                   f.nom AS filiere_destination
+            FROM   transferts t
+            LEFT JOIN etudiants e ON t.etudiant_id            = e.id
+            LEFT JOIN filieres  f ON t.filiere_destination_id = f.id
+            ORDER  BY t.id DESC LIMIT 1
+        `);
+
         res.status(201).json({
             success: true,
             data: rows[0],
-            message: 'Demande de transfert créée'
+            message: 'Demande de transfert créée avec succès'
         });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
@@ -167,11 +202,10 @@ exports.changerFiliere = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Inscription introuvable pour cet étudiant' });
         }
 
-        const insc = inscriptions[0];
-
         const [existant] = await conn.query(
             `SELECT id FROM inscriptions
-             WHERE etudiant_id = ? AND filiere_id = ? AND niveau = ? AND annee_universitaire = ? AND statut = 'actif'`,
+             WHERE etudiant_id = ? AND filiere_id = ? AND niveau = ?
+               AND annee_universitaire = ? AND statut = 'actif'`,
             [etudiant_id, nouvelle_filiere_id, nouveau_niveau, annee_universitaire]
         );
         if (existant.length) {
@@ -199,7 +233,10 @@ exports.changerFiliere = async (req, res) => {
         await conn.commit();
         conn.release();
 
-        res.json({ success: true, message: 'Changement de filière effectué avec succès' });
+        res.json({
+            success: true,
+            message: "Changement de filière effectué avec succès. L'ancienne inscription est archivée."
+        });
     } catch (err) {
         await conn.rollback().catch(() => {});
         conn.release();
@@ -209,53 +246,59 @@ exports.changerFiliere = async (req, res) => {
 
 /* ══════════════════════════════════════════════════════════════════════════
    PUT /transferts/:id/accepter — Accepter une demande en_attente
-   Droits : secrétaire + administrateur
-
-   FIX : La vérification de doublon a été supprimée — un transfert inter-
-   établissement vers la même filière est parfaitement valide. L'inscription
-   active de l'ancien établissement est archivée (statut → abandonne) avant
-   de créer la nouvelle inscription dans la filière destination.
+   Droits : administrateur seulement
    ══════════════════════════════════════════════════════════════════════════ */
 exports.accepter = async (req, res) => {
+    const conn = await db.getConnection();
     try {
-        const { id }      = req.params;
-        const traite_par  = req.user?.id || null;
+        const { id }     = req.params;
+        const traite_par = req.user?.id || null;
 
-        const [transferts] = await db.query('SELECT * FROM transferts WHERE id = ?', [id]);
+        const [transferts] = await conn.query('SELECT * FROM transferts WHERE id = ?', [id]);
         if (!transferts.length) {
+            conn.release();
             return res.status(404).json({ success: false, message: 'Transfert introuvable' });
         }
 
         const t = transferts[0];
         if (t.statut !== 'en_attente') {
-            return res.status(409).json({ success: false, message: 'Ce transfert a déjà été traité par un autre administrateur.' });
+            conn.release();
+            return res.status(409).json({
+                success: false,
+                message: 'Ce transfert a déjà été traité par un autre administrateur.'
+            });
         }
 
-        // Archiver toutes les inscriptions actives de l'étudiant (ancien établissement)
-        // Un transfert inter-établissement vers la même filière est autorisé :
-        // on archive d'abord, puis on crée la nouvelle inscription destination.
-        await db.query(
+        await conn.beginTransaction();
+
+        // 1. Archiver toutes les inscriptions actives de l'étudiant
+        await conn.query(
             `UPDATE inscriptions SET statut = 'abandonne'
              WHERE etudiant_id = ? AND statut = 'actif'`,
             [t.etudiant_id]
         );
 
-        // Accepter le transfert
-        await db.query(
-            `UPDATE transferts SET statut = 'accepte', traite_par = ?, date_traitement = NOW() WHERE id = ?`,
+        // 2. Marquer le transfert comme accepté
+        await conn.query(
+            `UPDATE transferts
+             SET statut = 'accepte', traite_par = ?, date_traitement = NOW()
+             WHERE id = ?`,
             [traite_par, id]
         );
 
-        // Créer la nouvelle inscription dans la filière destination
-        await db.query(
+        // 3. Créer la nouvelle inscription dans la filière destination
+        await conn.query(
             `INSERT INTO inscriptions
                (etudiant_id, filiere_id, niveau, annee_universitaire, statut, date_inscription)
              VALUES (?, ?, ?, ?, 'actif', CURDATE())`,
             [t.etudiant_id, t.filiere_destination_id, t.niveau, t.annee_universitaire]
         );
 
-        // Supprimer l'étudiant de la liste — il appartient désormais au nouvel établissement
-        await db.query('DELETE FROM etudiants WHERE id = ?', [t.etudiant_id]);
+        // 4. Supprimer l'étudiant (il rejoint le nouvel établissement)
+        await conn.query('DELETE FROM etudiants WHERE id = ?', [t.etudiant_id]);
+
+        await conn.commit();
+        conn.release();
 
         res.json({
             success: true,
@@ -263,21 +306,23 @@ exports.accepter = async (req, res) => {
             etudiant_id: t.etudiant_id
         });
     } catch (err) {
+        await conn.rollback().catch(() => {});
+        conn.release();
         res.status(500).json({ success: false, message: err.message });
     }
 };
 
 /* ══════════════════════════════════════════════════════════════════════════
    PUT /transferts/:id/refuser — Refuser une demande en_attente
-   Droits : secrétaire + administrateur
+   Droits : administrateur seulement
    ══════════════════════════════════════════════════════════════════════════ */
 exports.refuser = async (req, res) => {
     try {
-        const { id }        = req.params;
+        const { id }          = req.params;
         const { motif_refus } = req.body;
-        const traite_par    = req.user?.id || null;
+        const traite_par      = req.user?.id || null;
 
-        if (!motif_refus) {
+        if (!motif_refus || !motif_refus.trim()) {
             return res.status(400).json({ success: false, message: 'Motif de refus obligatoire' });
         }
 
@@ -286,23 +331,25 @@ exports.refuser = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Transfert introuvable' });
         }
         if (transferts[0].statut !== 'en_attente') {
-            return res.status(400).json({ success: false, message: 'Transfert déjà traité' });
+            return res.status(409).json({ success: false, message: 'Ce transfert a déjà été traité' });
         }
 
         await db.query(
-            `UPDATE transferts SET statut = 'refuse', motif_refus = ?, traite_par = ?, date_traitement = NOW() WHERE id = ?`,
-            [motif_refus, traite_par, id]
+            `UPDATE transferts
+             SET statut = 'refuse', motif_refus = ?, traite_par = ?, date_traitement = NOW()
+             WHERE id = ?`,
+            [motif_refus.trim(), traite_par, id]
         );
 
-        res.json({ success: true, message: 'Transfert refusé' });
+        res.json({ success: true, message: 'Transfert refusé avec succès' });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
 };
 
 /* ══════════════════════════════════════════════════════════════════════════
-   PUT /transferts/:id/annuler — Annuler / corriger un transfert traité
-   Droits : administrateur seulement  (garanti par le middleware de la route)
+   PUT /transferts/:id/annuler — Annuler un transfert traité
+   Droits : administrateur seulement
    ══════════════════════════════════════════════════════════════════════════ */
 exports.annuler = async (req, res) => {
     const conn = await db.getConnection();
@@ -326,6 +373,7 @@ exports.annuler = async (req, res) => {
         await conn.beginTransaction();
 
         if (t.statut === 'accepte') {
+            // Archiver l'inscription destination créée lors de l'acceptation
             await conn.query(
                 `UPDATE inscriptions
                  SET statut = 'abandonne'
@@ -334,29 +382,24 @@ exports.annuler = async (req, res) => {
                 [t.etudiant_id, t.filiere_destination_id, t.niveau, t.annee_universitaire]
             );
 
-            const [existEtud] = await conn.query(
-                'SELECT id FROM etudiants WHERE id = ? OR matricule = ?',
-                [t.etudiant_id, t.matricule_etudiant_snapshot || '']
-            );
+            // Remettre l'étudiant dans la liste en utilisant les snapshots
+            const nomSnapshot       = t.etudiant_nom_snapshot       || 'Inconnu';
+            const prenomSnapshot    = t.etudiant_prenom_snapshot    || 'Inconnu';
+            const matriculeSnapshot = t.matricule_etudiant_snapshot || null;
 
-            if (!existEtud.length && t.matricule_etudiant_snapshot) {
+            if (matriculeSnapshot) {
                 await conn.query(
-                    `INSERT INTO etudiants
-                       (id, matricule, nom, prenom, date_naissance, sexe)
+                    `INSERT INTO etudiants (id, matricule, nom, prenom, date_naissance, sexe)
                      VALUES (?, ?, ?, ?, CURDATE(), 'M')
                      ON DUPLICATE KEY UPDATE
                        nom    = VALUES(nom),
                        prenom = VALUES(prenom)`,
-                    [
-                        t.etudiant_id,
-                        t.matricule_etudiant_snapshot,
-                        t.etudiant_nom_snapshot    || 'Inconnu',
-                        t.etudiant_prenom_snapshot || 'Inconnu'
-                    ]
+                    [t.etudiant_id, matriculeSnapshot, nomSnapshot, prenomSnapshot]
                 );
             }
         }
 
+        // Remettre le transfert en attente
         await conn.query(
             `UPDATE transferts
              SET statut           = 'en_attente',
