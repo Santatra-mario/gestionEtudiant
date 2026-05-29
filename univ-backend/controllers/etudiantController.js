@@ -54,7 +54,8 @@ const getAll = async (req, res) => {
     params.push(annee);
   }
 
-  sql += " ORDER BY e.created_at DESC LIMIT ? OFFSET ?";
+  // GROUP BY évite les doublons quand un étudiant a plusieurs inscriptions
+  sql += " GROUP BY e.id ORDER BY e.created_at DESC LIMIT ? OFFSET ?";
   params.push(parseInt(limit), offset);
 
   try {
@@ -188,17 +189,50 @@ const update = async (req, res) => {
 };
 
 // ── DELETE /etudiants/:id ─────────────────────────────────────────────────────
+// Suppression en cascade manuelle (MyISAM ne supporte pas les FK CASCADE)
+// Supprime : transferts → inscriptions → notes → presences → etudiant
 const remove = async (req, res) => {
+  const conn = await db.getConnection();
   try {
-    const [result] = await db.query("DELETE FROM etudiants WHERE id = ?", [
-      req.params.id,
-    ]);
-    if (result.affectedRows === 0)
-      return res.status(404).json({ success: false, message: "Introuvable." });
-    return res.json({ success: true, message: "Étudiant supprimé." });
+    const id = req.params.id;
+
+    // Vérifier que l'étudiant existe
+    const [rows] = await conn.query("SELECT id, nom, prenom, matricule FROM etudiants WHERE id = ?", [id]);
+    if (!rows.length) {
+      conn.release();
+      return res.status(404).json({ success: false, message: "Étudiant introuvable." });
+    }
+    const etudiant = rows[0];
+
+    await conn.beginTransaction();
+
+    // 1. Supprimer les transferts liés
+    await conn.query("DELETE FROM transferts WHERE etudiant_id = ?", [id]);
+
+    // 2. Supprimer les notes liées
+    await conn.query("DELETE FROM notes WHERE etudiant_id = ?", [id]);
+
+    // 3. Supprimer les présences liées
+    await conn.query("DELETE FROM presences WHERE etudiant_id = ?", [id]);
+
+    // 4. Supprimer les inscriptions liées
+    await conn.query("DELETE FROM inscriptions WHERE etudiant_id = ?", [id]);
+
+    // 5. Supprimer l'étudiant
+    await conn.query("DELETE FROM etudiants WHERE id = ?", [id]);
+
+    await conn.commit();
+    conn.release();
+
+    return res.json({
+      success: true,
+      message: `Étudiant ${etudiant.prenom} ${etudiant.nom} (${etudiant.matricule}) supprimé avec toutes ses données liées.`
+    });
   } catch (err) {
+    await conn.rollback().catch(() => {});
+    conn.release();
     console.error("delete etudiant:", err);
-    return res.status(500).json({ success: false, message: "Erreur serveur." });
+    return res.status(500).json({ success: false, message: "Erreur serveur : " + err.message });
   }
 };
 

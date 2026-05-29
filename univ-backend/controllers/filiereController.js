@@ -20,39 +20,69 @@ const getAllFilieres = async (req, res) => {
         );
         return res.json({ success: true, data: rows });
     } catch (err) {
+        console.error('getAllFilieres:', err.message);
         return res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 };
 
 const createFiliere = async (req, res) => {
     const { code, nom, description } = req.body;
-    if (!code || !nom) {
-        return res.status(400).json({ success: false, message: 'Code et nom requis.' });
+
+    // Validation
+    if (!code || !code.trim()) {
+        return res.status(400).json({ success: false, message: 'Le code est obligatoire.' });
     }
+    if (!nom || !nom.trim()) {
+        return res.status(400).json({ success: false, message: 'Le nom est obligatoire.' });
+    }
+
     try {
-        const [exist] = await db.query('SELECT id FROM filieres WHERE code = ?', [code]);
-        if (exist.length > 0) return res.status(409).json({ success: false, message: 'Code déjà utilisé.' });
+        // Vérifier doublon code
+        const [exist] = await db.query(
+            'SELECT id FROM filieres WHERE code = ?',
+            [code.trim().toUpperCase()]
+        );
+        if (exist.length > 0) {
+            return res.status(409).json({ success: false, message: `Le code "${code.toUpperCase()}" est déjà utilisé.` });
+        }
+
+        // description est optionnel — on envoie '' si vide (colonne NOT NULL dans la BDD)
+        const desc = (description && description.trim()) ? description.trim() : '';
 
         const [result] = await db.query(
             'INSERT INTO filieres (code, nom, description) VALUES (?, ?, ?)',
-            [code, nom, description || null]
+            [code.trim().toUpperCase(), nom.trim(), desc]
         );
-        return res.status(201).json({ success: true, message: 'Filière créée.', id: result.insertId });
+
+        return res.status(201).json({
+            success: true,
+            message: `Filière "${nom.trim()}" créée avec succès.`,
+            id: result.insertId
+        });
     } catch (err) {
-        return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+        console.error('createFiliere:', err.message);
+        if (err.code === 'ER_DUP_ENTRY') {
+            return res.status(409).json({ success: false, message: 'Ce code de filière existe déjà.' });
+        }
+        return res.status(500).json({
+            success: false,
+            message: 'Erreur lors de la création : ' + err.message
+        });
     }
 };
 
 const updateFiliere = async (req, res) => {
     const { nom, description, is_active } = req.body;
     try {
+        const desc = (description && description.trim()) ? description.trim() : '';
         await db.query(
             'UPDATE filieres SET nom = ?, description = ?, is_active = ? WHERE id = ?',
-            [nom, description || null, is_active !== undefined ? is_active : 1, req.params.id]
+            [nom, desc, is_active !== undefined ? is_active : 1, req.params.id]
         );
         return res.json({ success: true, message: 'Filière mise à jour.' });
     } catch (err) {
-        return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+        console.error('updateFiliere:', err.message);
+        return res.status(500).json({ success: false, message: 'Erreur serveur : ' + err.message });
     }
 };
 
@@ -61,6 +91,7 @@ const deleteFiliere = async (req, res) => {
         await db.query('UPDATE filieres SET is_active = 0 WHERE id = ?', [req.params.id]);
         return res.json({ success: true, message: 'Filière désactivée.' });
     } catch (err) {
+        console.error('deleteFiliere:', err.message);
         return res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 };
@@ -82,6 +113,7 @@ const getMatieresByFiliere = async (req, res) => {
         );
         return res.json({ success: true, data: rows });
     } catch (err) {
+        console.error('getMatieresByFiliere:', err.message);
         return res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 };
@@ -92,7 +124,6 @@ const createMatiere = async (req, res) => {
         return res.status(400).json({ success: false, message: 'Champs obligatoires manquants.' });
     }
 
-    // ✅ CORRECTION : accepter S1 à S10
     if (!SEMESTRES_VALIDES.includes(semestre)) {
         return res.status(400).json({
             success: false,
@@ -119,15 +150,17 @@ const createMatiere = async (req, res) => {
         );
         return res.status(201).json({ success: true, message: 'Matière ajoutée.', id: result.insertId });
     } catch (err) {
-        if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ success: false, message: 'Code matière déjà utilisé.' });
-        return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+        console.error('createMatiere:', err.message);
+        if (err.code === 'ER_DUP_ENTRY') {
+            return res.status(409).json({ success: false, message: 'Code matière déjà utilisé.' });
+        }
+        return res.status(500).json({ success: false, message: 'Erreur serveur : ' + err.message });
     }
 };
 
 const updateMatiere = async (req, res) => {
     const { nom, coefficient, semestre, enseignant_id } = req.body;
 
-    // ✅ CORRECTION : valider le semestre lors de la mise à jour aussi
     if (semestre && !SEMESTRES_VALIDES.includes(semestre)) {
         return res.status(400).json({
             success: false,
@@ -156,7 +189,8 @@ const updateMatiere = async (req, res) => {
         );
         return res.json({ success: true, message: 'Matière mise à jour.' });
     } catch (err) {
-        return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+        console.error('updateMatiere:', err.message);
+        return res.status(500).json({ success: false, message: 'Erreur serveur : ' + err.message });
     }
 };
 
@@ -165,6 +199,7 @@ const deleteMatiere = async (req, res) => {
         await db.query('DELETE FROM matieres WHERE id = ?', [req.params.id]);
         return res.json({ success: true, message: 'Matière supprimée.' });
     } catch (err) {
+        console.error('deleteMatiere:', err.message);
         return res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 };
@@ -178,6 +213,7 @@ const getEnseignants = async (req, res) => {
         );
         return res.json({ success: true, data: rows });
     } catch (err) {
+        console.error('getEnseignants:', err.message);
         return res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 };
