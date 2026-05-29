@@ -659,7 +659,7 @@ function StudentSearchSelect({ etudiants, value, onChange, label = "Étudiant *"
       {selected && !open && (
         <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 8, background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)" }}>
           <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--success)", flexShrink: 0 }} />
-          <span style={{ fontSize: 12, color: "var(--success)", fontWeight: 600 }}>
+          <span style={{ fontSize: 10, color: "var(--success)", fontWeight: 600 }}>
             Sélectionné : {selected.prenom} {selected.nom}
           </span>
           <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace", marginLeft: 4 }}>
