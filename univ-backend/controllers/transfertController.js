@@ -25,16 +25,16 @@ async function ensureSnapshotColumns() {
         { name: 'matricule_etudiant_snapshot', def: 'VARCHAR(50)  NULL' },
     ];
 
+    // Compatible MySQL 5.7+ : on vérifie via INFORMATION_SCHEMA avant d'ALTER
+    const [existingCols] = await db.query(
+        `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'transferts'`
+    );
+    const existingNames = new Set(existingCols.map(c => c.COLUMN_NAME));
+
     for (const { name, def } of cols) {
-        try {
-            // MySQL 8+ supporte IF NOT EXISTS
-            await db.query(`ALTER TABLE transferts ADD COLUMN IF NOT EXISTS ${name} ${def}`);
-        } catch (e) {
-            if (e.code === 'ER_DUP_FIELDNAME' || (e.message && e.message.includes('Duplicate column'))) {
-                // Colonne déjà présente → OK, continuer
-            } else {
-                throw e;
-            }
+        if (!existingNames.has(name)) {
+            await db.query(`ALTER TABLE transferts ADD COLUMN ${name} ${def}`);
         }
     }
 }
@@ -271,14 +271,44 @@ exports.accepter = async (req, res) => {
 
         await conn.beginTransaction();
 
-        // 1. Archiver toutes les inscriptions actives de l'étudiant
+        // 1. Récupérer le matricule actuel de l'étudiant pour construire le nouveau
+        const [etudiantRows] = await conn.query(
+            'SELECT matricule FROM etudiants WHERE id = ?',
+            [t.etudiant_id]
+        );
+        const ancienMatricule = etudiantRows.length ? etudiantRows[0].matricule : '';
+
+        // Construire le nouveau matricule : extraire le numéro (ex: "2000") et remplacer
+        // "H-F" par "H-<CODE_ETABLISSEMENT>" → ex: "2000 H-F" → "2000 H-TOL"
+        const codeEtab = (t.etablissement_origine || 'EXT').toUpperCase().trim();
+        let nouveauMatricule = ancienMatricule;
+        if (ancienMatricule) {
+            // Remplace tout ce qui suit le premier espace par "H-<CODE>"
+            const numPart = ancienMatricule.split(' ')[0]; // ex: "2000"
+            nouveauMatricule = `${numPart} H-${codeEtab}`;  // ex: "2000 H-TOL"
+        }
+
+        // 1b. Mettre à jour le matricule de l'étudiant AVANT de le supprimer
+        //     (le snapshot dans la table transferts gardera ce nouveau matricule)
+        await conn.query(
+            'UPDATE etudiants SET matricule = ? WHERE id = ?',
+            [nouveauMatricule, t.etudiant_id]
+        );
+
+        // 1c. Mettre à jour aussi le snapshot dans le transfert avec le nouveau matricule
+        await conn.query(
+            'UPDATE transferts SET matricule_etudiant_snapshot = ? WHERE id = ?',
+            [nouveauMatricule, id]
+        );
+
+        // 2. Archiver toutes les inscriptions actives de l'étudiant
         await conn.query(
             `UPDATE inscriptions SET statut = 'abandonne'
              WHERE etudiant_id = ? AND statut = 'actif'`,
             [t.etudiant_id]
         );
 
-        // 2. Marquer le transfert comme accepté
+        // 3. Marquer le transfert comme accepté
         await conn.query(
             `UPDATE transferts
              SET statut = 'accepte', traite_par = ?, date_traitement = NOW()
@@ -286,7 +316,7 @@ exports.accepter = async (req, res) => {
             [traite_par, id]
         );
 
-        // 3. Créer la nouvelle inscription dans la filière destination
+        // 4. Créer la nouvelle inscription dans la filière destination
         await conn.query(
             `INSERT INTO inscriptions
                (etudiant_id, filiere_id, niveau, annee_universitaire, statut, date_inscription)
@@ -294,7 +324,7 @@ exports.accepter = async (req, res) => {
             [t.etudiant_id, t.filiere_destination_id, t.niveau, t.annee_universitaire]
         );
 
-        // 4. Supprimer l'étudiant (il rejoint le nouvel établissement)
+        // 5. Supprimer l'étudiant (il rejoint le nouvel établissement)
         await conn.query('DELETE FROM etudiants WHERE id = ?', [t.etudiant_id]);
 
         await conn.commit();
@@ -302,8 +332,9 @@ exports.accepter = async (req, res) => {
 
         res.json({
             success: true,
-            message: 'Transfert accepté : inscription créée et étudiant retiré de la liste.',
-            etudiant_id: t.etudiant_id
+            message: `Transfert accepté : matricule changé en "${nouveauMatricule}", inscription créée et étudiant retiré de la liste.`,
+            etudiant_id: t.etudiant_id,
+            nouveau_matricule: nouveauMatricule
         });
     } catch (err) {
         await conn.rollback().catch(() => {});

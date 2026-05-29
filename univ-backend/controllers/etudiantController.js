@@ -24,14 +24,20 @@ const genMatricule = async () => {
 
 // ── GET /etudiants  (liste + filtres) ────────────────────────────────────────
 const getAll = async (req, res) => {
-  const { filiere, niveau, annee, search, page = 1, limit = 20 } = req.query;
+  const { filiere, niveau, annee, search, page = 1, limit = 20, avec_inscription } = req.query;
   const offset = (parseInt(page) - 1) * parseInt(limit);
+
+  // Si avec_inscription=true : INNER JOIN pour n'avoir que les étudiants inscrits (actif)
+  const joinType = avec_inscription === "true" ? "INNER" : "LEFT";
+  const inscriptionFilter = avec_inscription === "true"
+    ? "ON i.etudiant_id = e.id AND i.statut = 'actif'"
+    : "ON i.etudiant_id = e.id";
 
   let sql = `
         SELECT e.*, f.nom AS filiere_nom, i.niveau, i.statut, i.annee_universitaire
         FROM etudiants e
-        LEFT JOIN inscriptions i ON i.etudiant_id = e.id
-        LEFT JOIN filieres f     ON i.filiere_id  = f.id
+        ${joinType} JOIN inscriptions i ${inscriptionFilter}
+        LEFT JOIN filieres f ON i.filiere_id = f.id
         WHERE 1=1
     `;
   const params = [];

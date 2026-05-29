@@ -771,7 +771,8 @@ function TransfertModal({ onClose, onSaved }) {
   });
  
   useEffect(() => {
-    api.get("/etudiants?limit=500&page=1").then(r => {
+    // avec_inscription=true : seuls les étudiants ayant une inscription active sont retournés
+    api.get("/etudiants?limit=500&page=1&avec_inscription=true").then(r => {
       const raw = r.data.data || [];
       const seen = new Set();
       setEtudiants(raw.filter(e => !seen.has(e.id) && seen.add(e.id)));
@@ -873,7 +874,8 @@ function ChangementFiliereModal({ onClose, onSaved }) {
   });
  
   useEffect(() => {
-    api.get("/etudiants?limit=500&page=1").then(r => {
+    // avec_inscription=true : seuls les étudiants ayant une inscription active
+    api.get("/etudiants?limit=500&page=1&avec_inscription=true").then(r => {
       const raw = r.data.data || [];
       const seen = new Set();
       setEtudiants(raw.filter(e => !seen.has(e.id) && seen.add(e.id)));
@@ -1017,7 +1019,8 @@ function ChangementStatutModal({ onClose, onSaved }) {
   });
  
   useEffect(() => {
-    api.get("/etudiants?limit=500&page=1").then(r => {
+    // avec_inscription=true : seuls les étudiants ayant une inscription active
+    api.get("/etudiants?limit=500&page=1&avec_inscription=true").then(r => {
       const raw = r.data.data || [];
       const seen = new Set();
       setEtudiants(raw.filter(e => !seen.has(e.id) && seen.add(e.id)));
