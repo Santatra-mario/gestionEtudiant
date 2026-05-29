@@ -1372,6 +1372,74 @@ export default function TransfertPage() {
   }, []);
  
   useEffect(() => { load(); }, [load]);
+
+  /* ─────────────────────────────────────────────────────────────────────
+     POLLING SECRÉTAIRE — Détection des décisions Admin (Accepter/Refuser)
+     sur une autre machine.
+     - Actif uniquement pour le rôle "secretaire"
+     - Toutes les 8 secondes, compare les statuts avec ceux en mémoire
+     - Si un transfert est passé de "en_attente" → "accepte" ou "refuse",
+       déclenche une notification toast + anime la cloche locale
+  ───────────────────────────────────────────────────────────────────── */
+  const transfertsRef = useRef([]);
+  transfertsRef.current = transferts;
+
+  useEffect(() => {
+    // Polling uniquement pour le secrétaire (l'admin voit ses propres actions)
+    if (user?.role !== "secretaire") return;
+
+    const POLL_INTERVAL = 8000; // 8 secondes
+
+    const poll = async () => {
+      try {
+        const { data } = await api.get("/transferts");
+        const nouveaux = data.data || [];
+        const anciens  = transfertsRef.current;
+
+        // Chercher les transferts dont le statut a changé depuis le dernier poll
+        nouveaux.forEach(nouveau => {
+          const ancien = anciens.find(a => a.id === nouveau.id);
+          if (!ancien) return; // nouveau transfert, pas une décision
+
+          // Transition en_attente → accepte
+          if (ancien.statut === "en_attente" && nouveau.statut === "accepte") {
+            const prenom = nouveau.etudiant_prenom || "";
+            const nom    = nouveau.etudiant_nom    || "";
+            notify.success(
+              `✅ Transfert accepté — La demande de ${prenom} ${nom} a été acceptée par l'administrateur.`,
+              7000
+            );
+            // Déclencher l'animation de la cloche locale
+            window.dispatchEvent(new CustomEvent("transfert:accepte", {
+              detail: { etudiantId: nouveau.etudiant_id, etudiantPrenom: prenom, etudiantNom: nom }
+            }));
+          }
+
+          // Transition en_attente → refuse
+          if (ancien.statut === "en_attente" && nouveau.statut === "refuse") {
+            const prenom = nouveau.etudiant_prenom || "";
+            const nom    = nouveau.etudiant_nom    || "";
+            notify.error(
+              `🚫 Transfert refusé — La demande de ${prenom} ${nom} a été refusée par l'administrateur.`,
+              7000
+            );
+            // Déclencher l'animation de la cloche locale
+            window.dispatchEvent(new CustomEvent("transfert:refuse", {
+              detail: { etudiantId: nouveau.etudiant_id, etudiantPrenom: prenom, etudiantNom: nom }
+            }));
+          }
+        });
+
+        // Mettre à jour la liste sans spinner (silencieux)
+        setTransferts(nouveaux);
+      } catch {
+        // Erreur réseau silencieuse — on réessaiera au prochain cycle
+      }
+    };
+
+    const intervalId = setInterval(poll, POLL_INTERVAL);
+    return () => clearInterval(intervalId);
+  }, [user?.role, notify]);
  
   /* ─────────────────────────────────────────────────────────────────────
      FIX 1 + FIX 2 + FIX 3 : handleAccepter corrigé
