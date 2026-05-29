@@ -448,7 +448,7 @@ exports.annuler = async (req, res) => {
 
         res.json({
             success: true,
-            message: t.statut === 'accepte'
+            message: t.statut === 'accepter'
                 ? 'Transfert annulé : étudiant remis dans la liste, inscription archivée, demande en attente.'
                 : 'Transfert annulé et remis en attente.'
         });
