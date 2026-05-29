@@ -49,7 +49,11 @@ function AppRoutes() {
             <PresencePage />
           </PrivateRoute>
         } />
-        <Route path="transferts" element={<TransfertPage />} />
+        <Route path="transferts" element={
+          <PrivateRoute roles={["administrateur", "secretaire"]}>
+            <TransfertPage />
+          </PrivateRoute>
+        } />
         <Route path="filieres" element={
           <PrivateRoute roles={["administrateur", "secretaire"]}>
             <FilieresPage />

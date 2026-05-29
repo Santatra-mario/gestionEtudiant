@@ -992,7 +992,9 @@ export default function PresencePage() {
     });
   };
 
-  const filiereOptions = [...new Set(inscriptions.map((i) => i.filiere_nom).filter(Boolean))];
+  const filiereOptions = filieres.length > 0
+    ? filieres
+    : [...new Set(inscriptions.map((i) => i.filiere_nom).filter(Boolean))].map((nom) => ({ nom }));
   const niveauOptions  = ["L1", "L2", "L3", "M1", "M2"];
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -1057,7 +1059,7 @@ export default function PresencePage() {
           <div style={{ minWidth: 160 }}>
             <NativeSelect label="Filière" value={filterFiliere} onChange={(e) => setFilterFiliere(e.target.value)}>
               <option value="">Toutes les filières</option>
-              {filiereOptions.map((f) => <option key={f} value={f}>{f}</option>)}
+              {filiereOptions.map((f) => <option key={f.id ?? f.nom} value={f.nom}>{f.nom}</option>)}
             </NativeSelect>
           </div>
 

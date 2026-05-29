@@ -20,27 +20,96 @@ import {
   Calendar,
   ArrowLeftRight,
 } from "lucide-react";
- 
-/* ─── Navigation ─────────────────────────────────────────────────────────── */
+
+/* ─── Navigation avec règles de visibilité par rôle ─────────────────────────
+ *
+ *  Tableau de bord  → tous les rôles
+ *  Étudiants        → administrateur + secrétaire (pas enseignant)
+ *  Filières         → administrateur + secrétaire
+ *  Inscriptions     → administrateur + secrétaire
+ *  Saisie notes     → tous les rôles
+ *  Consultation notes → tous les rôles
+ *  Présence         → tous les rôles
+ *  Transferts       → administrateur + secrétaire
+ *  Utilisateurs     → administrateur seulement
+ *
+ * ─────────────────────────────────────────────────────────────────────────── */
 const NAV = [
-  { to: "/", label: "Tableau de bord", icon: LayoutDashboard, exact: true, hint: "Vue d'ensemble" },
-  { to: "/etudiants", label: "Étudiants", icon: GraduationCap, hint: "Gestion des étudiants" },
-  { to: "/filieres", label: "Filières", icon: GitBranch, hint: "Gestion des filières", roles: ["administrateur", "secretaire"] },
-  { to: "/inscriptions", label: "Inscriptions", icon: ClipboardList, hint: "Gestion des inscriptions" },
-  { to: "/notes/saisie", label: "Saisie des notes", icon: PenLine, hint: "Saisir les notes", exact: true, roles: ["administrateur", "secretaire", "enseignant"] },
-  { to: "/notes", label: "Consultation Notes", icon: BookOpen, hint: "Consulter les notes", exact: true },
-  { to: "/presence", label: "Présence", icon: Calendar, hint: "Gestion de présence", roles: ["administrateur", "secretaire", "enseignant"] },
-  { to: "/transferts", label: "Transferts", icon: ArrowLeftRight, hint: "Gestion des transferts", roles: ["administrateur", "secretaire"] },
-  { to: "/utilisateurs", label: "Utilisateurs", icon: Users, hint: "Gestion des comptes", roles: ["administrateur"] },
+  {
+    to: "/",
+    label: "Tableau de bord",
+    icon: LayoutDashboard,
+    exact: true,
+    hint: "Vue d'ensemble",
+    // pas de "roles" → visible par tous
+  },
+  {
+    to: "/etudiants",
+    label: "Étudiants",
+    icon: GraduationCap,
+    hint: "Gestion des étudiants",
+    roles: ["administrateur", "secretaire"],  // ← enseignant exclu
+  },
+  {
+    to: "/filieres",
+    label: "Filières",
+    icon: GitBranch,
+    hint: "Gestion des filières",
+    roles: ["administrateur", "secretaire"],
+  },
+  {
+    to: "/inscriptions",
+    label: "Inscriptions",
+    icon: ClipboardList,
+    hint: "Gestion des inscriptions",
+    roles: ["administrateur", "secretaire"],  // ← enseignant exclu
+  },
+  {
+    to: "/notes/saisie",
+    label: "Saisie des notes",
+    icon: PenLine,
+    hint: "Saisir les notes",
+    exact: true,
+    // pas de "roles" → visible par tous (admin, secrétaire, enseignant)
+  },
+  {
+    to: "/notes",
+    label: "Consultation Notes",
+    icon: BookOpen,
+    hint: "Consulter les notes",
+    exact: true,
+    // visible par tous
+  },
+  {
+    to: "/presence",
+    label: "Présence",
+    icon: Calendar,
+    hint: "Gestion de présence",
+    // visible par tous
+  },
+  {
+    to: "/transferts",
+    label: "Transferts",
+    icon: ArrowLeftRight,
+    hint: "Gestion des transferts",
+    roles: ["administrateur", "secretaire"],  // ← enseignant exclu
+  },
+  {
+    to: "/utilisateurs",
+    label: "Utilisateurs",
+    icon: Users,
+    hint: "Gestion des comptes",
+    roles: ["administrateur"],  // ← admin seulement
+  },
 ];
- 
+
 /* ─── Couleurs par rôle ──────────────────────────────────────────────────── */
 const ROLE_CONFIG = {
-  administrateur: { color: "#4f8ef7", bg: "rgba(79,142,247,0.12)", label: "Administrateur" },
-  secretaire:     { color: "#22c55e", bg: "rgba(34,197,94,0.12)",  label: "Secrétaire"     },
-  enseignant:     { color: "#f59e0b", bg: "rgba(245,158,11,0.12)", label: "Enseignant"      },
+  administrateur: { color: "#4f8ef7", bg: "rgba(79,142,247,0.12)",  label: "Administrateur" },
+  secretaire:     { color: "#22c55e", bg: "rgba(34,197,94,0.12)",   label: "Secrétaire"     },
+  enseignant:     { color: "#f59e0b", bg: "rgba(245,158,11,0.12)",  label: "Enseignant"     },
 };
- 
+
 /* ─── Séparateur de section nav ─────────────────────────────────────────── */
 function NavSeparator({ label, collapsed }) {
   if (collapsed)
@@ -51,7 +120,7 @@ function NavSeparator({ label, collapsed }) {
     </div>
   );
 }
- 
+
 /* ─── Modal de déconnexion ───────────────────────────────────────────────── */
 function LogoutDialog({ user, onConfirm, onCancel }) {
   const rc = ROLE_CONFIG[user?.role] || { color: "var(--accent)", bg: "rgba(79,142,247,0.12)", label: user?.role };
@@ -89,12 +158,12 @@ function LogoutDialog({ user, onConfirm, onCancel }) {
     </>
   );
 }
- 
+
 /* ─── Élément de navigation ─────────────────────────────────────────────── */
 function NavItem({ item, collapsed }) {
   const { to, label, icon: Icon, hint, exact } = item;
   const [hovered, setHovered] = useState(false);
- 
+
   return (
     <NavLink to={to} end={exact}
       style={({ isActive }) => ({
@@ -115,7 +184,7 @@ function NavItem({ item, collapsed }) {
     >
       <Icon size={17} style={{ flexShrink: 0 }} />
       {!collapsed && <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>}
- 
+
       {/* Tooltip en mode collapsed */}
       {collapsed && hovered && (
         <div style={{ position: "fixed", left: 70, zIndex: 9999, background: "var(--surface3)", color: "var(--text)", fontSize: 13, fontWeight: 500, padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border)", boxShadow: "0 4px 16px rgba(0,0,0,0.4)", pointerEvents: "none", whiteSpace: "nowrap", animation: "fadeIn 0.12s ease" }}>
@@ -126,19 +195,19 @@ function NavItem({ item, collapsed }) {
     </NavLink>
   );
 }
- 
+
 /* ─── Bouton Toggle Thème ────────────────────────────────────────────────── */
 function ThemeToggleButton({ collapsed, theme, onToggle }) {
   const [spinning, setSpinning] = useState(false);
- 
+
   const handleClick = () => {
     setSpinning(true);
     onToggle();
     setTimeout(() => setSpinning(false), 400);
   };
- 
+
   const isDark = theme === "dark";
- 
+
   return (
     <button
       onClick={handleClick}
@@ -180,7 +249,7 @@ function ThemeToggleButton({ collapsed, theme, onToggle }) {
     </button>
   );
 }
- 
+
 /* ─── Logo moderne avec bouton réduire intégré ───────────────────────────── */
 function AppLogo({ collapsed, onToggleCollapse }) {
   return (
@@ -262,7 +331,7 @@ function AppLogo({ collapsed, onToggleCollapse }) {
       </div>
 
       {/* Bouton Réduire/Agrandir - à droite de l'icône et du texte */}
-      <button 
+      <button
         onClick={onToggleCollapse}
         title={collapsed ? "Agrandir le menu" : "Réduire le menu"}
         aria-label={collapsed ? "Agrandir le menu de navigation" : "Réduire le menu de navigation"}
@@ -282,20 +351,56 @@ function AppLogo({ collapsed, onToggleCollapse }) {
           fontFamily: "var(--font-body)",
           flexShrink: 0,
         }}
-        onMouseEnter={e => { 
-          e.currentTarget.style.background = "var(--surface2)"; 
-          e.currentTarget.style.color = "var(--text)"; 
+        onMouseEnter={e => {
+          e.currentTarget.style.background = "var(--surface2)";
+          e.currentTarget.style.color = "var(--text)";
         }}
-        onMouseLeave={e => { 
-          e.currentTarget.style.background = "transparent"; 
-          e.currentTarget.style.color = "var(--text-muted)"; 
+        onMouseLeave={e => {
+          e.currentTarget.style.background = "transparent";
+          e.currentTarget.style.color = "var(--text-muted)";
         }}>
         {collapsed ? <ChevronRight size={15} aria-hidden="true" /> : <ChevronLeft size={15} aria-hidden="true" />}
       </button>
     </div>
   );
 }
- 
+
+/* ─── Bandeau info rôle (mode étendu) ───────────────────────────────────── */
+/* Affiché sous le logo pour rappeler visuellement les droits du rôle connecté */
+function RoleBanner({ user, collapsed }) {
+  const rc = ROLE_CONFIG[user?.role] || { color: "var(--accent)", bg: "rgba(79,142,247,0.12)", label: user?.role };
+  if (collapsed) return null;
+
+  const roleInfo = {
+    administrateur: "Accès complet",
+    secretaire: "Gestion étudiants & inscriptions",
+    enseignant: "Notes & présences uniquement",
+  };
+
+  return (
+    <div style={{
+      margin: "8px 8px 2px",
+      padding: "7px 10px",
+      borderRadius: 8,
+      background: rc.bg,
+      border: `1px solid ${rc.color}30`,
+      display: "flex",
+      alignItems: "center",
+      gap: 7,
+    }}>
+      <div style={{ width: 7, height: 7, borderRadius: "50%", background: rc.color, flexShrink: 0, boxShadow: `0 0 6px ${rc.color}70` }} />
+      <div style={{ flex: 1, overflow: "hidden" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: rc.color, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+          {rc.label}
+        </div>
+        <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {roleInfo[user?.role] || ""}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Layout principal ───────────────────────────────────────────────────── */
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -304,14 +409,20 @@ export default function Layout() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
- 
+
+  // Filtre les items de nav en fonction du rôle de l'utilisateur connecté
+  // Un item sans "roles" est visible par tous les rôles
   const visibleNav = NAV.filter(n => !n.roles || n.roles.includes(user?.role));
+
   const rc = ROLE_CONFIG[user?.role] || { color: "var(--accent)", bg: "rgba(79,142,247,0.12)", label: user?.role };
- 
-  /* Groupes de nav */
+
+  /* Groupes de nav :
+   * - mainNav  : tout sauf Utilisateurs
+   * - adminNav : uniquement Utilisateurs (admin seulement, déjà filtré ci-dessus)
+   */
   const mainNav  = visibleNav.filter(n => n.to !== "/utilisateurs");
   const adminNav = visibleNav.filter(n => n.to === "/utilisateurs");
- 
+
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}>
       {showLogout && (
@@ -319,7 +430,7 @@ export default function Layout() {
           onConfirm={() => { setShowLogout(false); logout(); navigate("/login"); }}
           onCancel={() => setShowLogout(false)} />
       )}
- 
+
       {/* ══════════════════════ SIDEBAR ══════════════════════ */}
       <aside style={{
         width: collapsed ? 64 : 280,
@@ -333,15 +444,18 @@ export default function Layout() {
         backdropFilter: "blur(10px)",
         WebkitBackdropFilter: "blur(10px)",
       }}>
- 
+
         {/* ── Logo moderne avec bouton réduire intégré ── */}
         <AppLogo collapsed={collapsed} onToggleCollapse={() => setCollapsed(!collapsed)} />
- 
+
+        {/* ── Bandeau rôle (rappel visuel des droits) ── */}
+        <RoleBanner user={user} collapsed={collapsed} />
+
         {/* ── Navigation principale ── */}
         <nav style={{ flex: 1, padding: "8px 8px 4px", display: "flex", flexDirection: "column", gap: 2, overflowY: "auto", overflowX: "hidden" }}>
           {!collapsed && <NavSeparator label="Principal" collapsed={collapsed} />}
           {mainNav.map(item => <NavItem key={item.to} item={item} collapsed={collapsed} />)}
- 
+
           {adminNav.length > 0 && (
             <>
               <NavSeparator label="Administration" collapsed={collapsed} />
@@ -349,10 +463,10 @@ export default function Layout() {
             </>
           )}
         </nav>
- 
+
         {/* ── Zone utilisateur & actions bas ── */}
         <div style={{ padding: "8px 8px 10px", borderTop: "1px solid var(--border)", flexShrink: 0 }}>
- 
+
           {/* Carte utilisateur — mode étendu */}
           {!collapsed && (
             <div style={{ padding: "12px 14px", marginBottom: 8, borderRadius: "var(--radius-lg)", background: rc.bg, border: `2px solid ${rc.color}40`, overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.1)", transition: "transform 0.2s ease" }}
@@ -373,7 +487,7 @@ export default function Layout() {
               </div>
             </div>
           )}
- 
+
           {/* Avatar seul — mode collapsed */}
           {collapsed && (
             <div style={{ display: "flex", justifyContent: "center", marginBottom: 6 }}>
@@ -383,10 +497,10 @@ export default function Layout() {
               </div>
             </div>
           )}
- 
+
           {/* ── Toggle Dark / Light ── */}
           <ThemeToggleButton collapsed={collapsed} theme={theme} onToggle={toggleTheme} />
- 
+
           {/* ── Bouton déconnexion ── */}
           <button onClick={() => setShowLogout(true)}
             title={collapsed ? "Déconnexion" : undefined}
@@ -399,10 +513,10 @@ export default function Layout() {
           </button>
         </div>
       </aside>
- 
+
       {/* ══════════════════════ CONTENU ══════════════════════ */}
       <main style={{ flex: 1, overflow: "auto", minWidth: 0 }}>
- 
+
         {/* Barre de contexte supérieure */}
         <div style={{ position: "sticky", top: 0, zIndex: 50, background: "var(--topbar-bg)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "2px solid var(--border)", padding: "0 36px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 2px 12px rgba(0,0,0,0.1)" }}>
           {/* Fil d'ariane */}
@@ -413,14 +527,14 @@ export default function Layout() {
               {NAV.find(n => n.to === location.pathname)?.label || "Page"}
             </span>
           </div>
- 
+
           {/* Indicateur rôle */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 12px", borderRadius: 99, background: rc.bg, border: `2px solid ${rc.color}40`, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: rc.color, flexShrink: 0, boxShadow: `0 0 8px ${rc.color}60` }} />
             <span style={{ fontSize: 13, color: rc.color, fontWeight: 600 }}>{rc.label}</span>
           </div>
         </div>
- 
+
         {/* Zone de page */}
         <div style={{ padding: "36px 40px", maxWidth: 1400, margin: "0 auto", minHeight: "calc(100vh - 52px)" }}>
           <ErrorBoundary>

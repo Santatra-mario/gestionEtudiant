@@ -1,5 +1,5 @@
 // components/ui/index.jsx — Bibliothèque de composants UniGest
-import { useState, useEffect, Component } from "react";
+import { useState, useEffect, Component, useMemo } from "react";
 import ReactDOM from "react-dom";
 import { AlertCircle, CheckCircle, Info, AlertTriangle, X } from "lucide-react";
 
@@ -348,24 +348,27 @@ export function Select({
     return () => document.removeEventListener("mousedown", handle);
   }, [open]);
 
-  // Extraire les <option> de children (récursif)
-  const options = [];
-  const extractOptions = (nodes) => {
-    if (!nodes) return;
-    (Array.isArray(nodes) ? nodes : [nodes]).forEach((child) => {
-      if (!child) return;
-      if (child.type === "option") {
-        options.push({
-          value:    child.props.value,
-          label:    child.props.children,
-          disabled: !!child.props.disabled,
-        });
-      } else if (child.props?.children) {
-        extractOptions(child.props.children);
-      }
-    });
-  };
-  extractOptions(children);
+  // Extraire les <option> de children — useMemo pour réagir quand les données API arrivent
+  const options = useMemo(() => {
+    const result = [];
+    const extract = (nodes) => {
+      if (!nodes) return;
+      (Array.isArray(nodes) ? nodes : [nodes]).forEach((child) => {
+        if (!child) return;
+        if (child.type === "option") {
+          result.push({
+            value:    child.props.value,
+            label:    child.props.children,
+            disabled: !!child.props.disabled,
+          });
+        } else if (child.props?.children) {
+          extract(child.props.children);
+        }
+      });
+    };
+    extract(children);
+    return result;
+  }, [children]);
 
   const selectedOpt   = options.find((o) => String(o.value) === String(value ?? ""));
   const displayLabel  = selectedOpt ? selectedOpt.label : (options[0]?.label ?? "");

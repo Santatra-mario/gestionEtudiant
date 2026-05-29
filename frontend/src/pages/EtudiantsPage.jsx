@@ -698,6 +698,29 @@ export default function EtudiantsPage() {
   const [toDelete, setToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
+  // ── Écoute l'événement global émis par TransfertPage quand un transfert est accepté
+  // → retire immédiatement l'étudiant de la liste sans attendre un rechargement complet
+  useEffect(() => {
+    const handleTransfertAccepte = (e) => {
+      const { etudiantId, etudiantNom, etudiantPrenom } = e.detail || {};
+      if (!etudiantId) return;
+
+      // Retirer l'étudiant de la liste locale
+      setEtudiants(prev => prev.filter(et => String(et.id) !== String(etudiantId)));
+      setTotal(prev => Math.max(0, prev - 1));
+
+      // Afficher une notification dans EtudiantsPage
+      setToast({
+        message: `${etudiantPrenom} ${etudiantNom} a été transféré et retiré de la liste`,
+        type: "info",
+        details: "Transfert inter-établissement accepté",
+      });
+    };
+
+    window.addEventListener("transfert:accepte", handleTransfertAccepte);
+    return () => window.removeEventListener("transfert:accepte", handleTransfertAccepte);
+  }, []);
+
   const showNotification = (message, type = "success", details = null) => {
     setToast({ message, type, details });
   };
