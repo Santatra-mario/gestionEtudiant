@@ -688,6 +688,7 @@ export default function EtudiantsPage() {
   const navigate = useNavigate();
   const [toast, setToast] = useState(null);
   const canEdit = ["administrateur", "secretaire"].includes(user?.role);
+  const isAdmin = user?.role === "administrateur";
 
   const [etudiants, setEtudiants] = useState([]);
   const [total, setTotal] = useState(0);
@@ -762,11 +763,17 @@ export default function EtudiantsPage() {
       setToDelete(null);
       load();
     } catch (err) {
-      showNotification(
-        "Erreur lors de la suppression",
-        "error",
-        "Veuillez réessayer ultérieurement"
-      );
+      const status = err.response?.status;
+      const serverMsg = err.response?.data?.message;
+      let detail = "Veuillez réessayer ultérieurement";
+      if (status === 403) {
+        detail = "Vous n'avez pas les droits pour supprimer un étudiant.";
+      } else if (status === 404) {
+        detail = "Cet étudiant est introuvable.";
+      } else if (serverMsg) {
+        detail = serverMsg;
+      }
+      showNotification("Erreur lors de la suppression", "error", detail);
     } finally {
       setDeleting(false);
     }

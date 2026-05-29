@@ -189,36 +189,57 @@ const update = async (req, res) => {
 };
 
 // ── DELETE /etudiants/:id ─────────────────────────────────────────────────────
-// Suppression en cascade manuelle (MyISAM ne supporte pas les FK CASCADE)
-// Supprime : transferts → inscriptions → notes → presences → etudiant
+// Suppression en cascade manuelle dans le bon ordre :
+// notes → presences → transferts → inscriptions → etudiant
+// IMPORTANT : notes et presences n'ont PAS de colonne etudiant_id —
+//             elles sont liées via inscription_id. On récupère d'abord
+//             les IDs d'inscription, puis on supprime dans cet ordre.
 const remove = async (req, res) => {
   const conn = await db.getConnection();
   try {
     const id = req.params.id;
 
-    // Vérifier que l'étudiant existe
-    const [rows] = await conn.query("SELECT id, nom, prenom, matricule FROM etudiants WHERE id = ?", [id]);
+    // 1. Vérifier que l'étudiant existe
+    const [rows] = await conn.query(
+      "SELECT id, nom, prenom, matricule FROM etudiants WHERE id = ?",
+      [id]
+    );
     if (!rows.length) {
       conn.release();
       return res.status(404).json({ success: false, message: "Étudiant introuvable." });
     }
     const etudiant = rows[0];
 
+    // 2. Récupérer tous les IDs d'inscription de cet étudiant
+    const [inscriptions] = await conn.query(
+      "SELECT id FROM inscriptions WHERE etudiant_id = ?",
+      [id]
+    );
+    const inscriptionIds = inscriptions.map(i => i.id);
+
     await conn.beginTransaction();
 
-    // 1. Supprimer les transferts liés
+    if (inscriptionIds.length > 0) {
+      // 3. Supprimer les notes liées aux inscriptions
+      await conn.query(
+        "DELETE FROM notes WHERE inscription_id IN (?)",
+        [inscriptionIds]
+      );
+
+      // 4. Supprimer les présences liées aux inscriptions
+      await conn.query(
+        "DELETE FROM presences WHERE inscription_id IN (?)",
+        [inscriptionIds]
+      );
+    }
+
+    // 5. Supprimer les transferts liés à l'étudiant
     await conn.query("DELETE FROM transferts WHERE etudiant_id = ?", [id]);
 
-    // 2. Supprimer les notes liées
-    await conn.query("DELETE FROM notes WHERE etudiant_id = ?", [id]);
-
-    // 3. Supprimer les présences liées
-    await conn.query("DELETE FROM presences WHERE etudiant_id = ?", [id]);
-
-    // 4. Supprimer les inscriptions liées
+    // 6. Supprimer les inscriptions liées
     await conn.query("DELETE FROM inscriptions WHERE etudiant_id = ?", [id]);
 
-    // 5. Supprimer l'étudiant
+    // 7. Supprimer l'étudiant
     await conn.query("DELETE FROM etudiants WHERE id = ?", [id]);
 
     await conn.commit();

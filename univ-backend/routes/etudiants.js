@@ -30,6 +30,6 @@ router.get ('/',    ctrl.getAll);
 router.get ('/:id', ctrl.getOne);
 router.post('/',    authorizeRoles('administrateur','secretaire'), upload.single('photo'), ctrl.create);
 router.put ('/:id', authorizeRoles('administrateur','secretaire'), upload.single('photo'), ctrl.update);
-router.delete('/:id', authorizeRoles('administrateur'), ctrl.remove);
+router.delete('/:id', authorizeRoles('administrateur','secretaire'), ctrl.remove);
 
 module.exports = router;
