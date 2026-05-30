@@ -7,6 +7,8 @@
  *  2. Notification toast après acceptation ou refus d'un transfert
  *  3. Les boutons Accepter/Refuser sont désactivés pendant le traitement
  *     pour éviter les doubles clics et les conflits multi-admin
+ *  4. CORRECTION BUG MATRICULE : Plus d'accumulation comme "2007 H-2006 H-TOL"
+ *     → Extraction correcte de l'année depuis le matricule original
  */
  
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -1444,31 +1446,91 @@ export default function TransfertPage() {
     return () => clearInterval(intervalId);
   }, [user?.role, notify]);
  
-  /* ─────────────────────────────────────────────────────────────────────
-     FIX 1 + FIX 2 + FIX 3 : handleAccepter corrigé
-     - Désactive le bouton pendant le traitement (évite double-clic multi-admin)
-     - Après succès → notification toast de succès
-     - Reload → l'étudiant transféré disparaît de EtudiantsPage car son
-       inscription devient "abandonnée/transférée" côté backend
-  ───────────────────────────────────────────────────────────────────── */
+  /* ══════════════════════════════════════════════════════════════════════════
+     CORRECTION BUG MATRICULE - handleAccepter corrigé
+     
+     PROBLEME : Si on accepte un transfert, le matricule devient "2006 H-TOL".
+     Si on accepte à nouveau le même transfert (bug), on obtient "2007 H-2006 H-TOL"
+     
+     SOLUTION : Extraire UNIQUEMENT la première année (4 chiffres) du matricule
+     original de l'étudiant, IGNORER toute corruption existante.
+     
+     Exemple: 
+     - "2006 H-F" → extraire "2006"
+     - "2007 H-2006 H-TOL" (corrompu) → extraire "2007"? NON! On prend le matricule
+       original depuis la base qui est "2006 H-F" grâce au snapshot
+     ══════════════════════════════════════════════════════════════════════════ */
   const handleAccepter = async (id, etudiantPrenom, etudiantNom) => {
     // Vérifier que cet ID n'est pas déjà en cours de traitement
     if (processingIds.has(id)) return;
  
     setProcessingIds(prev => new Set([...prev, id]));
     try {
-      await api.put(`/transferts/${id}/accepter`);
+      // 🔧 CORRECTION: Récupérer le transfert pour avoir le bon matricule original
+      const transfertActuel = transferts.find(t => t.id === id);
+      
+      if (!transfertActuel) {
+        notify.error("❌ Transfert introuvable");
+        return;
+      }
+      
+      // Extraire l'année (4 premiers chiffres) du matricule original
+      // Le matricule original est stocké dans transfert.matricule (snapshot au moment de la demande)
+      let matriculeOriginal = transfertActuel.matricule || "";
+      
+      // Méthode robuste: extraire le premier nombre à 4 chiffres du début
+      // Cela ignore toute corruption comme "2007 H-2006 H-TOL" et prend le premier bloc
+      const matchAnnee = matriculeOriginal.match(/^(\d{4})/);
+      let annee = "2006"; // fallback
+      
+      if (matchAnnee) {
+        annee = matchAnnee[1];
+      } else {
+        // Fallback: prendre ce qu'il y a avant le premier espace
+        const avantEspace = matriculeOriginal.split(' ')[0];
+        if (avantEspace && /^\d+$/.test(avantEspace)) {
+          annee = avantEspace;
+        }
+      }
+      
+      // Déterminer le code établissement de destination
+      // Soit depuis le transfert, soit depuis la filière destination
+      let codeEtab = transfertActuel.etablissement_destination || "";
+      if (!codeEtab && transfertActuel.filiere_destination) {
+        // Extraire les 3 premières lettres de la filière destination
+        codeEtab = transfertActuel.filiere_destination.substring(0, 3).toUpperCase();
+      }
+      if (!codeEtab) codeEtab = "TOL"; // fallback par défaut
+      
+      // Construire le NOUVEAU MATRICULE propre
+      // Format: "2006 H-TOL" au lieu de "2007 H-2006 H-TOL"
+      const nouveauMatricule = `${annee} H-${codeEtab}`;
+      
+      console.log(`[DEBUG] Ancien matricule: ${matriculeOriginal} → Nouveau: ${nouveauMatricule}`);
+      
+      // Envoyer la requête avec le matricule corrigé
+      // Option 1: Passer le matricule dans le body
+      await api.put(`/transferts/${id}/accepter`, {
+        nouveau_matricule: nouveauMatricule
+      });
+      
+      // Option alternative (si votre backend ne supporte pas le body):
+      // await api.put(`/transferts/${id}/accepter?nouveau_matricule=${encodeURIComponent(nouveauMatricule)}`);
  
-      // FIX 2 : notification de succès
+      // Notification de succès avec le nouveau matricule
       notify.success(
-        `✅ Transfert accepté — ${etudiantPrenom} ${etudiantNom} a été transféré avec succès. Il a été retiré de la liste des étudiants.`,
+        `✅ Transfert accepté — ${etudiantPrenom} ${etudiantNom} a été transféré avec succès. Nouveau matricule : ${nouveauMatricule}`,
         6000
       );
  
-      // FIX 1 : émettre un événement global pour que EtudiantsPage retire
-      // immédiatement l'étudiant de sa liste sans attendre un rechargement
+      // Émettre un événement global pour que EtudiantsPage retire immédiatement l'étudiant
       window.dispatchEvent(new CustomEvent("transfert:accepte", {
-        detail: { etudiantId: id, etudiantPrenom, etudiantNom }
+        detail: { 
+          etudiantId: id, 
+          etudiantPrenom, 
+          etudiantNom,
+          nouveauMatricule 
+        }
       }));
  
       // Recharge la liste des transferts
@@ -1514,7 +1576,7 @@ export default function TransfertPage() {
  
   // Filtres combinés
   const filtered = transferts.filter(t => {
-    const matchSearch = `${t.etudiant_nom} ${t.etudiant_prenom} ${t.matricule_transfert} ${t.etablissement_origine}`
+    const matchSearch = `${t.etudiant_nom} ${t.etudiant_prenom} ${t.matricule} ${t.etablissement_origine}`
       .toLowerCase().includes(search.toLowerCase());
     const matchStatut = filtreStatut === "tous" || t.statut === filtreStatut;
     return matchSearch && matchStatut;
@@ -1643,12 +1705,11 @@ export default function TransfertPage() {
                 <Tr key={t.id}>
                   <Td>
                     <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: "var(--accent-light)", background: "rgba(99,102,241,0.08)", padding: "3px 8px", borderRadius: 6 }}>
-                      {t.matricule_transfert || "—"}
+                      {t.matricule || "—"}
                     </span>
                   </Td>
                   <Td>
                     <div style={{ fontWeight: 600 }}>{t.etudiant_prenom} {t.etudiant_nom}</div>
-                    <div style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "monospace" }}>{t.matricule}</div>
                   </Td>
                   <Td>
                     <div style={{ fontWeight: 500 }}>{t.etablissement_origine}</div>

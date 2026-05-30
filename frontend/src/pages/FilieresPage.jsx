@@ -814,7 +814,7 @@ export default function FilieresPage() {
                                   }
                                 >
                                   <Trash2 size={14} style={{ marginRight: 6 }} />
-                                  Suppr.
+                                  Supprimer
                                 </Btn>
                               </div>
                             )}

@@ -4,13 +4,29 @@ const db = require('../config/db');
 // ── GET /inscriptions ─────────────────────────────────────────────────────────
 const getAll = async (req, res) => {
     const { annee, statut, filiere } = req.query;
+    // LEFT JOIN etudiants : si l'étudiant a été supprimé suite à un transfert accepté,
+    // on utilise le snapshot (nom/prenom/matricule) enregistré dans la table transferts
+    // pour qu'il continue d'apparaître dans la liste (ex: formulaire d'ajout d'absence).
     let sql = `
-        SELECT i.*, CONCAT(e.nom,' ',e.prenom) AS etudiant_nom, e.matricule,
+        SELECT i.*,
+               CONCAT(
+                 COALESCE(e.nom,  t.etudiant_nom_snapshot),  ' ',
+                 COALESCE(e.prenom, t.etudiant_prenom_snapshot)
+               ) AS etudiant_nom,
+               COALESCE(e.matricule, t.matricule_etudiant_snapshot) AS matricule,
                f.nom AS filiere_nom
         FROM inscriptions i
-        JOIN etudiants e ON i.etudiant_id = e.id
+        LEFT JOIN etudiants e ON i.etudiant_id = e.id
+        LEFT JOIN (
+            SELECT etudiant_id,
+                   etudiant_nom_snapshot,
+                   etudiant_prenom_snapshot,
+                   matricule_etudiant_snapshot
+            FROM transferts
+            WHERE statut = 'accepte'
+        ) t ON t.etudiant_id = i.etudiant_id AND e.id IS NULL
         JOIN filieres  f ON i.filiere_id  = f.id
-        WHERE 1=1
+        WHERE (e.id IS NOT NULL OR t.etudiant_id IS NOT NULL)
     `;
     const params = [];
 
