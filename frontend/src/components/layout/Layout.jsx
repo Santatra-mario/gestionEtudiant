@@ -22,6 +22,7 @@ import {
   Bell,
   Search,
   Settings,
+  Book,
 } from "lucide-react";
 
 /* ─── Navigation avec règles de visibilité par rôle ─────────────────────────
@@ -59,6 +60,13 @@ const NAV = [
     icon: GitBranch,
     hint: "Gestion des filières",
     roles: ["administrateur", "secretaire"],
+  },
+   {
+    to: "/matieres",
+    label: "Matières",
+    icon: Book,
+    hint: "Gestion des matières",
+    roles: ["administrateur", "secretaire"],  // ← admin seulement
   },
   {
     to: "/inscriptions",
