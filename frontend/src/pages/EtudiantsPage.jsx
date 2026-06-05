@@ -1146,11 +1146,8 @@ function SkeletonRow() {
         <div style={{ ...pulse, width: 38, height: 38, borderRadius: "50%" }} />
       </td>
       <td style={{ padding: "14px 12px" }}>
-        <div style={{ ...pulse, width: 80, height: 14 }} />
-      </td>
-      <td style={{ padding: "14px 12px" }}>
         <div style={{ ...pulse, width: 120, height: 14, marginBottom: 6 }} />
-        <div style={{ ...pulse, width: 90, height: 11 }} />
+        <div style={{ ...pulse, width: 60, height: 11 }} />
       </td>
       <td style={{ padding: "14px 12px" }}>
         <div style={{ ...pulse, width: 70, height: 14 }} />
@@ -1408,7 +1405,6 @@ export default function EtudiantsPage() {
           <Table
             headers={[
               "",
-              "Matricule",
               "Étudiant",
               "Date naiss.",
               "Sexe",
@@ -1421,7 +1417,7 @@ export default function EtudiantsPage() {
               Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)
             ) : etudiants.length === 0 ? (
               <tr>
-                <td colSpan={8}>
+                <td colSpan={7}>
                   <EmptyState
                     icon={GraduationCap}
                     title="Aucun étudiant trouvé"
@@ -1473,23 +1469,6 @@ export default function EtudiantsPage() {
                       nom={e.nom}
                       size={38}
                     />
-                  </Td>
-
-                  <Td>
-                    <span
-                      style={{
-                        fontFamily: "monospace",
-                        fontSize: 12,
-                        color: "var(--accent-light)",
-                        fontWeight: 700,
-                        background: "rgba(99,102,241,0.08)",
-                        padding: "3px 8px",
-                        borderRadius: 6,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {e.matricule}
-                    </span>
                   </Td>
 
                   <Td>
