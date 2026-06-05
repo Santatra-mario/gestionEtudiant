@@ -29,7 +29,6 @@ import {
   Card,
   Modal,
   Input,
-  Select,
   FormRow,
   FormSection,
   Alert,
@@ -174,60 +173,172 @@ function MatiereModal({ onClose, onSaved, onSuccess, onError, matiere }) {
           {/* ── Affectation ── */}
           <FormSection title="Affectation" icon={GraduationCap}>
             <FormRow>
-              <Select
-                label="Niveau *"
-                value={form.niveau}
-                onChange={set("niveau")}
-                icon={Layers}
-                required
-              >
-                <option value="">-- Sélectionner un niveau --</option>
-                {NIVEAUX.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </Select>
-              <Select
-                label="Semestre"
-                value={form.semestre}
-                onChange={set("semestre")}
-                icon={BookMarked}
-              >
-                {SEMESTRES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </Select>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "var(--text-soft)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <Layers size={14} color="var(--accent)" />
+                  Niveau <span style={{ color: "var(--danger)" }}>*</span>
+                </label>
+                <select
+                  value={form.niveau}
+                  onChange={set("niveau")}
+                  required
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    background: "var(--surface2)",
+                    border: `1.5px solid ${form.niveau ? "var(--accent)" : "var(--border)"}`,
+                    borderRadius: "var(--radius-sm)",
+                    color: form.niveau ? "var(--text)" : "var(--text-muted)",
+                    padding: "10px 14px",
+                    fontSize: 14,
+                    outline: "none",
+                    cursor: "pointer",
+                    fontFamily: "var(--font-body)",
+                    transition: "border-color 0.2s",
+                  }}
+                >
+                  <option value="">-- Sélectionner un niveau --</option>
+                  {NIVEAUX.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "var(--text-soft)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <BookMarked size={14} color="var(--accent)" />
+                  Semestre
+                </label>
+                <select
+                  value={form.semestre}
+                  onChange={set("semestre")}
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    background: "var(--surface2)",
+                    border: `1.5px solid ${form.semestre ? "var(--accent)" : "var(--border)"}`,
+                    borderRadius: "var(--radius-sm)",
+                    color: "var(--text)",
+                    padding: "10px 14px",
+                    fontSize: 14,
+                    outline: "none",
+                    cursor: "pointer",
+                    fontFamily: "var(--font-body)",
+                    transition: "border-color 0.2s",
+                  }}
+                >
+                  {SEMESTRES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </FormRow>
             <FormRow>
-              <Select
-                label="Filière (optionnelle)"
-                value={form.filiere_id}
-                onChange={set("filiere_id")}
-                icon={GraduationCap}
-              >
-                <option value="">-- Aucune filière --</option>
-                {filieres.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.nom} ({f.code})
-                  </option>
-                ))}
-              </Select>
-              <Select
-                label="Enseignant (optionnel)"
-                value={form.enseignant_id}
-                onChange={set("enseignant_id")}
-                icon={User}
-              >
-                <option value="">-- Non assigné --</option>
-                {enseignants.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.nom_complet || `${e.nom} ${e.prenom}`}
-                  </option>
-                ))}
-              </Select>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "var(--text-soft)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <GraduationCap size={14} color="var(--accent)" />
+                  Filière (optionnelle)
+                </label>
+                <select
+                  value={form.filiere_id}
+                  onChange={set("filiere_id")}
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    background: "var(--surface2)",
+                    border: `1.5px solid ${form.filiere_id ? "var(--accent)" : "var(--border)"}`,
+                    borderRadius: "var(--radius-sm)",
+                    color: form.filiere_id
+                      ? "var(--text)"
+                      : "var(--text-muted)",
+                    padding: "10px 14px",
+                    fontSize: 14,
+                    outline: "none",
+                    cursor: "pointer",
+                    fontFamily: "var(--font-body)",
+                    transition: "border-color 0.2s",
+                  }}
+                >
+                  <option value="">-- Aucune filière --</option>
+                  {filieres.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.nom} ({f.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "var(--text-soft)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <User size={14} color="var(--accent)" />
+                  Enseignant (optionnel)
+                </label>
+                <select
+                  value={form.enseignant_id}
+                  onChange={set("enseignant_id")}
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    background: "var(--surface2)",
+                    border: `1.5px solid ${form.enseignant_id ? "var(--accent)" : "var(--border)"}`,
+                    borderRadius: "var(--radius-sm)",
+                    color: form.enseignant_id
+                      ? "var(--text)"
+                      : "var(--text-muted)",
+                    padding: "10px 14px",
+                    fontSize: 14,
+                    outline: "none",
+                    cursor: "pointer",
+                    fontFamily: "var(--font-body)",
+                    transition: "border-color 0.2s",
+                  }}
+                >
+                  <option value="">-- Non assigné --</option>
+                  {enseignants.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.nom_complet || `${e.nom} ${e.prenom}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </FormRow>
           </FormSection>
 
@@ -297,8 +408,10 @@ export default function MatieresPage() {
 
   const [matieres, setMatieres] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filieres, setFilieres] = useState([]);
   const [search, setSearch] = useState("");
   const [filtreNiveau, setFiltreNiveau] = useState("");
+  const [filtreFiliere, setFiltreFiliere] = useState("");
   const [showModal, setShowModal] = useState(null); // null | 'create' | matiere object
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -322,6 +435,14 @@ export default function MatieresPage() {
     load();
   }, [load]);
 
+  // Charger la liste des filières pour le filtre
+  useEffect(() => {
+    api
+      .get("/filieres")
+      .then((r) => setFilieres(r.data?.data ?? r.data ?? []))
+      .catch(() => setFilieres([]));
+  }, []);
+
   // Suppression
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -341,11 +462,13 @@ export default function MatieresPage() {
   // Filtre local (en plus du filtre backend)
   const filtered = matieres.filter((m) => {
     const matchNiveau = !filtreNiveau || m.niveau === filtreNiveau;
+    const matchFiliere =
+      !filtreFiliere || String(m.filiere_id) === String(filtreFiliere);
     const matchSearch =
       !search ||
       m.nom_matiere?.toLowerCase().includes(search.toLowerCase()) ||
       m.code_matiere?.toLowerCase().includes(search.toLowerCase());
-    return matchNiveau && matchSearch;
+    return matchNiveau && matchFiliere && matchSearch;
   });
 
   return (
@@ -365,7 +488,7 @@ export default function MatieresPage() {
       >
         <PageHeader
           title="Gestion des matières"
-          subtitle={`${matieres.length} matière${matieres.length > 1 ? "s" : ""}${filtreNiveau ? ` · Niveau ${filtreNiveau}` : ""}`}
+          subtitle={`${filtered.length} matière${filtered.length > 1 ? "s" : ""}${filtreNiveau ? ` · Niveau ${filtreNiveau}` : ""}${filtreFiliere ? ` · ${filieres.find((f) => String(f.id) === String(filtreFiliere))?.nom || "Filière"}` : ""}`}
           action={
             canEdit && (
               <Btn
@@ -378,6 +501,89 @@ export default function MatieresPage() {
           }
         />
 
+        {/* ── Sélecteur de filière ── */}
+        <Card style={{ padding: "16px 20px" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 16,
+              flexWrap: "wrap",
+            }}
+          >
+            <label
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: "var(--text)",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <GraduationCap size={16} color="var(--accent)" />
+              Filtrer par filière
+            </label>
+            <select
+              value={filtreFiliere}
+              onChange={(e) => setFiltreFiliere(e.target.value)}
+              style={{
+                flex: "1 1 300px",
+                maxWidth: 400,
+                padding: "10px 14px",
+                borderRadius: "var(--radius-sm)",
+                border: "1.5px solid var(--border)",
+                background: "var(--surface2)",
+                color: filtreFiliere ? "var(--text)" : "var(--text-muted)",
+                fontSize: 14,
+                outline: "none",
+                cursor: "pointer",
+                fontFamily: "var(--font-body)",
+                transition: "border-color 0.2s",
+              }}
+              onFocus={(e) =>
+                (e.currentTarget.style.borderColor = "var(--accent)")
+              }
+              onBlur={(e) =>
+                (e.currentTarget.style.borderColor = "var(--border)")
+              }
+            >
+              <option value="">-- Sélectionner une filière --</option>
+              {filieres.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.nom} ({f.code})
+                </option>
+              ))}
+            </select>
+            {filtreFiliere &&
+              (() => {
+                const filiereChoisie = filieres.find(
+                  (f) => String(f.id) === String(filtreFiliere),
+                );
+                return (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "6px 14px",
+                      borderRadius: 20,
+                      background: "rgba(34,197,94,0.1)",
+                      border: "1px solid rgba(34,197,94,0.25)",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "#22c55e",
+                    }}
+                  >
+                    <CheckCircle size={14} />
+                    {filiereChoisie?.nom || "Filière sélectionnée"}
+                  </span>
+                );
+              })()}
+          </div>
+        </Card>
+
         {/* ── Filtres ── */}
         <Card style={{ padding: 20 }}>
           <div
@@ -388,7 +594,7 @@ export default function MatieresPage() {
               alignItems: "flex-end",
             }}
           >
-            <div style={{ flex: "1 1 300px", position: "relative" }}>
+            <div style={{ flex: "1 1 280px", position: "relative" }}>
               <Search
                 size={16}
                 style={{
@@ -426,6 +632,7 @@ export default function MatieresPage() {
               />
             </div>
 
+            {/* ── Filtre niveau ── */}
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               <button
                 onClick={() => setFiltreNiveau("")}
@@ -442,9 +649,10 @@ export default function MatieresPage() {
                     : "var(--surface)",
                   color: !filtreNiveau ? "#fff" : "var(--text-muted)",
                   fontWeight: !filtreNiveau ? 600 : 400,
+                  whiteSpace: "nowrap",
                 }}
               >
-                Tous
+                Tous les niveaux
               </button>
               {NIVEAUX.map((n) => (
                 <button
@@ -466,6 +674,7 @@ export default function MatieresPage() {
                     fontWeight: filtreNiveau === n ? 700 : 400,
                     borderColor:
                       filtreNiveau === n ? "transparent" : "var(--border)",
+                    whiteSpace: "nowrap",
                   }}
                 >
                   {n}
@@ -473,13 +682,14 @@ export default function MatieresPage() {
               ))}
             </div>
 
-            {(search || filtreNiveau) && (
+            {(search || filtreNiveau || filtreFiliere) && (
               <Btn
                 small
                 variant="ghost"
                 onClick={() => {
                   setSearch("");
                   setFiltreNiveau("");
+                  setFiltreFiliere("");
                 }}
                 icon={<RotateCcw size={13} />}
               >

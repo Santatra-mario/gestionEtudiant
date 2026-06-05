@@ -1,9 +1,25 @@
 import { useEffect, useState, useCallback } from "react";
-import { 
-  X, Save, Edit, Trash2, Plus, ChevronDown, ChevronUp, 
-  BookOpen, GraduationCap, User, Code, Calendar, 
-  Award, AlertTriangle, CheckCircle, UserCog,
-  Briefcase, Layers, BookMarked, FileText
+import {
+  X,
+  Save,
+  Edit,
+  Trash2,
+  Plus,
+  ChevronDown,
+  ChevronUp,
+  BookOpen,
+  GraduationCap,
+  User,
+  Code,
+  Calendar,
+  Award,
+  AlertTriangle,
+  CheckCircle,
+  UserCog,
+  Briefcase,
+  Layers,
+  BookMarked,
+  FileText,
 } from "lucide-react";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
@@ -47,17 +63,32 @@ const MODERN_STYLES = `
 // ─── Composant Badge Niveau Moderne ────────────────────────────────────────
 function NiveauBadge({ niveau, taille = "medium" }) {
   const niveauConfig = {
-    L1: { bg: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", icon: <BookOpen size={12} /> },
-    L2: { bg: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", icon: <Layers size={12} /> },
-    L3: { bg: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)", icon: <GraduationCap size={12} /> },
-    M1: { bg: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)", icon: <Briefcase size={12} /> },
-    M2: { bg: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)", icon: <Award size={12} /> },
+    L1: {
+      bg: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+      icon: <BookOpen size={12} />,
+    },
+    L2: {
+      bg: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+      icon: <Layers size={12} />,
+    },
+    L3: {
+      bg: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+      icon: <GraduationCap size={12} />,
+    },
+    M1: {
+      bg: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+      icon: <Briefcase size={12} />,
+    },
+    M2: {
+      bg: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+      icon: <Award size={12} />,
+    },
   };
-  
+
   const config = niveauConfig[niveau] || niveauConfig.L1;
   const padding = taille === "small" ? "2px 8px" : "4px 12px";
   const fontSize = taille === "small" ? 11 : 13;
-  
+
   return (
     <span
       style={{
@@ -100,11 +131,11 @@ function BtnModifier({ onClick, children }) {
         transition: "all 0.2s ease",
         boxShadow: "0 2px 4px rgba(16,185,129,0.2)",
       }}
-      onMouseEnter={(e) => { 
+      onMouseEnter={(e) => {
         e.currentTarget.style.transform = "translateY(-1px)";
         e.currentTarget.style.boxShadow = "0 4px 12px rgba(16,185,129,0.3)";
       }}
-      onMouseLeave={(e) => { 
+      onMouseLeave={(e) => {
         e.currentTarget.style.transform = "translateY(0)";
         e.currentTarget.style.boxShadow = "0 2px 4px rgba(16,185,129,0.2)";
       }}
@@ -116,10 +147,33 @@ function BtnModifier({ onClick, children }) {
 }
 
 // ─── Composant Select Moderne ──────────────────────────────────────────────
-function ModernSelect({ label, value, onChange, options, required, icon: Icon }) {
+function ModernSelect({
+  label,
+  value,
+  onChange,
+  options,
+  required,
+  icon: Icon,
+}) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6, width: "100%" }}>
-      <label style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+        width: "100%",
+      }}
+    >
+      <label
+        style={{
+          fontSize: 13,
+          color: "var(--text-muted)",
+          fontWeight: 500,
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+        }}
+      >
         {Icon && <Icon size={14} />}
         {label} {required && <span style={{ color: "#ef4444" }}>*</span>}
       </label>
@@ -154,10 +208,38 @@ function ModernSelect({ label, value, onChange, options, required, icon: Icon })
 }
 
 // ─── Composant Input Moderne ───────────────────────────────────────────────
-function ModernInput({ label, value, onChange, placeholder, required, type = "text", icon: Icon, disabled, min, max, step }) {
+function ModernInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+  required,
+  type = "text",
+  icon: Icon,
+  disabled,
+  min,
+  max,
+  step,
+}) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6, width: "100%" }}>
-      <label style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+        width: "100%",
+      }}
+    >
+      <label
+        style={{
+          fontSize: 13,
+          color: "var(--text-muted)",
+          fontWeight: 500,
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+        }}
+      >
         {Icon && <Icon size={14} />}
         {label} {required && <span style={{ color: "#ef4444" }}>*</span>}
       </label>
@@ -196,14 +278,39 @@ function ModernInput({ label, value, onChange, placeholder, required, type = "te
 }
 
 // --- MODAL DE CONFIRMATION MODERNE ---
-function ConfirmModal({ open, title, message, onConfirm, onCancel, loading = false }) {
+function ConfirmModal({
+  open,
+  title,
+  message,
+  onConfirm,
+  onCancel,
+  loading = false,
+}) {
   if (!open) return null;
   return (
     <Modal title={title || "Confirmation"} onClose={onCancel} width={440}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 20, padding: "8px 0" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, background: "rgba(239,68,68,0.1)", padding: 16, borderRadius: 12 }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 20,
+          padding: "8px 0",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            background: "rgba(239,68,68,0.1)",
+            padding: 16,
+            borderRadius: 12,
+          }}
+        >
           <AlertTriangle size={24} color="#ef4444" />
-          <p style={{ fontSize: 14, color: "var(--text)", margin: 0, flex: 1 }}>{message}</p>
+          <p style={{ fontSize: 14, color: "var(--text)", margin: 0, flex: 1 }}>
+            {message}
+          </p>
         </div>
         <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
           <Btn variant="ghost" onClick={onCancel} disabled={loading}>
@@ -220,7 +327,9 @@ function ConfirmModal({ open, title, message, onConfirm, onCancel, loading = fal
 
 // --- MODAL FILIÈRE MODERNE ---
 function FiliereModal({ onClose, onSaved, initial }) {
-  const [form, setForm] = useState(initial || { code: "", nom: "", description: "" });
+  const [form, setForm] = useState(
+    initial || { code: "", nom: "", description: "" },
+  );
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -240,45 +349,61 @@ function FiliereModal({ onClose, onSaved, initial }) {
       }
       onSaved();
     } catch (err) {
-      setError(err.response?.data?.message || "Erreur lors de l'enregistrement.");
+      setError(
+        err.response?.data?.message || "Erreur lors de l'enregistrement.",
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal title={initial ? "Modifier filière" : "Nouvelle filière"} onClose={onClose} width={500}>
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+    <Modal
+      title={initial ? "Modifier filière" : "Nouvelle filière"}
+      onClose={onClose}
+      width={500}
+    >
+      <form
+        onSubmit={handleSubmit}
+        style={{ display: "flex", flexDirection: "column", gap: 18 }}
+      >
         {error && <Alert style={{ width: "100%" }}>{error}</Alert>}
-        
-        <ModernInput 
-          label="Code" 
+
+        <ModernInput
+          label="Code"
           icon={Code}
-          value={form.code} 
-          onChange={set("code")} 
-          placeholder="ex: INFO" 
-          required 
-          disabled={!!initial?.id} 
+          value={form.code}
+          onChange={set("code")}
+          placeholder="ex: INFO"
+          required
+          disabled={!!initial?.id}
         />
-        
-        <ModernInput 
-          label="Nom" 
+
+        <ModernInput
+          label="Nom"
           icon={BookMarked}
-          value={form.nom} 
-          onChange={set("nom")} 
-          placeholder="ex: Informatique" 
-          required 
+          value={form.nom}
+          onChange={set("nom")}
+          placeholder="ex: Informatique"
+          required
         />
-        
-        <ModernInput 
-          label="Description" 
+
+        <ModernInput
+          label="Description"
           icon={FileText}
-          value={form.description || ""} 
-          onChange={set("description")} 
-          placeholder="Description optionnelle" 
+          value={form.description || ""}
+          onChange={set("description")}
+          placeholder="Description optionnelle"
         />
-        
-        <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 8 }}>
+
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            justifyContent: "flex-end",
+            marginTop: 8,
+          }}
+        >
           <Btn variant="ghost" onClick={onClose}>
             <X size={16} style={{ marginRight: 6 }} /> Annuler
           </Btn>
@@ -293,7 +418,18 @@ function FiliereModal({ onClose, onSaved, initial }) {
 }
 
 // ── Semestres valides S1 → S10
-const SEMESTRES_VALIDES = ["S1","S2","S3","S4","S5","S6","S7","S8","S9","S10"];
+const SEMESTRES_VALIDES = [
+  "S1",
+  "S2",
+  "S3",
+  "S4",
+  "S5",
+  "S6",
+  "S7",
+  "S8",
+  "S9",
+  "S10",
+];
 const NIVEAU_SEMESTRES = {
   L1: ["S1", "S2"],
   L2: ["S3", "S4"],
@@ -307,7 +443,14 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
   const [form, setForm] = useState(
     initial
       ? { ...initial, enseignant_id: initial.enseignant_id ?? "" }
-      : { filiere_id: filiereId, codemat: "", nom: "", coefficient: 1, semestre: "S1", enseignant_id: "" }
+      : {
+          filiere_id: filiereId,
+          codemat: "",
+          nom: "",
+          coefficient: 1,
+          semestre: "S1",
+          enseignant_id: "",
+        },
   );
   const [enseignants, setEnseignants] = useState([]);
   const [error, setError] = useState("");
@@ -315,7 +458,8 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   useEffect(() => {
-    api.get("/filieres/enseignants/liste")
+    api
+      .get("/filieres/enseignants/liste")
       .then((r) => {
         const list = Array.isArray(r.data) ? r.data : (r.data?.data ?? []);
         setEnseignants(list);
@@ -340,7 +484,8 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
     try {
       const payload = {
         ...form,
-        enseignant_id: form.enseignant_id === "" ? null : parseInt(form.enseignant_id, 10),
+        enseignant_id:
+          form.enseignant_id === "" ? null : parseInt(form.enseignant_id, 10),
       };
       if (initial?.id) {
         await api.put(`/filieres/matieres/${initial.id}`, payload);
@@ -349,7 +494,10 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
       }
       onSaved();
     } catch (err) {
-      setError(err.response?.data?.message || "Erreur lors de l'enregistrement de la matière.");
+      setError(
+        err.response?.data?.message ||
+          "Erreur lors de l'enregistrement de la matière.",
+      );
     } finally {
       setLoading(false);
     }
@@ -365,43 +513,52 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
   const currentNiveau = getNiveauFromSemestre(form.semestre);
 
   return (
-    <Modal title={initial ? "Modifier matière" : "Nouvelle matière"} onClose={onClose} width={520}>
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+    <Modal
+      title={initial ? "Modifier matière" : "Nouvelle matière"}
+      onClose={onClose}
+      width={520}
+    >
+      <form
+        onSubmit={handleSubmit}
+        style={{ display: "flex", flexDirection: "column", gap: 18 }}
+      >
         {error && <Alert style={{ width: "100%" }}>{error}</Alert>}
 
-        <ModernInput 
-          label="Code" 
+        <ModernInput
+          label="Code"
           icon={Code}
-          value={form.codemat} 
-          onChange={set("codemat")} 
-          placeholder="ex: ALGO1" 
-          required 
-          disabled={!!initial?.id} 
+          value={form.codemat}
+          onChange={set("codemat")}
+          placeholder="ex: ALGO1"
+          required
+          disabled={!!initial?.id}
         />
 
-        <ModernInput 
-          label="Nom" 
+        <ModernInput
+          label="Nom"
           icon={BookMarked}
-          value={form.nom} 
-          onChange={set("nom")} 
-          placeholder="ex: Algorithmique 1" 
-          required 
+          value={form.nom}
+          onChange={set("nom")}
+          placeholder="ex: Algorithmique 1"
+          required
         />
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-          <ModernInput 
-            label="Coefficient" 
+        <div
+          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}
+        >
+          <ModernInput
+            label="Coefficient"
             icon={Award}
-            type="number" 
-            min="1" 
-            max="10" 
-            step="0.5" 
-            value={form.coefficient} 
-            onChange={set("coefficient")} 
-            required 
+            type="number"
+            min="1"
+            max="10"
+            step="0.5"
+            value={form.coefficient}
+            onChange={set("coefficient")}
+            required
           />
-          
-          <ModernSelect 
+
+          <ModernSelect
             label="Semestre"
             icon={Calendar}
             value={form.semestre}
@@ -410,7 +567,11 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
               <>
                 {Object.entries(NIVEAU_SEMESTRES).map(([niveau, sems]) => (
                   <optgroup key={niveau} label={`─ ${niveau} ─`}>
-                    {sems.map((s) => <option key={s} value={s}>{s}</option>)}
+                    {sems.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
                   </optgroup>
                 ))}
               </>
@@ -421,25 +582,30 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
 
         {/* Bloc d'affichage du niveau sélectionné */}
         {currentNiveau && (
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 12,
-            padding: "14px",
-            background: "linear-gradient(135deg, rgba(201,162,39,0.1) 0%, rgba(201,162,39,0.05) 100%)",
-            borderRadius: 12,
-            border: "1px solid rgba(201,162,39,0.2)",
-          }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 12,
+              padding: "14px",
+              background:
+                "linear-gradient(135deg, rgba(201,162,39,0.1) 0%, rgba(201,162,39,0.05) 100%)",
+              borderRadius: 12,
+              border: "1px solid rgba(201,162,39,0.2)",
+            }}
+          >
             <GraduationCap size={20} color="#c9a227" />
-            <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text)" }}>
-              Niveau : 
+            <span
+              style={{ fontSize: 14, fontWeight: 500, color: "var(--text)" }}
+            >
+              Niveau :
             </span>
             <NiveauBadge niveau={currentNiveau} />
           </div>
         )}
 
-        <ModernSelect 
+        <ModernSelect
           label="Enseignant assigné"
           icon={UserCog}
           value={form.enseignant_id ?? ""}
@@ -448,17 +614,28 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
             <>
               <option value="">— Aucun enseignant assigné —</option>
               {enseignants.map((e) => (
-                <option key={e.id} value={e.id}>{e.nom_complet}</option>
+                <option key={e.id} value={e.id}>
+                  {e.nom_complet}
+                </option>
               ))}
             </>
           }
         />
-        
-        <span style={{ fontSize: 11, color: "var(--text-muted)", marginTop: -8 }}>
+
+        <span
+          style={{ fontSize: 11, color: "var(--text-muted)", marginTop: -8 }}
+        >
           L'enseignant assigné pourra saisir les notes de cette matière.
         </span>
 
-        <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 8 }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            justifyContent: "flex-end",
+            marginTop: 8,
+          }}
+        >
           <Btn variant="ghost" onClick={onClose}>
             <X size={16} style={{ marginRight: 6 }} /> Annuler
           </Btn>
@@ -475,9 +652,15 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
 // ─── Page principale ──────────────────────────────────────────────────────
 export default function FilieresPage() {
   const { user } = useAuth();
-  const { notification, hideNotification, success, error: showError } = useNotification();
+  const {
+    notification,
+    hideNotification,
+    success,
+    error: showError,
+  } = useNotification();
 
-  const canManageFilieres = user?.role === "administrateur" || user?.role === "secretaire";
+  const canManageFilieres =
+    user?.role === "administrateur" || user?.role === "secretaire";
   const isAdmin = user?.role === "administrateur";
 
   const [filieres, setFilieres] = useState([]);
@@ -490,7 +673,11 @@ export default function FilieresPage() {
   const [activeButton, setActiveButton] = useState(null);
 
   const [confirmState, setConfirmState] = useState({
-    open: false, title: "", message: "", onConfirm: null, loading: false,
+    open: false,
+    title: "",
+    message: "",
+    onConfirm: null,
+    loading: false,
   });
 
   const openConfirm = (message, onConfirm, title = "Confirmation") => {
@@ -507,7 +694,13 @@ export default function FilieresPage() {
   };
 
   const closeConfirm = () => {
-    setConfirmState({ open: false, title: "", message: "", onConfirm: null, loading: false });
+    setConfirmState({
+      open: false,
+      title: "",
+      message: "",
+      onConfirm: null,
+      loading: false,
+    });
   };
 
   const load = useCallback(async () => {
@@ -515,7 +708,11 @@ export default function FilieresPage() {
     setLoadError(false);
     try {
       const { data } = await api.get("/filieres");
-      const list = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.data)
+          ? data.data
+          : [];
       setFilieres(list);
     } catch {
       setLoadError(true);
@@ -525,12 +722,18 @@ export default function FilieresPage() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const loadMatieres = async (filiereId) => {
     try {
       const { data } = await api.get(`/filieres/${filiereId}/matieres`);
-      const list = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.data)
+          ? data.data
+          : [];
       setMatieres((m) => ({ ...m, [filiereId]: list }));
     } catch {
       setMatieres((m) => ({ ...m, [filiereId]: [] }));
@@ -538,7 +741,10 @@ export default function FilieresPage() {
   };
 
   const toggleExpand = (id) => {
-    if (expanded === id) { setExpanded(null); return; }
+    if (expanded === id) {
+      setExpanded(null);
+      return;
+    }
     setExpanded(id);
     loadMatieres(id);
   };
@@ -550,7 +756,9 @@ export default function FilieresPage() {
       load();
       closeConfirm();
     } catch (err) {
-      showError(err.response?.data?.message || "Erreur lors de la désactivation.");
+      showError(
+        err.response?.data?.message || "Erreur lors de la désactivation.",
+      );
       closeConfirm();
     }
   };
@@ -562,7 +770,9 @@ export default function FilieresPage() {
       loadMatieres(filiereId);
       closeConfirm();
     } catch (err) {
-      showError(err.response?.data?.message || "Erreur lors de la suppression.");
+      showError(
+        err.response?.data?.message || "Erreur lors de la suppression.",
+      );
       closeConfirm();
     }
   };
@@ -570,10 +780,15 @@ export default function FilieresPage() {
   if (loadError) {
     return (
       <div>
-        <PageHeader title="Filières & Matières" subtitle="Gestion des filières et de leurs matières" />
+        <PageHeader
+          title="Filières & Matières"
+          subtitle="Gestion des filières et de leurs matières"
+        />
         <Card>
           <div style={{ textAlign: "center", padding: "32px 0" }}>
-            <p style={{ color: "var(--danger)", marginBottom: 12 }}>Impossible de charger les filières.</p>
+            <p style={{ color: "var(--danger)", marginBottom: 12 }}>
+              Impossible de charger les filières.
+            </p>
             <Btn onClick={load}>Réessayer</Btn>
           </div>
         </Card>
@@ -584,7 +799,10 @@ export default function FilieresPage() {
   return (
     <div>
       <style>{MODERN_STYLES}</style>
-      <NotificationDisplay notification={notification} onClose={hideNotification} />
+      <NotificationDisplay
+        notification={notification}
+        onClose={hideNotification}
+      />
 
       <PageHeader
         title="Filières & Matières"
@@ -605,17 +823,26 @@ export default function FilieresPage() {
           {filieres.length === 0 && (
             <Card>
               <div style={{ textAlign: "center", padding: "48px 0" }}>
-                <GraduationCap size={48} color="var(--text-muted)" style={{ marginBottom: 16, opacity: 0.5 }} />
+                <GraduationCap
+                  size={48}
+                  color="var(--text-muted)"
+                  style={{ marginBottom: 16, opacity: 0.5 }}
+                />
                 <p style={{ color: "var(--text-muted)" }}>
                   Aucune filière active.{" "}
-                  {canManageFilieres && "Créez la première filière avec le bouton ci-dessus."}
+                  {canManageFilieres &&
+                    "Créez la première filière avec le bouton ci-dessus."}
                 </p>
               </div>
             </Card>
           )}
 
           {filieres.map((f) => (
-            <Card key={f.id} style={{ padding: 0, overflow: "hidden" }} className="modern-card">
+            <Card
+              key={f.id}
+              style={{ padding: 0, overflow: "hidden" }}
+              className="modern-card"
+            >
               {/* ── En-tête filière ── */}
               <div
                 style={{
@@ -628,31 +855,69 @@ export default function FilieresPage() {
                   transition: "background 0.2s ease",
                 }}
                 onClick={() => toggleExpand(f.id)}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--surface2)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "var(--surface)"; }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "var(--surface2)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "var(--surface)";
+                }}
               >
-                <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
-                  <div style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 12,
-                    background: "linear-gradient(135deg, #c9a227 0%, #a07c18 100%)",
+                <div
+                  style={{
                     display: "flex",
+                    gap: 16,
                     alignItems: "center",
-                    justifyContent: "center",
-                  }}>
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 12,
+                      background:
+                        "linear-gradient(135deg, #c9a227 0%, #a07c18 100%)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
                     <Briefcase size={20} color="white" />
                   </div>
                   <div>
-                    <Badge color="accent" style={{ marginBottom: 4 }}>{f.code}</Badge>
-                    <span style={{ fontWeight: 600, color: "var(--text)", fontSize: 16 }}>{f.nom}</span>
+                    <Badge color="accent" style={{ marginBottom: 4 }}>
+                      {f.code}
+                    </Badge>
+                    <span
+                      style={{
+                        fontWeight: 600,
+                        color: "var(--text)",
+                        fontSize: 16,
+                      }}
+                    >
+                      {f.nom}
+                    </span>
                   </div>
-                  <span style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      color: "var(--text-muted)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
                     <BookOpen size={12} />
                     {f.nb_matieres} matière(s)
                   </span>
                   {f.description && (
-                    <span style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        color: "var(--text-muted)",
+                        fontStyle: "italic",
+                      }}
+                    >
                       {f.description}
                     </span>
                   )}
@@ -687,15 +952,35 @@ export default function FilieresPage() {
                       Désactiver
                     </Btn>
                   )}
-                  <span style={{ color: "var(--text-muted)", padding: "0 4px" }}>
-                    {expanded === f.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                  <span
+                    style={{
+                      color: "var(--text-muted)",
+                      padding: "0 4px",
+                      cursor: "pointer",
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleExpand(f.id);
+                    }}
+                  >
+                    {expanded === f.id ? (
+                      <ChevronUp size={18} />
+                    ) : (
+                      <ChevronDown size={18} />
+                    )}
                   </span>
                 </div>
               </div>
 
               {/* ── Matières ── */}
               {expanded === f.id && (
-                <div style={{ borderTop: "1px solid var(--border)", padding: "20px 24px", background: "var(--surface2)" }}>
+                <div
+                  style={{
+                    borderTop: "1px solid var(--border)",
+                    padding: "20px 24px",
+                    background: "var(--surface2)",
+                  }}
+                >
                   <div
                     style={{
                       display: "flex",
@@ -704,123 +989,223 @@ export default function FilieresPage() {
                       marginBottom: 16,
                     }}
                   >
-                    <span style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    <span
+                      style={{
+                        fontSize: 13,
+                        color: "var(--text-muted)",
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                      }}
+                    >
                       Liste des matières
                     </span>
-                    {canManageFilieres && (
-                      <Btn small onClick={() => setMatiereModal({ filiereId: f.id, initial: null })}>
-                        <Plus size={14} style={{ marginRight: 6 }} />
-                        Ajouter matière
-                      </Btn>
-                    )}
                   </div>
 
                   {!matieres[f.id] ? (
                     <Spinner />
                   ) : matieres[f.id].length === 0 ? (
                     <div style={{ textAlign: "center", padding: "32px 0" }}>
-                      <BookMarked size={32} color="var(--text-muted)" style={{ opacity: 0.5, marginBottom: 12 }} />
+                      <BookMarked
+                        size={32}
+                        color="var(--text-muted)"
+                        style={{ opacity: 0.5, marginBottom: 12 }}
+                      />
                       <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
                         Aucune matière pour cette filière.
                       </p>
                     </div>
                   ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      {matieres[f.id].map((m) => {
-                        const niveau = Object.entries(NIVEAU_SEMESTRES).find(([_, sems]) => 
-                          sems.includes(m.semestre)
-                        )?.[0];
-                        
-                        return (
-                          <div
-                            key={m.id}
+                    <div style={{ overflowX: "auto" }}>
+                      <table
+                        style={{
+                          width: "100%",
+                          borderCollapse: "collapse",
+                          fontSize: 13,
+                        }}
+                      >
+                        <thead>
+                          <tr
                             style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
                               background: "var(--surface)",
-                              borderRadius: 12,
-                              padding: "12px 16px",
-                              transition: "all 0.2s ease",
-                              border: "1px solid var(--border)",
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.borderColor = "rgba(201,162,39,0.3)";
-                              e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.05)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.borderColor = "var(--border)";
-                              e.currentTarget.style.boxShadow = "none";
+                              borderBottom: "2px solid var(--border)",
                             }}
                           >
-                            <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", flex: 1 }}>
-                              <Badge color="muted" style={{ fontFamily: "monospace" }}>{m.semestre}</Badge>
-                              {niveau && <NiveauBadge niveau={niveau} taille="small" />}
-                              <span style={{ fontWeight: 600, color: "var(--text)" }}>{m.nom}</span>
-                              <code style={{ fontSize: 11, color: "var(--text-muted)", background: "var(--surface2)", padding: "2px 6px", borderRadius: 4 }}>
-                                {m.codemat}
-                              </code>
-                              <span style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
-                                <Award size={12} />
-                                Coeff. {m.coefficient}
-                              </span>
-                              {m.enseignant_nom ? (
-                                <span style={{
-                                  fontSize: 12,
-                                  color: "#10b981",
-                                  background: "rgba(16,185,129,0.1)",
-                                  borderRadius: 6,
-                                  padding: "4px 8px",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 4,
-                                }}>
-                                  <User size={12} />
-                                  {m.enseignant_nom}
-                                </span>
-                              ) : (
-                                <span style={{
-                                  fontSize: 12,
+                            {[
+                              "Code",
+                              "Matière",
+                              "Semestre",
+                              "Niveau",
+                              "Coeff.",
+                              "Enseignant",
+                              canManageFilieres ? "Actions" : "",
+                            ].map((h) => (
+                              <th
+                                key={h}
+                                style={{
+                                  padding: "10px 12px",
+                                  textAlign: "left",
+                                  fontSize: 11,
+                                  fontWeight: 700,
                                   color: "var(--text-muted)",
-                                  background: "var(--surface2)",
-                                  borderRadius: 6,
-                                  padding: "4px 8px",
-                                  fontStyle: "italic",
-                                }}>
-                                  Aucun enseignant
-                                </span>
-                              )}
-                            </div>
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.05em",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {h}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {matieres[f.id].map((m) => {
+                            const niveau = Object.entries(
+                              NIVEAU_SEMESTRES,
+                            ).find(([_, sems]) =>
+                              sems.includes(m.semestre),
+                            )?.[0];
 
-                            {canManageFilieres && (
-                              <div style={{ display: "flex", gap: 6 }}>
-                                <BtnModifier
-                                  onClick={() => {
-                                    setActiveButton(`matiere-${m.id}`);
-                                    setMatiereModal({ filiereId: f.id, initial: m });
+                            return (
+                              <tr
+                                key={m.id}
+                                style={{
+                                  borderBottom: "1px solid var(--border)",
+                                  transition: "background 0.12s",
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background =
+                                    "var(--surface)";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background =
+                                    "transparent";
+                                }}
+                              >
+                                <td style={{ padding: "10px 12px" }}>
+                                  <code
+                                    style={{
+                                      fontSize: 11,
+                                      color: "var(--accent-light)",
+                                      fontWeight: 700,
+                                      background: "rgba(99,102,241,0.08)",
+                                      padding: "2px 6px",
+                                      borderRadius: 4,
+                                    }}
+                                  >
+                                    {m.codemat || m.code_matiere || "—"}
+                                  </code>
+                                </td>
+                                <td
+                                  style={{
+                                    padding: "10px 12px",
+                                    fontWeight: 600,
+                                    color: "var(--text)",
                                   }}
                                 >
-                                  Modifier
-                                </BtnModifier>
-                                <Btn
-                                  small
-                                  variant="danger"
-                                  onClick={() =>
-                                    openConfirm(
-                                      `Supprimer la matière "${m.nom}" ? Cette action est irréversible.`,
-                                      () => handleDeleteMatiere(m.id, f.id, m.nom),
-                                      "Suppression",
-                                    )
-                                  }
-                                >
-                                  <Trash2 size={14} style={{ marginRight: 6 }} />
-                                  Supprimer
-                                </Btn>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                                  {m.nom || m.nom_matiere}
+                                </td>
+                                <td style={{ padding: "10px 12px" }}>
+                                  <Badge color="accent">{m.semestre}</Badge>
+                                </td>
+                                <td style={{ padding: "10px 12px" }}>
+                                  {niveau && (
+                                    <NiveauBadge
+                                      niveau={niveau}
+                                      taille="small"
+                                    />
+                                  )}
+                                </td>
+                                <td style={{ padding: "10px 12px" }}>
+                                  <span
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 4,
+                                    }}
+                                  >
+                                    <Award size={12} color="var(--warning)" />
+                                    {m.coefficient || m.credit || "—"}
+                                  </span>
+                                </td>
+                                <td style={{ padding: "10px 12px" }}>
+                                  {m.enseignant_nom ? (
+                                    <span
+                                      style={{
+                                        fontSize: 12,
+                                        color: "#10b981",
+                                        background: "rgba(16,185,129,0.1)",
+                                        borderRadius: 6,
+                                        padding: "3px 8px",
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 4,
+                                      }}
+                                    >
+                                      <User size={12} />
+                                      {m.enseignant_nom}
+                                    </span>
+                                  ) : (
+                                    <span
+                                      style={{
+                                        fontSize: 12,
+                                        color: "var(--text-muted)",
+                                        fontStyle: "italic",
+                                      }}
+                                    >
+                                      Non assigné
+                                    </span>
+                                  )}
+                                </td>
+                                {canManageFilieres && (
+                                  <td style={{ padding: "10px 12px" }}>
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        gap: 4,
+                                      }}
+                                    >
+                                      <BtnModifier
+                                        onClick={() => {
+                                          setActiveButton(`matiere-${m.id}`);
+                                          setMatiereModal({
+                                            filiereId: f.id,
+                                            initial: m,
+                                          });
+                                        }}
+                                      >
+                                        Modifier
+                                      </BtnModifier>
+                                      <Btn
+                                        small
+                                        variant="danger"
+                                        onClick={() =>
+                                          openConfirm(
+                                            `Supprimer la matière "${m.nom || m.nom_matiere}" ? Cette action est irréversible.`,
+                                            () =>
+                                              handleDeleteMatiere(
+                                                m.id,
+                                                f.id,
+                                                m.nom || m.nom_matiere,
+                                              ),
+                                            "Suppression",
+                                          )
+                                        }
+                                      >
+                                        <Trash2
+                                          size={13}
+                                          style={{ marginRight: 4 }}
+                                        />
+                                        Supprimer
+                                      </Btn>
+                                    </div>
+                                  </td>
+                                )}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   )}
                 </div>
@@ -842,13 +1227,16 @@ export default function FilieresPage() {
       {modal && (
         <FiliereModal
           initial={modal === "create" ? null : modal}
-          onClose={() => { setModal(null); setActiveButton(null); }}
+          onClose={() => {
+            setModal(null);
+            setActiveButton(null);
+          }}
           onSaved={() => {
             const isEdit = modal !== "create";
             success(
               isEdit
                 ? `Filière "${modal.nom}" modifiée avec succès.`
-                : "Nouvelle filière créée avec succès."
+                : "Nouvelle filière créée avec succès.",
             );
             setModal(null);
             setActiveButton(null);
@@ -861,13 +1249,16 @@ export default function FilieresPage() {
         <MatiereModal
           filiereId={matiereModal.filiereId}
           initial={matiereModal.initial}
-          onClose={() => { setMatiereModal(null); setActiveButton(null); }}
+          onClose={() => {
+            setMatiereModal(null);
+            setActiveButton(null);
+          }}
           onSaved={() => {
             const isEdit = !!matiereModal.initial;
             success(
               isEdit
                 ? `Matière "${matiereModal.initial.nom}" modifiée avec succès.`
-                : "Nouvelle matière ajoutée avec succès."
+                : "Nouvelle matière ajoutée avec succès.",
             );
             loadMatieres(matiereModal.filiereId);
             setMatiereModal(null);
