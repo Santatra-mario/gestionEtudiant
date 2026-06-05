@@ -21,6 +21,7 @@ import FilieresPage from "./pages/FilieresPage";
 import UtilisateursPage from "./pages/UtilisateursPage";
 import PresencePage from "./pages/PresencePage";
 import TransfertPage from "./pages/TransfertPage";
+import MatieresPage from "./pages/MatieresPage";
 
 /* ─── Écran de chargement ───────────────────────────────────── */
 function LoadingScreen() {
@@ -39,7 +40,13 @@ function LoadingScreen() {
       }}
     >
       <span className="spinner" style={{ width: 28, height: 28 }} />
-      <span style={{ fontSize: 14, color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
+      <span
+        style={{
+          fontSize: 14,
+          color: "var(--text-muted)",
+          fontFamily: "var(--font-body)",
+        }}
+      >
         Chargement…
       </span>
     </div>
@@ -59,10 +66,35 @@ function PrivateRoute({ children, roles }) {
 function NotFoundPage() {
   return (
     <div style={{ textAlign: "center", padding: "80px 20px" }}>
-      <div style={{ fontSize: 72, fontWeight: 800, color: "var(--border)", fontFamily: "var(--font-display)" }}>404</div>
-      <h1 style={{ fontSize: 24, color: "var(--text)", marginTop: 16 }}>Page introuvable</h1>
-      <p style={{ color: "var(--text-muted)", marginTop: 8 }}>La page que vous cherchez n'existe pas.</p>
-      <a href="/" style={{ display: "inline-block", marginTop: 24, padding: "10px 24px", background: "var(--accent)", color: "#fff", borderRadius: "var(--radius-sm)", fontWeight: 600, textDecoration: "none" }}>
+      <div
+        style={{
+          fontSize: 72,
+          fontWeight: 800,
+          color: "var(--border)",
+          fontFamily: "var(--font-display)",
+        }}
+      >
+        404
+      </div>
+      <h1 style={{ fontSize: 24, color: "var(--text)", marginTop: 16 }}>
+        Page introuvable
+      </h1>
+      <p style={{ color: "var(--text-muted)", marginTop: 8 }}>
+        La page que vous cherchez n'existe pas.
+      </p>
+      <a
+        href="/"
+        style={{
+          display: "inline-block",
+          marginTop: 24,
+          padding: "10px 24px",
+          background: "var(--accent)",
+          color: "#fff",
+          borderRadius: "var(--radius-sm)",
+          fontWeight: 600,
+          textDecoration: "none",
+        }}
+      >
         Retour à l'accueil
       </a>
     </div>
@@ -133,12 +165,22 @@ function AppRoutes() {
             </PrivateRoute>
           }
         />
+        <Route
+          path="matieres"
+          element={
+            <PrivateRoute roles={["administrateur", "secretaire"]}>
+              <MatieresPage />
+            </PrivateRoute>
+          }
+        />
 
         {/* Pédagogie — tous les rôles */}
         <Route
           path="notes/saisie"
           element={
-            <PrivateRoute roles={["administrateur", "secretaire", "enseignant"]}>
+            <PrivateRoute
+              roles={["administrateur", "secretaire", "enseignant"]}
+            >
               <NotesSaisiePage />
             </PrivateRoute>
           }
@@ -147,7 +189,9 @@ function AppRoutes() {
         <Route
           path="presence"
           element={
-            <PrivateRoute roles={["administrateur", "secretaire", "enseignant"]}>
+            <PrivateRoute
+              roles={["administrateur", "secretaire", "enseignant"]}
+            >
               <PresencePage />
             </PrivateRoute>
           }
