@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api from '../services/api'
-
+ 
 // ── Styles dynamiques avec support du thème ─────────────────────────────────
 const getStyles = (isDark) => `
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@400;500;600&display=swap');
-
+ 
   :root {
     --uni-bg:          ${isDark ? '#0b1120' : '#f0f4f8'};
     --uni-surface:     ${isDark ? 'rgba(17, 24, 39, 0.65)' : 'rgba(255, 255, 255, 0.65)'};
@@ -25,7 +25,7 @@ const getStyles = (isDark) => `
     --font-display:    'Playfair Display', Georgia, serif;
     --font-body:       'DM Sans', system-ui, sans-serif;
   }
-
+ 
   @keyframes lgSlideUp {
     from { opacity: 0; transform: translateY(32px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -63,12 +63,12 @@ const getStyles = (isDark) => `
     0%,100% { box-shadow: 0 0 18px var(--uni-accent-glow); }
     50%     { box-shadow: 0 0 36px var(--uni-accent-glow), 0 0 6px rgba(201,162,39,.35); }
   }
-
+ 
   .lg-card     { animation: lgSlideUp .5s cubic-bezier(.16,1,.3,1) both; font-family: var(--font-body); backdrop-filter: blur(8px); }
   .lg-logo-box { animation: lgPopIn .6s cubic-bezier(.34,1.56,.64,1) .2s both, lgGlow 3s ease-in-out 1s infinite; }
-
+ 
   .lg-field { animation: lgFadeIn .3s ease both; }
-
+ 
   .lg-input {
     width: 100%; padding: 10px 12px;
     border: 1px solid var(--uni-border);
@@ -93,7 +93,7 @@ const getStyles = (isDark) => `
     border-color: var(--uni-danger) !important;
     box-shadow: 0 0 0 3px rgba(229,115,115,.14);
   }
-
+ 
   .lg-select {
     appearance: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='${isDark ? '%23a0aec0' : '%234a5568'}' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
@@ -103,7 +103,7 @@ const getStyles = (isDark) => `
     cursor: pointer;
   }
   .lg-select option { background: var(--uni-surface2); color: var(--uni-text); }
-
+ 
   .lg-btn {
     width: 100%; padding: 12px 20px;
     background: linear-gradient(135deg, var(--uni-accent), var(--uni-accent-dark));
@@ -120,14 +120,14 @@ const getStyles = (isDark) => `
   .lg-btn:hover:not(:disabled)  { transform: translateY(-2px); box-shadow: 0 6px 20px var(--uni-accent-glow); filter: brightness(1.08); }
   .lg-btn:active:not(:disabled) { transform: scale(.98); }
   .lg-btn:disabled               { opacity: .5; cursor: not-allowed; }
-
+ 
   .lg-ripple {
     position: absolute; border-radius: 50%;
     background: rgba(255,255,255,.22);
     transform: scale(0);
     animation: lgRipple .55s linear;
   }
-
+ 
   .lg-spinner {
     display: inline-block;
     width: 16px; height: 16px;
@@ -136,7 +136,7 @@ const getStyles = (isDark) => `
     border-radius: 50%;
     animation: lgSpin .7s linear infinite;
   }
-
+ 
   .lg-tab-active {
     background: linear-gradient(135deg, var(--uni-accent), var(--uni-accent-dark)) !important;
     color: ${isDark ? '#0b1120' : '#ffffff'} !important;
@@ -145,7 +145,7 @@ const getStyles = (isDark) => `
   }
   .lg-tab-inactive { background: rgba(255,255,255,0.1); color: var(--uni-text-muted); backdrop-filter: blur(4px); }
   .lg-tab-inactive:hover { color: var(--uni-text); background: rgba(255,255,255,0.2); }
-
+ 
   .lg-alert-err {
     animation: lgShake .4s both;
     background: rgba(229,115,115,.2);
@@ -172,7 +172,7 @@ const getStyles = (isDark) => `
     font-family: var(--font-body);
     backdrop-filter: blur(4px);
   }
-
+ 
   .lg-pwd-track {
     height: 3px; border-radius: 2px; margin-top: 5px;
     background: var(--uni-border); overflow: hidden;
@@ -181,7 +181,7 @@ const getStyles = (isDark) => `
     height: 100%; border-radius: 2px;
     transition: width .4s cubic-bezier(.4,0,.2,1), background .3s;
   }
-
+ 
   .lg-blob {
     position: fixed; border-radius: 50%;
     pointer-events: none; filter: blur(80px); opacity: 0.2;
@@ -205,14 +205,14 @@ const getStyles = (isDark) => `
     animation: lgDrift1 14s ease-in-out 2s infinite;
     opacity: 0.12;
   }
-
+ 
   .lg-divider {
     width: 48px; height: 2px;
     background: linear-gradient(90deg, var(--uni-accent), transparent);
     border-radius: 2px;
     margin: 6px auto 0;
   }
-
+ 
   .lg-admin-notice {
     background: rgba(201,162,39,.15);
     border: 1px solid rgba(201,162,39,.3);
@@ -227,7 +227,7 @@ const getStyles = (isDark) => `
     font-family: var(--font-body);
     backdrop-filter: blur(4px);
   }
-
+ 
   .lg-label {
     font-size: 12px;
     color: var(--uni-text-muted);
@@ -236,8 +236,19 @@ const getStyles = (isDark) => `
     letter-spacing: 0.06em;
     font-family: var(--font-body);
   }
+ 
+  .lg-field-err {
+    font-size: 11px;
+    color: #ffb3b3;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+    font-weight: 500;
+    animation: lgFadeIn .2s ease both;
+  }
 `
-
+ 
 // ── Utilitaire : force du mot de passe ──────────────────────────────────────
 function passwordStrength(pwd) {
   if (!pwd) return null
@@ -256,7 +267,7 @@ function passwordStrength(pwd) {
   ]
   return levels[Math.min(score - 1, 4)]
 }
-
+ 
 // ── Effet ripple sur bouton ──────────────────────────────────────────────────
 function addRipple(btn, e) {
   const r = document.createElement('span')
@@ -267,7 +278,35 @@ function addRipple(btn, e) {
   btn.appendChild(r)
   setTimeout(() => r.remove(), 600)
 }
-
+ 
+// ── NOUVEAU : Validation champ texte (pas d'espace ni caractères spéciaux) ──
+// Autorise : lettres (avec accents), chiffres, tirets, apostrophes
+// Interdit  : espaces, et tout autre caractère spécial
+const TEXT_REGEX = /^[A-Za-zÀ-ÖØ-öø-ÿ0-9'\-]+$/
+ 
+function validateTextField(value) {
+  if (!value) return null
+  if (/\s/.test(value)) return 'Les espaces ne sont pas autorisés'
+  if (!TEXT_REGEX.test(value)) return 'Caractères spéciaux non autorisés (ex: /* ; : ! …)'
+  return null
+}
+ 
+// ── NOUVEAU : Validation mot de passe (pas d'espace) ────────────────────────
+function validatePasswordField(value) {
+  if (!value) return null
+  if (/\s/.test(value)) return 'Les espaces ne sont pas autorisés dans le mot de passe'
+  return null
+}
+ 
+// ── Icône d'erreur inline ────────────────────────────────────────────────────
+function ErrIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: 11, height: 11, flexShrink: 0 }}>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  )
+}
+ 
 // ── Composant champ avec label ───────────────────────────────────────────────
 function Field({ label, delay = 0, children }) {
   return (
@@ -280,7 +319,7 @@ function Field({ label, delay = 0, children }) {
     </div>
   )
 }
-
+ 
 // ── Composant input mot de passe avec icônes ─────────────────────────────────
 function PwdInput({ id, value, onChange, placeholder = '••••••••', hasError, ...rest }) {
   const [show, setShow] = useState(false)
@@ -323,8 +362,30 @@ function PwdInput({ id, value, onChange, placeholder = '••••••••
     </div>
   )
 }
-
+ 
 // ════════════════════════════════════════════════════════════════════════════
+// ── Configuration des 2 machines (Administrateur / Secrétaire) ───────────────
+const MACHINE_CONFIG = {
+  administrateur: {
+    label: 'Administrateur',
+    subtitle: 'Accès complet au système',
+    accent: '#4f8ef7',
+    accentDark: '#2d6ee0',
+    accentGlow: 'rgba(79,142,247,0.25)',
+    badge: '⚙️ Poste Administration',
+    description: 'Accès complet',
+  },
+  secretaire: {
+    label: 'Secrétaire',
+    subtitle: 'Gestion étudiants & inscriptions',
+    accent: '#22c55e',
+    accentDark: '#16a34a',
+    accentGlow: 'rgba(34,197,94,0.25)',
+    badge: '📋 Poste Secrétariat',
+    description: 'Gestion étudiants',
+  },
+}
+ 
 export default function LoginPage() {
   const { login }  = useAuth()
   const navigate   = useNavigate()
@@ -332,27 +393,36 @@ export default function LoginPage() {
     const saved = localStorage.getItem('theme')
     return saved ? saved === 'dark' : true
   })
-
+ 
+  // ── Machine sélectionnée (null = écran de choix) ─────────────────────────
+  const [machine, setMachine] = useState(null)
+ 
   const [tab, setTab] = useState('connexion')
-
+ 
   const [loginForm, setLoginForm] = useState({ email: '', password: '' })
   const [registerForm, setRegisterForm] = useState({
     nom: '', prenom: '', email: '', password: '', confirmPassword: '', role: 'secretaire',
   })
-
+ 
   const [error,   setError]   = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
-
+ 
   const [fieldKey, setFieldKey] = useState(0)
-
+ 
+  // ── NOUVEAU : erreurs dynamiques par champ ───────────────────────────────
+  const [loginFieldErrors,    setLoginFieldErrors]    = useState({ password: '' })
+  const [registerFieldErrors, setRegisterFieldErrors] = useState({ nom: '', prenom: '', password: '', confirmPassword: '' })
+ 
   const switchTab = (t) => {
     setTab(t)
     setError('')
     setSuccess('')
     setFieldKey(k => k + 1)
+    setLoginFieldErrors({ password: '' })
+    setRegisterFieldErrors({ nom: '', prenom: '', password: '', confirmPassword: '' })
   }
-
+ 
   const toggleTheme = () => {
     setIsDarkMode(prev => {
       const newTheme = !prev
@@ -360,7 +430,7 @@ export default function LoginPage() {
       return newTheme
     })
   }
-
+ 
   useEffect(() => {
     const id = 'lg-styles'
     const existing = document.getElementById(id)
@@ -375,24 +445,66 @@ export default function LoginPage() {
       if (document.getElementById(id)) document.getElementById(id).remove()
     }
   }, [isDarkMode])
-
-  const isLoginValid = loginForm.email.trim() !== '' && loginForm.password.trim() !== ''
-
+ 
+  // ── NOUVEAU : handlers avec validation en temps réel ────────────────────
+ 
+  const handleLoginPasswordChange = (e) => {
+    const val = e.target.value
+    setLoginForm({ ...loginForm, password: val })
+    setLoginFieldErrors(prev => ({ ...prev, password: validatePasswordField(val) || '' }))
+  }
+ 
+  const handleRegisterNomChange = (e) => {
+    const val = e.target.value
+    setRegisterForm({ ...registerForm, nom: val })
+    setRegisterFieldErrors(prev => ({ ...prev, nom: validateTextField(val) || '' }))
+  }
+ 
+  const handleRegisterPrenomChange = (e) => {
+    const val = e.target.value
+    setRegisterForm({ ...registerForm, prenom: val })
+    setRegisterFieldErrors(prev => ({ ...prev, prenom: validateTextField(val) || '' }))
+  }
+ 
+  const handleRegisterPasswordChange = (e) => {
+    const val = e.target.value
+    setRegisterForm({ ...registerForm, password: val })
+    setRegisterFieldErrors(prev => ({ ...prev, password: validatePasswordField(val) || '' }))
+  }
+ 
+  const handleRegisterConfirmPasswordChange = (e) => {
+    const val = e.target.value
+    setRegisterForm({ ...registerForm, confirmPassword: val })
+    setRegisterFieldErrors(prev => ({ ...prev, confirmPassword: validatePasswordField(val) || '' }))
+  }
+ 
+  // ── NOUVEAU : vérification globale des erreurs champ ────────────────────
+  const hasRegisterFieldError = () =>
+    !!(registerFieldErrors.nom || registerFieldErrors.prenom || registerFieldErrors.password || registerFieldErrors.confirmPassword)
+ 
+  const isLoginValid = loginForm.email.trim() !== '' && loginForm.password.trim() !== '' && !loginFieldErrors.password
+ 
   const isRegisterValid = () => {
     const { nom, prenom, email, password, confirmPassword, role } = registerForm
     const allFieldsFilled = nom.trim() && prenom.trim() && email.trim() && password && confirmPassword && role
     const passwordsMatch = password === confirmPassword
     const passwordLengthOk = password.length >= 6
-    return allFieldsFilled && passwordsMatch && passwordLengthOk
+    return allFieldsFilled && passwordsMatch && passwordLengthOk && !hasRegisterFieldError()
   }
-
+ 
   const handleLogin = async e => {
     e.preventDefault()
     const submitBtn = e.currentTarget.querySelector('button[type="submit"]')
     if (submitBtn) addRipple(submitBtn, e)
     setError(''); setSuccess(''); setLoading(true)
     try {
-      await login(loginForm.email, loginForm.password)
+      const loggedUser = await login(loginForm.email, loginForm.password)
+      // ── Vérification machine : la secrétaire ne peut pas utiliser le poste Admin
+      if (machine === 'administrateur' && loggedUser?.role !== 'administrateur') {
+        setError('Ce compte n\'a pas les droits Administrateur. Utilisez le poste Secrétaire.')
+        setLoading(false)
+        return
+      }
       navigate('/')
     } catch (err) {
       setError(err.response?.data?.message || 'Identifiants incorrects.')
@@ -400,11 +512,11 @@ export default function LoginPage() {
       setLoading(false)
     }
   }
-
+ 
   const handleRegister = async e => {
     e.preventDefault()
     setError(''); setSuccess(''); setLoading(true)
-
+ 
     if (registerForm.password !== registerForm.confirmPassword) {
       setError('Les mots de passe ne correspondent pas.')
       setLoading(false)
@@ -415,7 +527,7 @@ export default function LoginPage() {
       setLoading(false)
       return
     }
-
+ 
     try {
       await api.post('/auth/register', {
         nom:      registerForm.nom,
@@ -433,10 +545,10 @@ export default function LoginPage() {
       setLoading(false)
     }
   }
-
+ 
   const strength = passwordStrength(registerForm.password)
   const pwdMatch = registerForm.confirmPassword && registerForm.password !== registerForm.confirmPassword
-
+ 
   return (
     <div style={{
       minHeight: '100vh',
@@ -456,7 +568,7 @@ export default function LoginPage() {
         backgroundAttachment: 'fixed',
         zIndex: 0,
       }} />
-
+ 
       {/* ===== OVERLAY TRÈS LÉGER POUR LISIBILITÉ ===== */}
       <div style={{
         position: 'fixed',
@@ -469,7 +581,7 @@ export default function LoginPage() {
         zIndex: 1,
         transition: 'background 0.3s ease',
       }} />
-
+ 
       {/* Bouton de changement de thème */}
       <button 
         onClick={toggleTheme} 
@@ -512,13 +624,13 @@ export default function LoginPage() {
           </svg>
         )}
       </button>
-
+ 
       {/* Blobs animés */}
       <div className="lg-blob lg-blob1" style={{ zIndex: 2 }} />
       <div className="lg-blob lg-blob2" style={{ zIndex: 2 }} />
       <div className="lg-blob lg-blob3" style={{ zIndex: 2 }} />
-
-      {/* Carte principale ULTRA-TRANSPARENTE */}
+ 
+      {/* ===== CONTENU CENTRÉ ===== */}
       <div style={{
         minHeight: '100vh',
         display: 'flex',
@@ -528,6 +640,170 @@ export default function LoginPage() {
         position: 'relative',
         zIndex: 3,
       }}>
+ 
+        {/* ══════════════════════════════════════════════════
+            ÉTAPE 1 : Sélection de la machine (si pas encore choisie)
+        ══════════════════════════════════════════════════ */}
+        {!machine ? (
+          <div
+            className="lg-card"
+            style={{
+              background: 'var(--uni-surface)',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid var(--uni-border)',
+              borderRadius: 20,
+              padding: '40px 44px',
+              width: '100%',
+              maxWidth: 480,
+              position: 'relative',
+              boxShadow: '0 24px 64px rgba(0,0,0,0.2), 0 1px 0 rgba(255,255,255,0.1) inset',
+            }}
+          >
+            {/* Ligne dorée décorative */}
+            <div style={{
+              position: 'absolute', top: 0, left: 40, right: 40, height: '2px',
+              background: 'linear-gradient(90deg, transparent, var(--uni-accent), transparent)',
+              borderRadius: '0 0 2px 2px',
+            }} />
+ 
+            {/* Logo & Titre */}
+            <div style={{ textAlign: 'center', marginBottom: 32 }}>
+              <div
+                className="lg-logo-box"
+                style={{
+                  width: 64, height: 64, borderRadius: 18,
+                  background: 'linear-gradient(145deg, #1e3a8a, #162040)',
+                  border: '1.5px solid rgba(201,162,39,0.4)',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  marginBottom: 16,
+                  color: 'var(--uni-accent)',
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: 30, height: 30, strokeWidth: 1.5 }}>
+                  <path d="M12 14l9-5-9-5-9 5 9 5z" />
+                  <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
+                </svg>
+              </div>
+              <h1 style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: 24, color: 'var(--uni-text)',
+                marginBottom: 4, letterSpacing: '-0.01em',
+                lineHeight: 1.2, fontWeight: 'bold',
+              }}>
+                Gestion Des Étudiants
+              </h1>
+              <div className="lg-divider" />
+              <p style={{ color: 'var(--uni-text-muted)', fontSize: 13, marginTop: 10, letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 500 }}>
+                Sélectionnez votre poste de travail
+              </p>
+            </div>
+ 
+            {/* ── Sélecteur de machine ── */}
+            <div style={{ display: 'flex', gap: 12, marginBottom: 28 }}>
+              {/* Machine Administrateur */}
+              <button
+                onClick={() => { setMachine('administrateur'); setError(''); setLoginForm({ email: '', password: '' }); }}
+                style={{
+                  flex: 1, padding: '18px 12px',
+                  borderRadius: 14,
+                  border: '2px solid rgba(79,142,247,0.4)',
+                  background: 'rgba(79,142,247,0.08)',
+                  cursor: 'pointer',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+                  transition: 'all .22s ease',
+                  fontFamily: 'var(--font-body)',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = '#4f8ef7'
+                  e.currentTarget.style.background = 'rgba(79,142,247,0.16)'
+                  e.currentTarget.style.transform = 'translateY(-3px)'
+                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(79,142,247,0.25)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'rgba(79,142,247,0.4)'
+                  e.currentTarget.style.background = 'rgba(79,142,247,0.08)'
+                  e.currentTarget.style.transform = 'translateY(0)'
+                  e.currentTarget.style.boxShadow = 'none'
+                }}
+              >
+                <div style={{
+                  width: 50, height: 50, borderRadius: 14,
+                  background: 'rgba(79,142,247,0.15)',
+                  border: '1.5px solid rgba(79,142,247,0.4)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#4f8ef7',
+                }}>
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ width: 24, height: 24 }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.955 11.955 0 003 12c0 6.627 5.373 12 12 12s12-5.373 12-12c0-2.026-.504-3.94-1.393-5.618L12 2.714z" />
+                  </svg>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--uni-text)', marginBottom: 3 }}>Administrateur</div>
+                  <div style={{ fontSize: 11, color: 'var(--uni-text-muted)', lineHeight: 1.4 }}>Accès complet</div>
+                </div>
+              </button>
+ 
+              {/* Machine Secrétaire */}
+              <button
+                onClick={() => { setMachine('secretaire'); setError(''); setLoginForm({ email: '', password: '' }); }}
+                style={{
+                  flex: 1, padding: '18px 12px',
+                  borderRadius: 14,
+                  border: '2px solid rgba(34,197,94,0.4)',
+                  background: 'rgba(34,197,94,0.08)',
+                  cursor: 'pointer',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+                  transition: 'all .22s ease',
+                  fontFamily: 'var(--font-body)',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = '#22c55e'
+                  e.currentTarget.style.background = 'rgba(34,197,94,0.16)'
+                  e.currentTarget.style.transform = 'translateY(-3px)'
+                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(34,197,94,0.25)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'rgba(34,197,94,0.4)'
+                  e.currentTarget.style.background = 'rgba(34,197,94,0.08)'
+                  e.currentTarget.style.transform = 'translateY(0)'
+                  e.currentTarget.style.boxShadow = 'none'
+                }}
+              >
+                <div style={{
+                  width: 50, height: 50, borderRadius: 14,
+                  background: 'rgba(34,197,94,0.15)',
+                  border: '1.5px solid rgba(34,197,94,0.4)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#22c55e',
+                }}>
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ width: 24, height: 24 }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                  </svg>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--uni-text)', marginBottom: 3 }}>Secrétaire</div>
+                  <div style={{ fontSize: 11, color: 'var(--uni-text-muted)', lineHeight: 1.4 }}>Gestion étudiants</div>
+                </div>
+              </button>
+            </div>
+ 
+            <p style={{
+              textAlign: 'center',
+              fontSize: 11,
+              color: 'var(--uni-text-muted)',
+              opacity: 0.5,
+              letterSpacing: '0.04em',
+              fontWeight: 500,
+            }}>
+              © {new Date().getFullYear()} Établissement Universitaire · Système sécurisé
+            </p>
+          </div>
+ 
+        ) : (
+        /* ══════════════════════════════════════════════════
+            ÉTAPE 2 : Carte de connexion existante (avec badge machine)
+        ══════════════════════════════════════════════════ */
         <div
           className="lg-card"
           style={{
@@ -543,14 +819,62 @@ export default function LoginPage() {
             transition: 'background 0.3s ease, border-color 0.3s ease',
           }}
         >
-          {/* Ligne dorée décorative */}
+          {/* Ligne décorative couleur selon machine */}
           <div style={{
             position: 'absolute', top: 0, left: 40, right: 40, height: '2px',
-            background: 'linear-gradient(90deg, transparent, var(--uni-accent), transparent)',
+            background: machine === 'administrateur'
+              ? 'linear-gradient(90deg, transparent, #4f8ef7, transparent)'
+              : 'linear-gradient(90deg, transparent, #22c55e, transparent)',
             borderRadius: '0 0 2px 2px',
           }} />
-
-          {/* Logo & Titre */}
+ 
+          {/* ── Badge machine + bouton retour ── */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '6px 14px',
+              borderRadius: 99,
+              background: machine === 'administrateur' ? 'rgba(79,142,247,0.12)' : 'rgba(34,197,94,0.12)',
+              border: `1px solid ${machine === 'administrateur' ? 'rgba(79,142,247,0.35)' : 'rgba(34,197,94,0.35)'}`,
+            }}>
+              <div style={{
+                width: 7, height: 7, borderRadius: '50%',
+                background: machine === 'administrateur' ? '#4f8ef7' : '#22c55e',
+                boxShadow: `0 0 6px ${machine === 'administrateur' ? 'rgba(79,142,247,0.7)' : 'rgba(34,197,94,0.7)'}`,
+              }} />
+              <span style={{
+                fontSize: 12, fontWeight: 700,
+                color: machine === 'administrateur' ? '#4f8ef7' : '#22c55e',
+                fontFamily: 'var(--font-body)',
+                textTransform: 'uppercase', letterSpacing: '0.06em',
+              }}>
+                {MACHINE_CONFIG[machine]?.label}
+              </span>
+            </div>
+            {/* Bouton retour pour changer de machine */}
+            <button
+              onClick={() => { setMachine(null); setError(''); }}
+              title="Changer de poste"
+              style={{
+                background: 'var(--uni-surface2)',
+                border: '1px solid var(--uni-border)',
+                borderRadius: 8, padding: '5px 10px',
+                cursor: 'pointer', color: 'var(--uni-text-muted)',
+                fontSize: 12, fontFamily: 'var(--font-body)',
+                display: 'flex', alignItems: 'center', gap: 4,
+                transition: 'all .15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--uni-text)'; e.currentTarget.style.borderColor = 'var(--uni-border-h)'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--uni-text-muted)'; e.currentTarget.style.borderColor = 'var(--uni-border)'; }}
+            >
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ width: 13, height: 13 }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+              </svg>
+              Changer
+            </button>
+          </div>
+ 
+          {/* Logo & Titre (identique à l'original) */}
           <div style={{ textAlign: 'center', marginBottom: 32 }}>
             <div
               className="lg-logo-box"
@@ -569,7 +893,7 @@ export default function LoginPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
               </svg>
             </div>
-
+ 
             <h1 style={{
               fontFamily: 'var(--font-display)',
               fontSize: 24,
@@ -586,7 +910,7 @@ export default function LoginPage() {
               Plateforme de gestion universitaire
             </p>
           </div>
-
+ 
           {/* Onglets */}
           <div style={{
             display: 'flex',
@@ -624,7 +948,7 @@ export default function LoginPage() {
               </button>
             ))}
           </div>
-
+ 
           {/* Messages d'état */}
           {error && (
             <div className="lg-alert-err" style={{ fontWeight: 500 }}>
@@ -642,7 +966,7 @@ export default function LoginPage() {
               {success}
             </div>
           )}
-
+ 
           {/* FORMULAIRE CONNEXION */}
           {tab === 'connexion' && (
             <form key={`cnx-${fieldKey}`} onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -662,46 +986,69 @@ export default function LoginPage() {
                   />
                 </div>
               </Field>
-
+ 
               <Field label="Mot de passe" delay={0.1}>
+                {/* ── MODIFIÉ : onChange remplacé par handler avec validation ── */}
                 <PwdInput
                   value={loginForm.password}
-                  onChange={e => setLoginForm({ ...loginForm, password: e.target.value })}
+                  onChange={handleLoginPasswordChange}
+                  hasError={!!loginFieldErrors.password}
                   required
                 />
+                {/* ── NOUVEAU : notification dynamique sous le champ ── */}
+                {loginFieldErrors.password && (
+                  <span className="lg-field-err">
+                    <ErrIcon /> {loginFieldErrors.password}
+                  </span>
+                )}
               </Field>
-
+ 
               <button type="submit" disabled={loading || !isLoginValid} className="lg-btn" style={{ fontWeight: 'bold' }}>
                 {loading ? <><span className="lg-spinner" /> Connexion…</> : 'Se connecter'}
               </button>
             </form>
           )}
-
+ 
           {/* FORMULAIRE INSCRIPTION */}
           {tab === 'inscription' && (
             <form key={`ins-${fieldKey}`} onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <Field label="Nom *" delay={0.05}>
+                  {/* ── MODIFIÉ : onChange avec validation ── */}
                   <input
                     type="text" placeholder="Rakoto" required
                     value={registerForm.nom}
-                    onChange={e => setRegisterForm({ ...registerForm, nom: e.target.value })}
-                    className="lg-input"
+                    onChange={handleRegisterNomChange}
+                    className={`lg-input${registerFieldErrors.nom ? ' lg-err' : ''}`}
                     style={{ fontWeight: 500 }}
                   />
+                  {/* ── NOUVEAU : notification dynamique ── */}
+                  {registerFieldErrors.nom && (
+                    <span className="lg-field-err">
+                      <ErrIcon /> {registerFieldErrors.nom}
+                    </span>
+                  )}
                 </Field>
                 <Field label="Prénom *" delay={0.08}>
+                  {/* ── MODIFIÉ : onChange avec validation ── */}
                   <input
                     type="text" placeholder="Jean" required
                     value={registerForm.prenom}
-                    onChange={e => setRegisterForm({ ...registerForm, prenom: e.target.value })}
-                    className="lg-input"
+                    onChange={handleRegisterPrenomChange}
+                    className={`lg-input${registerFieldErrors.prenom ? ' lg-err' : ''}`}
                     style={{ fontWeight: 500 }}
                   />
+                  {/* ── NOUVEAU : notification dynamique ── */}
+                  {registerFieldErrors.prenom && (
+                    <span className="lg-field-err">
+                      <ErrIcon /> {registerFieldErrors.prenom}
+                    </span>
+                  )}
                 </Field>
               </div>
-
+ 
               <Field label="Adresse email *" delay={0.11}>
+                {/* ── EMAIL : inchangé, validation native du navigateur (type="email") ── */}
                 <div style={{ position: 'relative' }}>
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--uni-accent)', opacity: 0.7, width: 16, height: 16 }}>
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -715,7 +1062,7 @@ export default function LoginPage() {
                   />
                 </div>
               </Field>
-
+ 
               <Field label="Rôle *" delay={0.14}>
                 <div style={{ position: 'relative' }}>
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--uni-accent)', opacity: 0.7, width: 16, height: 16 }}>
@@ -734,17 +1081,25 @@ export default function LoginPage() {
                   </select>
                 </div>
               </Field>
-
+ 
               <Field
                 label={<>Mot de passe * <span style={{ fontWeight: 400, opacity: .7, fontSize: 11 }}>(min. 6 caractères)</span></>}
                 delay={0.17}
               >
+                {/* ── MODIFIÉ : onChange avec validation ── */}
                 <PwdInput
                   value={registerForm.password}
-                  onChange={e => setRegisterForm({ ...registerForm, password: e.target.value })}
+                  onChange={handleRegisterPasswordChange}
+                  hasError={!!registerFieldErrors.password}
                   required
                   minLength={6}
                 />
+                {/* ── NOUVEAU : notification dynamique ── */}
+                {registerFieldErrors.password && (
+                  <span className="lg-field-err">
+                    <ErrIcon /> {registerFieldErrors.password}
+                  </span>
+                )}
                 <div className="lg-pwd-track">
                   <div
                     className="lg-pwd-bar"
@@ -760,15 +1115,22 @@ export default function LoginPage() {
                   </span>
                 )}
               </Field>
-
+ 
               <Field label="Confirmer le mot de passe *" delay={0.2}>
+                {/* ── MODIFIÉ : onChange avec validation ── */}
                 <PwdInput
                   value={registerForm.confirmPassword}
-                  onChange={e => setRegisterForm({ ...registerForm, confirmPassword: e.target.value })}
+                  onChange={handleRegisterConfirmPasswordChange}
                   required
-                  hasError={!!pwdMatch}
+                  hasError={!!pwdMatch || !!registerFieldErrors.confirmPassword}
                 />
-                {pwdMatch && (
+                {/* ── NOUVEAU : notification dynamique espace ── */}
+                {registerFieldErrors.confirmPassword && (
+                  <span className="lg-field-err">
+                    <ErrIcon /> {registerFieldErrors.confirmPassword}
+                  </span>
+                )}
+                {pwdMatch && !registerFieldErrors.confirmPassword && (
                   <span style={{ fontSize: 12, color: '#ffb3b3', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4, fontWeight: 500 }}>
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: 12, height: 12 }}>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -776,7 +1138,7 @@ export default function LoginPage() {
                     Les mots de passe ne correspondent pas
                   </span>
                 )}
-                {registerForm.confirmPassword && !pwdMatch && registerForm.password && (
+                {registerForm.confirmPassword && !pwdMatch && registerForm.password && !registerFieldErrors.confirmPassword && (
                   <span style={{ fontSize: 12, color: 'var(--uni-success)', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4, fontWeight: 500 }}>
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: 12, height: 12 }}>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -785,7 +1147,7 @@ export default function LoginPage() {
                   </span>
                 )}
               </Field>
-
+ 
               {registerForm.role === 'administrateur' && (
                 <div className="lg-admin-notice" style={{ fontWeight: 500 }}>
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: 14, height: 14, color: 'var(--uni-accent)', flexShrink: 0 }}>
@@ -794,13 +1156,13 @@ export default function LoginPage() {
                   ℹ️ La création d'un compte administrateur nécessite un token d'administrateur existant.
                 </div>
               )}
-
+ 
               <button type="submit" disabled={loading || !isRegisterValid()} className="lg-btn" style={{ fontWeight: 'bold' }}>
                 {loading ? <><span className="lg-spinner" /> Création…</> : 'Créer le compte'}
               </button>
             </form>
           )}
-
+ 
           <p style={{
             textAlign: 'center',
             marginTop: 24,
@@ -813,6 +1175,7 @@ export default function LoginPage() {
             © {new Date().getFullYear()} Établissement Universitaire · Système sécurisé
           </p>
         </div>
+        )} {/* fin du ternaire machine */}
       </div>
     </div>
   )

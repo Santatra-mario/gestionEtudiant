@@ -23,11 +23,13 @@ import {
   RefreshCw,
   UserCheck,
   UserX,
+  ChevronDown,
 } from "lucide-react";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { useNotification, NotificationDisplay } from "../hooks/useNotification";
 import { Messages, formatErrorMessage } from "../utils/messages";
+
 import {
   PageHeader,
   Btn,
@@ -86,7 +88,9 @@ function ToastNotification({ message, type, onClose, details }) {
 
   return (
     <div className="fixed top-4 right-4 z-50 animate-slide-in">
-      <div className={`bg-gradient-to-r ${current.bg} text-white px-5 py-4 rounded-xl shadow-2xl flex items-start gap-3 min-w-[360px] max-w-md backdrop-blur-sm border-l-4 ${current.border}`}>
+      <div
+        className={`bg-gradient-to-r ${current.bg} text-white px-5 py-4 rounded-xl shadow-2xl flex items-start gap-3 min-w-[360px] max-w-md backdrop-blur-sm border-l-4 ${current.border}`}
+      >
         <div className="flex-shrink-0 mt-0.5">{current.icon}</div>
         <div className="flex-1">
           <div className="font-bold text-sm mb-1">{current.title}</div>
@@ -97,8 +101,8 @@ function ToastNotification({ message, type, onClose, details }) {
             </div>
           )}
         </div>
-        <button 
-          onClick={onClose} 
+        <button
+          onClick={onClose}
           className="hover:opacity-80 transition-opacity flex-shrink-0 -mt-1 -mr-1 p-1"
         >
           <X size={16} />
@@ -283,7 +287,266 @@ const STATUT_COLOR = {
   abandonne: "danger",
 };
 
-// ─── Modal étudiant (création / édition) avec notifications modernes ─────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════
+// ── liste des pays avec indicatif et drapeau emoji ──────────────────────
+// ══════════════════════════════════════════════════════════════════════════
+const COUNTRIES = [
+  { code: "MG", name: "Madagascar", dial: "+261", flag: "🇲🇬" },
+  { code: "FR", name: "France", dial: "+33", flag: "🇫🇷" },
+  { code: "RE", name: "La Réunion", dial: "+262", flag: "🇷🇪" },
+  { code: "MU", name: "Maurice", dial: "+230", flag: "🇲🇺" },
+  { code: "KM", name: "Comores", dial: "+269", flag: "🇰🇲" },
+  { code: "ZA", name: "Afrique du Sud", dial: "+27", flag: "🇿🇦" },
+  { code: "TN", name: "Tunisie", dial: "+216", flag: "🇹🇳" },
+  { code: "MA", name: "Maroc", dial: "+212", flag: "🇲🇦" },
+  { code: "DZ", name: "Algérie", dial: "+213", flag: "🇩🇿" },
+  { code: "SN", name: "Sénégal", dial: "+221", flag: "🇸🇳" },
+  { code: "CI", name: "Côte d'Ivoire", dial: "+225", flag: "🇨🇮" },
+  { code: "CM", name: "Cameroun", dial: "+237", flag: "🇨🇲" },
+  { code: "US", name: "États-Unis", dial: "+1", flag: "🇺🇸" },
+  { code: "GB", name: "Royaume-Uni", dial: "+44", flag: "🇬🇧" },
+  { code: "DE", name: "Allemagne", dial: "+49", flag: "🇩🇪" },
+  { code: "CN", name: "Chine", dial: "+86", flag: "🇨🇳" },
+  { code: "IN", name: "Inde", dial: "+91", flag: "🇮🇳" },
+];
+
+// ── Sélecteur de pays avec drapeau ──────────────────────────────────────
+function CountryDialPicker({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const selected = COUNTRIES.find((c) => c.code === value) || COUNTRIES[0];
+
+  const filtered = COUNTRIES.filter(
+    (c) =>
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.dial.includes(search),
+  );
+
+  return (
+    <div style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "10px 10px",
+          background: "var(--surface2)",
+          border: "1px solid var(--border)",
+          borderRadius: 8,
+          cursor: "pointer",
+          color: "var(--text)",
+          fontSize: 13,
+          fontWeight: 600,
+          whiteSpace: "nowrap",
+          transition: "border-color .18s, box-shadow .18s",
+          height: "100%",
+          minWidth: 90,
+        }}
+        onMouseEnter={(e) =>
+          (e.currentTarget.style.borderColor = "var(--accent)")
+        }
+        onMouseLeave={(e) =>
+          !open && (e.currentTarget.style.borderColor = "var(--border)")
+        }
+      >
+        <span style={{ fontSize: 18, lineHeight: 1 }}>{selected.flag}</span>
+        <span style={{ fontSize: 12 }}>{selected.dial}</span>
+        <ChevronDown
+          size={12}
+          style={{
+            transition: "transform .2s",
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+            color: "var(--text-muted)",
+          }}
+        />
+      </button>
+
+      {open && (
+        <>
+          <div
+            style={{ position: "fixed", inset: 0, zIndex: 40 }}
+            onClick={() => {
+              setOpen(false);
+              setSearch("");
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              top: "calc(100% + 6px)",
+              left: 0,
+              zIndex: 50,
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: 10,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
+              width: 240,
+              maxHeight: 280,
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+              animation: "fadeDropdown .15s ease",
+            }}
+          >
+            <div
+              style={{
+                padding: "8px 10px",
+                borderBottom: "1px solid var(--border)",
+              }}
+            >
+              <input
+                autoFocus
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Rechercher un pays…"
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  background: "var(--surface2)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 6,
+                  padding: "6px 10px",
+                  fontSize: 12,
+                  color: "var(--text)",
+                  outline: "none",
+                }}
+              />
+            </div>
+            <div style={{ overflowY: "auto", flex: 1 }}>
+              {filtered.length === 0 ? (
+                <div
+                  style={{
+                    padding: "12px 14px",
+                    fontSize: 12,
+                    color: "var(--text-muted)",
+                    textAlign: "center",
+                  }}
+                >
+                  Aucun résultat
+                </div>
+              ) : (
+                filtered.map((c) => (
+                  <button
+                    key={c.code}
+                    type="button"
+                    onClick={() => {
+                      onChange(c.code);
+                      setOpen(false);
+                      setSearch("");
+                    }}
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "8px 14px",
+                      background:
+                        c.code === value
+                          ? "rgba(99,102,241,0.1)"
+                          : "transparent",
+                      border: "none",
+                      cursor: "pointer",
+                      color: "var(--text)",
+                      fontSize: 13,
+                      textAlign: "left",
+                      transition: "background .12s",
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background = "var(--surface2)")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background =
+                        c.code === value
+                          ? "rgba(99,102,241,0.1)"
+                          : "transparent")
+                    }
+                  >
+                    <span style={{ fontSize: 18, lineHeight: 1 }}>
+                      {c.flag}
+                    </span>
+                    <span style={{ flex: 1 }}>{c.name}</span>
+                    <span
+                      style={{
+                        color: "var(--text-muted)",
+                        fontSize: 12,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {c.dial}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// ── Fonctions de validation ──────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════
+
+// NOM : lettres (avec accents), chiffres, tirets, apostrophes — SANS espaces
+const TEXT_REGEX = /^[A-Za-zÀ-ÖØ-öø-ÿ0-9'\-]+$/;
+
+// PRÉNOM : même chose MAIS avec espaces autorisés (ex: "Santatra Mario Jonsthone")
+const PRENOM_REGEX = /^[A-Za-zÀ-ÖØ-öø-ÿ0-9'\- ]+$/;
+
+// Validation NOM (espaces interdits)
+function validateTextField(value) {
+  if (!value) return null;
+  if (/\s/.test(value)) return "Les espaces ne sont pas autorisés";
+  if (!TEXT_REGEX.test(value))
+    return "Caractères spéciaux non autorisés (ex: /* ; : ! …)";
+  return null;
+}
+
+// Validation PRÉNOM (espaces autorisés)
+function validatePrenomField(value) {
+  if (!value) return null;
+  if (!PRENOM_REGEX.test(value))
+    return "Caractères spéciaux non autorisés (ex: /* ; : ! …)";
+  return null;
+}
+
+// Adresse : autorise lettres, chiffres, espaces, virgules, tirets, points
+const ADDR_REGEX = /^[A-Za-zÀ-ÖØ-öø-ÿ0-9\s,.\-']+$/;
+
+function validateAddressField(value) {
+  if (!value) return null;
+  if (!ADDR_REGEX.test(value))
+    return "Caractères spéciaux non autorisés dans l'adresse";
+  return null;
+}
+
+// ── Composant d'erreur inline ────────────────────────────────────────────
+function FieldErr({ msg }) {
+  if (!msg) return null;
+  return (
+    <span
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+        fontSize: 11,
+        color: "#fca5a5",
+        fontWeight: 500,
+        marginTop: 4,
+        animation: "fadeErrIn .2s ease both",
+      }}
+    >
+      <AlertCircle size={11} style={{ flexShrink: 0 }} />
+      {msg}
+    </span>
+  );
+}
+
+// ─── Modal étudiant (création / édition) ────────────────────────────────
 function EtudiantModal({ onClose, onSaved, initial }) {
   const isEdit = !!initial?.id;
   const [toast, setToast] = useState(null);
@@ -302,6 +565,14 @@ function EtudiantModal({ onClose, onSaved, initial }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const [countryCode, setCountryCode] = useState("MG");
+
+  const [fieldErrors, setFieldErrors] = useState({
+    nom: "",
+    prenom: "",
+    adresse: "",
+  });
+
   const showNotification = (message, type = "success", details = null) => {
     setToast({ message, type, details });
   };
@@ -309,6 +580,35 @@ function EtudiantModal({ onClose, onSaved, initial }) {
   const today = new Date().toISOString().split("T")[0];
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  // ── PRÉNOM : espaces autorisés ───────────────────────────────────────
+  const handlePrenomChange = (e) => {
+    const val = e.target.value;
+    setForm((f) => ({ ...f, prenom: val }));
+    setFieldErrors((prev) => ({
+      ...prev,
+      prenom: validatePrenomField(val) || "",
+    }));
+  };
+
+  // ── NOM : espaces interdits ──────────────────────────────────────────
+  const handleNomChange = (e) => {
+    const val = e.target.value;
+    setForm((f) => ({ ...f, nom: val }));
+    setFieldErrors((prev) => ({ ...prev, nom: validateTextField(val) || "" }));
+  };
+
+  const handleAdresseChange = (e) => {
+    const val = e.target.value;
+    setForm((f) => ({ ...f, adresse: val }));
+    setFieldErrors((prev) => ({
+      ...prev,
+      adresse: validateAddressField(val) || "",
+    }));
+  };
+
+  const hasFieldError = () =>
+    !!(fieldErrors.nom || fieldErrors.prenom || fieldErrors.adresse);
 
   const handlePhoto = (e) => {
     const file = e.target.files[0];
@@ -318,16 +618,38 @@ function EtudiantModal({ onClose, onSaved, initial }) {
     setPhotoPreview(url);
   };
 
-  const phoneDigits = form.telephone.replace(/[\s\-\+]/g, "");
-  const phoneValid =
-    !form.telephone.trim() ||
-    /^0[23][0-9]{8}$/.test(phoneDigits) ||
-    /^261[23][0-9]{8}$/.test(phoneDigits);
-  const phoneError = form.telephone.trim() && !phoneValid
-    ? "Numéro invalide — 10 chiffres ex: 034 12 345 67"
-    : "";
+  const phoneDigits = form.telephone.replace(/[\s\-]/g, "");
+  const selectedCountry =
+    COUNTRIES.find((c) => c.code === countryCode) || COUNTRIES[0];
 
-  const isValid = form.nom.trim() && form.prenom.trim() && form.date_naissance && !phoneError;
+  const phoneValid = (() => {
+    if (!form.telephone.trim()) return true;
+    if (countryCode === "MG") {
+      if (/^0/.test(phoneDigits)) return false;
+      return /^[23][0-9]{8}$/.test(phoneDigits);
+    }
+    return /^\d{6,15}$/.test(phoneDigits);
+  })();
+
+  const phoneError = (() => {
+    if (!form.telephone.trim()) return "";
+    if (!phoneValid) {
+      if (countryCode === "MG") {
+        if (/^0/.test(phoneDigits))
+          return "Avec +261 ne mettez pas le 0 — ex: 33 187 4598";
+        return "Numéro invalide — 9 chiffres sans 0 ex: 331874598";
+      }
+      return "Numéro invalide — entre 6 et 15 chiffres";
+    }
+    return "";
+  })();
+
+  const isValid =
+    form.nom.trim() &&
+    form.prenom.trim() &&
+    form.date_naissance &&
+    !phoneError &&
+    !hasFieldError();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -336,7 +658,16 @@ function EtudiantModal({ onClose, onSaved, initial }) {
     setLoading(true);
     try {
       const fd = new FormData();
-      Object.entries(form).forEach(([k, v]) => v && fd.append(k, v));
+      const rawTel = form.telephone.trim().replace(/[\s\-]/g, "");
+      const telWithDial = rawTel
+        ? countryCode === "MG"
+          ? `${selectedCountry.dial}${rawTel}`
+          : `${selectedCountry.dial}${rawTel.replace(/^0/, "")}`
+        : "";
+      Object.entries({
+        ...form,
+        telephone: telWithDial || form.telephone,
+      }).forEach(([k, v]) => v && fd.append(k, v));
       if (photo) fd.append("photo", photo);
       if (isEdit) {
         await api.put(`/etudiants/${initial.id}`, fd, {
@@ -345,7 +676,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
         showNotification(
           `Informations mises à jour avec succès`,
           "success",
-          `${form.prenom} ${form.nom} · Modifications enregistrées`
+          `${form.prenom} ${form.nom} · Modifications enregistrées`,
         );
       } else {
         await api.post("/etudiants", fd, {
@@ -354,7 +685,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
         showNotification(
           `Nouvel étudiant ajouté avec succès`,
           "success",
-          `${form.prenom} ${form.nom} · Bienvenue dans la plateforme`
+          `${form.prenom} ${form.nom} · Bienvenue dans la plateforme`,
         );
       }
       setTimeout(() => {
@@ -365,7 +696,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
       showNotification(
         "Une erreur est survenue",
         "error",
-        "Veuillez vérifier les informations et réessayer"
+        "Veuillez vérifier les informations et réessayer",
       );
     } finally {
       setLoading(false);
@@ -382,6 +713,16 @@ function EtudiantModal({ onClose, onSaved, initial }) {
           onClose={() => setToast(null)}
         />
       )}
+      <style>{`
+        @keyframes fadeErrIn {
+          from { opacity: 0; transform: translateY(-4px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeDropdown {
+          from { opacity: 0; transform: translateY(-6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
       <Modal
         title={isEdit ? "Modifier l'étudiant" : "Nouvel étudiant"}
         subtitle={
@@ -422,24 +763,48 @@ function EtudiantModal({ onClose, onSaved, initial }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
             <FormSection title="Identité" icon={User}>
               <FormRow>
-                <Input
-                  label="Prénom"
-                  required
-                  value={form.prenom}
-                  onChange={set("prenom")}
-                  placeholder="Jean"
-                  icon={User}
-                  hint="Prénom(s) de l'étudiant"
-                />
-                <Input
-                  label="Nom"
-                  required
-                  value={form.nom}
-                  onChange={set("nom")}
-                  placeholder="Rakoto"
-                  icon={User}
-                  hint="Nom de famille"
-                />
+                {/* ── PRÉNOM : espaces autorisés ── */}
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 0,
+                    flex: 1,
+                  }}
+                >
+                  <Input
+                    label="Prénom"
+                    required
+                    value={form.prenom}
+                    onChange={handlePrenomChange}
+                    placeholder="Jean Marie"
+                    icon={User}
+                    hint="Prénom(s) de l'étudiant — espaces autorisés"
+                    error={fieldErrors.prenom}
+                  />
+                  <FieldErr msg={fieldErrors.prenom} />
+                </div>
+                {/* ── NOM : espaces interdits ── */}
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 0,
+                    flex: 1,
+                  }}
+                >
+                  <Input
+                    label="Nom"
+                    required
+                    value={form.nom}
+                    onChange={handleNomChange}
+                    placeholder="Rakoto"
+                    icon={User}
+                    hint="Nom de famille — sans espaces"
+                    error={fieldErrors.nom}
+                  />
+                  <FieldErr msg={fieldErrors.nom} />
+                </div>
               </FormRow>
               <FormRow>
                 <Input
@@ -475,26 +840,150 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                 icon={Mail}
               />
               <FormRow>
-                <Input
-                  label="Téléphone"
-                  value={form.telephone}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/[^\d\s\+\-]/g, "");
-                    setForm(f => ({ ...f, telephone: val }));
+                {/* ── Téléphone avec sélecteur de pays ── */}
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 0,
+                    flex: 1,
                   }}
-                  placeholder="034 12 345 67"
-                  icon={Phone}
-                  maxLength={15}
-                  error={phoneError}
-                  hint="Format Madagascar : 034 XX XXX XX"
-                />
-                <Input
-                  label="Adresse"
-                  value={form.adresse}
-                  onChange={set("adresse")}
-                  placeholder="Antananarivo"
-                  icon={MapPin}
-                />
+                >
+                  <label
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: "var(--text-muted)",
+                      marginBottom: 6,
+                      display: "block",
+                    }}
+                  >
+                    Téléphone
+                  </label>
+                  <div
+                    style={{ display: "flex", gap: 6, alignItems: "stretch" }}
+                  >
+                    <CountryDialPicker
+                      value={countryCode}
+                      onChange={setCountryCode}
+                    />
+                    <div style={{ position: "relative", flex: 1 }}>
+                      <Phone
+                        size={14}
+                        style={{
+                          position: "absolute",
+                          left: 11,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          color: "var(--text-muted)",
+                          pointerEvents: "none",
+                        }}
+                      />
+                      <input
+                        value={form.telephone}
+                        onChange={(e) => {
+                          let val = e.target.value.replace(/[^\d\s\-]/g, "");
+                          if (countryCode === "MG" && val.startsWith("0")) {
+                            val = val.replace(/^0+/, "");
+                          }
+                          setForm((f) => ({ ...f, telephone: val }));
+                        }}
+                        placeholder={
+                          countryCode === "MG" ? "33 187 4598" : "XX XX XX XX"
+                        }
+                        maxLength={15}
+                        style={{
+                          width: "100%",
+                          boxSizing: "border-box",
+                          paddingLeft: 32,
+                          paddingRight: 12,
+                          paddingTop: 10,
+                          paddingBottom: 10,
+                          background: "var(--surface2)",
+                          border: `1px solid ${phoneError ? "#ef4444" : "var(--border)"}`,
+                          borderRadius: 8,
+                          color: "var(--text)",
+                          fontSize: 14,
+                          outline: "none",
+                          transition: "border-color .18s, box-shadow .18s",
+                          boxShadow: phoneError
+                            ? "0 0 0 3px rgba(239,68,68,0.14)"
+                            : "none",
+                        }}
+                        onFocus={(e) => {
+                          e.currentTarget.style.borderColor = phoneError
+                            ? "#ef4444"
+                            : "var(--accent)";
+                          e.currentTarget.style.boxShadow = phoneError
+                            ? "0 0 0 3px rgba(239,68,68,0.14)"
+                            : "0 0 0 3px rgba(99,102,241,0.18)";
+                        }}
+                        onBlur={(e) => {
+                          e.currentTarget.style.borderColor = phoneError
+                            ? "#ef4444"
+                            : "var(--border)";
+                          e.currentTarget.style.boxShadow = phoneError
+                            ? "0 0 0 3px rgba(239,68,68,0.14)"
+                            : "none";
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: "var(--text-muted)",
+                      marginTop: 4,
+                    }}
+                  >
+                    {selectedCountry.flag} {selectedCountry.name} ·{" "}
+                    {selectedCountry.dial}
+                    {countryCode === "MG" && (
+                      <span
+                        style={{ color: "var(--accent-light)", marginLeft: 6 }}
+                      >
+                        · sans le 0 initial
+                      </span>
+                    )}
+                  </span>
+                  {phoneError && (
+                    <span
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                        fontSize: 11,
+                        color: "#fca5a5",
+                        fontWeight: 500,
+                        marginTop: 4,
+                        animation: "fadeErrIn .2s ease both",
+                      }}
+                    >
+                      <AlertCircle size={11} style={{ flexShrink: 0 }} />
+                      {phoneError}
+                    </span>
+                  )}
+                </div>
+
+                {/* ── Adresse avec validation ── */}
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 0,
+                    flex: 1,
+                  }}
+                >
+                  <Input
+                    label="Adresse"
+                    value={form.adresse}
+                    onChange={handleAdresseChange}
+                    placeholder="Antananarivo"
+                    icon={MapPin}
+                    error={fieldErrors.adresse}
+                  />
+                  <FieldErr msg={fieldErrors.adresse} />
+                </div>
               </FormRow>
             </FormSection>
           </div>
@@ -527,18 +1016,18 @@ function EtudiantModal({ onClose, onSaved, initial }) {
   );
 }
 
-// ─── Modal de confirmation de suppression moderne ─────────────────────────────────
+// ─── Modal de confirmation de suppression ────────────────────────────────
 function DeleteModal({ student, onConfirm, onCancel, loading }) {
   if (!student) return null;
-  
+
   const [localLoading, setLocalLoading] = useState(false);
-  
+
   const handleConfirm = async () => {
     setLocalLoading(true);
     await onConfirm();
     setLocalLoading(false);
   };
-  
+
   return (
     <Modal title="Confirmer la suppression" onClose={onCancel} width={480}>
       <div
@@ -555,7 +1044,8 @@ function DeleteModal({ student, onConfirm, onCancel, loading }) {
             width: 80,
             height: 80,
             borderRadius: "50%",
-            background: "linear-gradient(135deg, rgba(239,68,68,0.15), rgba(220,38,38,0.1))",
+            background:
+              "linear-gradient(135deg, rgba(239,68,68,0.15), rgba(220,38,38,0.1))",
             border: "2px solid rgba(239,68,68,0.3)",
             display: "flex",
             alignItems: "center",
@@ -586,8 +1076,8 @@ function DeleteModal({ student, onConfirm, onCancel, loading }) {
               margin: "0 auto",
             }}
           >
-            Cette action entraînera la suppression définitive de toutes les données associées :
-            inscriptions, notes, et documents.
+            Cette action entraînera la suppression définitive de toutes les
+            données associées : inscriptions, notes, et documents.
           </p>
           <div
             style={{
@@ -614,7 +1104,11 @@ function DeleteModal({ student, onConfirm, onCancel, loading }) {
           borderTop: "1px solid var(--border)",
         }}
       >
-        <Btn variant="ghost" onClick={onCancel} disabled={loading || localLoading}>
+        <Btn
+          variant="ghost"
+          onClick={onCancel}
+          disabled={loading || localLoading}
+        >
           Annuler
         </Btn>
         <Btn
@@ -626,17 +1120,11 @@ function DeleteModal({ student, onConfirm, onCancel, loading }) {
           Supprimer définitivement
         </Btn>
       </div>
-      
+
       <style>{`
         @keyframes pulse {
-          0%, 100% {
-            transform: scale(1);
-            opacity: 1;
-          }
-          50% {
-            transform: scale(1.05);
-            opacity: 0.9;
-          }
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50%       { transform: scale(1.05); opacity: 0.9; }
         }
       `}</style>
     </Modal>
@@ -699,27 +1187,23 @@ export default function EtudiantsPage() {
   const [toDelete, setToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  // ── Écoute l'événement global émis par TransfertPage quand un transfert est accepté
-  // → retire immédiatement l'étudiant de la liste sans attendre un rechargement complet
   useEffect(() => {
     const handleTransfertAccepte = (e) => {
       const { etudiantId, etudiantNom, etudiantPrenom } = e.detail || {};
       if (!etudiantId) return;
-
-      // Retirer l'étudiant de la liste locale
-      setEtudiants(prev => prev.filter(et => String(et.id) !== String(etudiantId)));
-      setTotal(prev => Math.max(0, prev - 1));
-
-      // Afficher une notification dans EtudiantsPage
+      setEtudiants((prev) =>
+        prev.filter((et) => String(et.id) !== String(etudiantId)),
+      );
+      setTotal((prev) => Math.max(0, prev - 1));
       setToast({
         message: `${etudiantPrenom} ${etudiantNom} a été transféré et retiré de la liste`,
         type: "info",
         details: "Transfert inter-établissement accepté",
       });
     };
-
     window.addEventListener("transfert:accepte", handleTransfertAccepte);
-    return () => window.removeEventListener("transfert:accepte", handleTransfertAccepte);
+    return () =>
+      window.removeEventListener("transfert:accepte", handleTransfertAccepte);
   }, []);
 
   const showNotification = (message, type = "success", details = null) => {
@@ -739,7 +1223,7 @@ export default function EtudiantsPage() {
       showNotification(
         "Impossible de charger la liste des étudiants",
         "error",
-        "Veuillez vérifier votre connexion"
+        "Veuillez vérifier votre connexion",
       );
     } finally {
       setLoading(false);
@@ -758,7 +1242,7 @@ export default function EtudiantsPage() {
       showNotification(
         `Étudiant supprimé avec succès`,
         "success",
-        `${toDelete.prenom} ${toDelete.nom} · Toutes ses données ont été effacées`
+        `${toDelete.prenom} ${toDelete.nom} · Toutes ses données ont été effacées`,
       );
       setToDelete(null);
       load();
@@ -799,17 +1283,19 @@ export default function EtudiantsPage() {
           100% { background-position: -200% 0 }
         }
         @keyframes slideIn {
-          from {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
+          from { transform: translateX(100%); opacity: 0; }
+          to   { transform: translateX(0);    opacity: 1; }
         }
         .animate-slide-in {
           animation: slideIn 0.3s ease-out;
+        }
+        @keyframes fadeErrIn {
+          from { opacity: 0; transform: translateY(-4px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeDropdown {
+          from { opacity: 0; transform: translateY(-6px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
       `}</style>
 
@@ -912,8 +1398,12 @@ export default function EtudiantsPage() {
             boxShadow: "var(--shadow)",
             transition: "box-shadow 0.3s ease",
           }}
-          onMouseEnter={e => e.currentTarget.style.boxShadow = "var(--shadow-lg)"}
-          onMouseLeave={e => e.currentTarget.style.boxShadow = "var(--shadow)"}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.boxShadow = "var(--shadow-lg)")
+          }
+          onMouseLeave={(e) =>
+            (e.currentTarget.style.boxShadow = "var(--shadow)")
+          }
         >
           <Table
             headers={[
@@ -964,12 +1454,13 @@ export default function EtudiantsPage() {
                     cursor: "pointer",
                     transform: "scale(1)",
                   }}
-                  onMouseEnter={e => {
+                  onMouseEnter={(e) => {
                     e.currentTarget.style.background = "var(--surface2)";
                     e.currentTarget.style.transform = "scale(1.01)";
-                    e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.1)";
+                    e.currentTarget.style.boxShadow =
+                      "0 2px 8px rgba(0,0,0,0.1)";
                   }}
-                  onMouseLeave={e => {
+                  onMouseLeave={(e) => {
                     e.currentTarget.style.background = "transparent";
                     e.currentTarget.style.transform = "scale(1)";
                     e.currentTarget.style.boxShadow = "none";
@@ -1025,7 +1516,13 @@ export default function EtudiantsPage() {
                   </Td>
 
                   <Td>
-                    <span style={{ color: "var(--text-muted)", fontSize: 13, whiteSpace: "nowrap" }}>
+                    <span
+                      style={{
+                        color: "var(--text-muted)",
+                        fontSize: 13,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
                       {e.date_naissance
                         ? new Date(e.date_naissance).toLocaleDateString("fr-FR")
                         : "—"}
@@ -1039,7 +1536,13 @@ export default function EtudiantsPage() {
                   </Td>
 
                   <Td>
-                    <span style={{ color: "var(--text-muted)", fontSize: 13, whiteSpace: "nowrap" }}>
+                    <span
+                      style={{
+                        color: "var(--text-muted)",
+                        fontSize: 13,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
                       {e.telephone || "—"}
                     </span>
                   </Td>
@@ -1150,7 +1653,7 @@ export default function EtudiantsPage() {
           onSaved={() => {
             setModal(null);
             if (page !== 1) {
-              setPage(1); // useEffect re-déclenche load() automatiquement
+              setPage(1);
             } else {
               load();
             }

@@ -91,8 +91,26 @@ function NotificationCloche() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
  
-  // Écoute les événements transfert:accepte et transfert:refuse
+  // Écoute les 3 événements : nouvelle_demande (Admin), accepte et refuse (Secrétaire)
   useEffect(() => {
+    // ── Nouvel événement : ADMINISTRATEUR reçoit quand Secrétaire crée une demande ──
+    const onNouvelleDemande = (e) => {
+      const { etudiantPrenom = "", etudiantNom = "", filiere = "", niveau = "" } = e.detail || {};
+      setNotifs(prev => [{
+        id: Date.now(),
+        type: "nouvelle_demande",
+        tag: "NOUVELLE DEMANDE",
+        titre: `${etudiantPrenom} ${etudiantNom}`,
+        message: `Le secrétaire a soumis une demande de transfert pour rejoindre ${filiere}${niveau ? ` (${niveau})` : ""}. Veuillez examiner et traiter cette demande.`,
+        heure: new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+        date: new Date().toLocaleDateString("fr-FR"),
+        lu: false,
+      }, ...prev].slice(0, 20));
+      setAnimBell(true);
+      setTimeout(() => setAnimBell(false), 900);
+    };
+ 
+    // ── Secrétaire reçoit : transfert accepté par l'Admin ──
     const onAccepte = (e) => {
       const { etudiantPrenom = "", etudiantNom = "" } = e.detail || {};
       setNotifs(prev => [{
@@ -109,6 +127,7 @@ function NotificationCloche() {
       setTimeout(() => setAnimBell(false), 900);
     };
  
+    // ── Secrétaire reçoit : transfert refusé par l'Admin ──
     const onRefuse = (e) => {
       const { etudiantPrenom = "", etudiantNom = "" } = e.detail || {};
       setNotifs(prev => [{
@@ -125,9 +144,11 @@ function NotificationCloche() {
       setTimeout(() => setAnimBell(false), 900);
     };
  
+    window.addEventListener("transfert:nouvelle_demande", onNouvelleDemande);
     window.addEventListener("transfert:accepte", onAccepte);
     window.addEventListener("transfert:refuse",  onRefuse);
     return () => {
+      window.removeEventListener("transfert:nouvelle_demande", onNouvelleDemande);
       window.removeEventListener("transfert:accepte", onAccepte);
       window.removeEventListener("transfert:refuse",  onRefuse);
     };
@@ -227,28 +248,44 @@ function NotificationCloche() {
               }}
             />
             {/* Petit badge fichier en bas à gauche de la cloche */}
-            {notifs.length > 0 && (
-              <div style={{
-                position: "absolute",
-                bottom: -5,
-                left: -7,
-                width: 13,
-                height: 13,
-                borderRadius: "50%",
-                background: notifs[0]?.type === "accepte"
-                  ? "rgba(34,197,94,0.9)"
-                  : "rgba(239,68,68,0.9)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                border: "1.5px solid var(--surface)",
-              }}>
-                {notifs[0]?.type === "accepte"
-                  ? <svg width="7" height="7" viewBox="0 0 10 10"><polyline points="1,5 4,8 9,2" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  : <svg width="7" height="7" viewBox="0 0 10 10"><line x1="2" y1="2" x2="8" y2="8" stroke="#fff" strokeWidth="2" strokeLinecap="round"/><line x1="8" y1="2" x2="2" y2="8" stroke="#fff" strokeWidth="2" strokeLinecap="round"/></svg>
-                }
-              </div>
-            )}
+            {notifs.length > 0 && (() => {
+              const lastType = notifs[0]?.type;
+              const badgeBg = lastType === "accepte"
+                ? "rgba(34,197,94,0.9)"
+                : lastType === "refuse"
+                ? "rgba(239,68,68,0.9)"
+                : "rgba(99,102,241,0.9)"; // nouvelle_demande → indigo
+              return (
+                <div style={{
+                  position: "absolute",
+                  bottom: -5, left: -7,
+                  width: 13, height: 13,
+                  borderRadius: "50%",
+                  background: badgeBg,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  border: "1.5px solid var(--surface)",
+                }}>
+                  {lastType === "accepte" && (
+                    <svg width="7" height="7" viewBox="0 0 10 10">
+                      <polyline points="1,5 4,8 9,2" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                  {lastType === "refuse" && (
+                    <svg width="7" height="7" viewBox="0 0 10 10">
+                      <line x1="2" y1="2" x2="8" y2="8" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
+                      <line x1="8" y1="2" x2="2" y2="8" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                  )}
+                  {lastType === "nouvelle_demande" && (
+                    /* Point d'exclamation pour nouvelle demande */
+                    <svg width="7" height="7" viewBox="0 0 10 10">
+                      <line x1="5" y1="2" x2="5" y2="6.5" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
+                      <circle cx="5" cy="8.5" r="0.9" fill="#fff"/>
+                    </svg>
+                  )}
+                </div>
+              );
+            })()}
           </div>
  
           {/* Badge compteur non-lues */}
@@ -409,157 +446,147 @@ function NotificationCloche() {
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column" }}>
-                {notifs.map((n, idx) => (
-                  <div
-                    key={n.id}
-                    className="nc-item"
-                    style={{
-                      display: "flex",
-                      gap: 11,
-                      padding: "13px 14px",
-                      borderBottom: idx < notifs.length - 1
-                        ? "1px solid var(--border)" : "none",
-                      background: n.lu ? "transparent" : (
-                        n.type === "accepte"
-                          ? "rgba(34,197,94,0.05)"
-                          : "rgba(239,68,68,0.05)"
-                      ),
-                      transition: "background 0.15s",
-                      cursor: "default",
-                    }}
-                  >
-                    {/* ── Icône fichier transfert ── */}
-                    <div style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: 10,
-                      flexShrink: 0,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      background: n.type === "accepte"
-                        ? "rgba(34,197,94,0.10)"
-                        : "rgba(239,68,68,0.10)",
-                      border: `1.5px solid ${
-                        n.type === "accepte"
-                          ? "rgba(34,197,94,0.3)"
-                          : "rgba(239,68,68,0.3)"
-                      }`,
-                      position: "relative",
-                    }}>
-                      {n.type === "accepte"
-                        ? <IconFichierTransfert size={18} color="#22c55e" />
-                        : <IconFichierRefuse    size={18} color="#ef4444" />
-                      }
-                    </div>
+                {notifs.map((n, idx) => {
+                  // Couleurs adaptées selon le type de notification
+                  const typeColor =
+                    n.type === "accepte" ? "#22c55e" :
+                    n.type === "refuse"  ? "#ef4444" :
+                    "#818cf8"; // nouvelle_demande → indigo
  
-                    {/* ── Texte ── */}
-                    <div style={{ flex: 1, overflow: "hidden", minWidth: 0 }}>
+                  const typeBg =
+                    n.type === "accepte" ? "rgba(34,197,94,0.05)" :
+                    n.type === "refuse"  ? "rgba(239,68,68,0.05)" :
+                    "rgba(99,102,241,0.07)";
  
-                      {/* Tag "TRANSFERT RÉUSSI" ou "TRANSFERT REFUSÉ" */}
+                  const iconBg =
+                    n.type === "accepte" ? "rgba(34,197,94,0.10)" :
+                    n.type === "refuse"  ? "rgba(239,68,68,0.10)" :
+                    "rgba(99,102,241,0.12)";
+ 
+                  const iconBorder =
+                    n.type === "accepte" ? "rgba(34,197,94,0.3)" :
+                    n.type === "refuse"  ? "rgba(239,68,68,0.3)" :
+                    "rgba(99,102,241,0.35)";
+ 
+                  const tagBg =
+                    n.type === "accepte" ? "rgba(34,197,94,0.12)" :
+                    n.type === "refuse"  ? "rgba(239,68,68,0.12)" :
+                    "rgba(99,102,241,0.12)";
+ 
+                  return (
+                    <div
+                      key={n.id}
+                      className="nc-item"
+                      style={{
+                        display: "flex",
+                        gap: 11,
+                        padding: "13px 14px",
+                        borderBottom: idx < notifs.length - 1 ? "1px solid var(--border)" : "none",
+                        background: n.lu ? "transparent" : typeBg,
+                        transition: "background 0.15s",
+                        cursor: "default",
+                      }}
+                    >
+                      {/* ── Icône selon le type ── */}
                       <div style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 5,
-                        marginBottom: 4,
+                        width: 38, height: 38, borderRadius: 10, flexShrink: 0,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        background: iconBg,
+                        border: `1.5px solid ${iconBorder}`,
+                        position: "relative",
                       }}>
-                        <span style={{
-                          fontSize: 9,
-                          fontWeight: 800,
-                          letterSpacing: "0.08em",
-                          textTransform: "uppercase",
-                          color: n.type === "accepte" ? "#22c55e" : "#ef4444",
-                          background: n.type === "accepte"
-                            ? "rgba(34,197,94,0.12)"
-                            : "rgba(239,68,68,0.12)",
-                          border: `1px solid ${
-                            n.type === "accepte"
-                              ? "rgba(34,197,94,0.3)"
-                              : "rgba(239,68,68,0.3)"
-                          }`,
-                          padding: "2px 6px",
-                          borderRadius: 20,
-                        }}>
-                          {n.tag}
-                        </span>
-                        {/* Point non-lu */}
-                        {!n.lu && (
-                          <span style={{
-                            width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
-                            background: n.type === "accepte" ? "#22c55e" : "#ef4444",
-                            boxShadow: `0 0 5px ${n.type === "accepte" ? "#22c55e" : "#ef4444"}`,
-                          }} />
+                        {n.type === "accepte" && <IconFichierTransfert size={18} color="#22c55e" />}
+                        {n.type === "refuse"  && <IconFichierRefuse    size={18} color="#ef4444" />}
+                        {n.type === "nouvelle_demande" && (
+                          <svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                              fill="rgba(99,102,241,0.2)" stroke="#818cf8" strokeWidth="1.8"
+                              strokeLinecap="round" strokeLinejoin="round"/>
+                            <polyline points="14,2 14,8 20,8" fill="none" stroke="#818cf8"
+                              strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                            <line x1="12" y1="11" x2="12" y2="15" stroke="#818cf8"
+                              strokeWidth="1.8" strokeLinecap="round"/>
+                            <circle cx="12" cy="17.5" r="0.8" fill="#818cf8"/>
+                          </svg>
                         )}
                       </div>
  
-                      {/* Nom de l'étudiant */}
-                      <div style={{
-                        fontWeight: 700,
-                        fontSize: 13,
-                        color: "var(--text)",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        marginBottom: 3,
-                      }}>
-                        {n.titre}
+                      {/* ── Texte ── */}
+                      <div style={{ flex: 1, overflow: "hidden", minWidth: 0 }}>
+ 
+                        {/* Tag de statut */}
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
+                          <span style={{
+                            fontSize: 9, fontWeight: 800,
+                            letterSpacing: "0.08em", textTransform: "uppercase",
+                            color: typeColor, background: tagBg,
+                            border: `1px solid ${iconBorder}`,
+                            padding: "2px 6px", borderRadius: 20,
+                          }}>
+                            {n.tag}
+                          </span>
+                          {!n.lu && (
+                            <span style={{
+                              width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
+                              background: typeColor,
+                              boxShadow: `0 0 5px ${typeColor}`,
+                            }} />
+                          )}
+                        </div>
+ 
+                        {/* Nom de l'étudiant */}
+                        <div style={{
+                          fontWeight: 700, fontSize: 13, color: "var(--text)",
+                          whiteSpace: "nowrap", overflow: "hidden",
+                          textOverflow: "ellipsis", marginBottom: 3,
+                        }}>
+                          {n.titre}
+                        </div>
+ 
+                        {/* Description */}
+                        <div style={{ fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.5 }}>
+                          {n.message}
+                        </div>
+ 
+                        {/* Heure + date */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
+                            stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12,6 12,12 16,14"/>
+                          </svg>
+                          <span style={{ fontSize: 10, color: "var(--text-muted)", opacity: 0.75 }}>
+                            {n.date} à {n.heure}
+                          </span>
+                        </div>
                       </div>
  
-                      {/* Description */}
-                      <div style={{
-                        fontSize: 11.5,
-                        color: "var(--text-muted)",
-                        lineHeight: 1.5,
-                      }}>
-                        {n.message}
-                      </div>
- 
-                      {/* Heure + date */}
-                      <div style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        marginTop: 6,
-                      }}>
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
-                          stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round">
-                          <circle cx="12" cy="12" r="10"/>
-                          <polyline points="12,6 12,12 16,14"/>
+                      {/* ── Bouton supprimer (corbeille) ── */}
+                      <button
+                        className="nc-del"
+                        onClick={() => supprimerNotif(n.id)}
+                        title="Supprimer cette notification"
+                        style={{
+                          width: 24, height: 24, borderRadius: 7,
+                          border: "1px solid var(--border)",
+                          background: "transparent", cursor: "pointer",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          color: "var(--text-muted)", flexShrink: 0, alignSelf: "flex-start",
+                          transition: "background 0.15s, color 0.15s, border-color 0.15s",
+                        }}
+                      >
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" strokeWidth="2.2"
+                          strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3,6 5,6 21,6"/>
+                          <path d="M19,6l-1,14H6L5,6"/>
+                          <path d="M10,11v6M14,11v6"/>
+                          <path d="M9,6V4h6v2"/>
                         </svg>
-                        <span style={{ fontSize: 10, color: "var(--text-muted)", opacity: 0.75 }}>
-                          {n.date} à {n.heure}
-                        </span>
-                      </div>
+                      </button>
                     </div>
- 
-                    {/* ── Bouton supprimer (corbeille) ── */}
-                    <button
-                      className="nc-del"
-                      onClick={() => supprimerNotif(n.id)}
-                      title="Supprimer cette notification"
-                      style={{
-                        width: 24, height: 24, borderRadius: 7,
-                        border: "1px solid var(--border)",
-                        background: "transparent",
-                        cursor: "pointer",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        color: "var(--text-muted)", flexShrink: 0,
-                        alignSelf: "flex-start",
-                        transition: "background 0.15s, color 0.15s, border-color 0.15s",
-                      }}
-                    >
-                      {/* Icône corbeille */}
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" strokeWidth="2.2"
-                        strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="3,6 5,6 21,6"/>
-                        <path d="M19,6l-1,14H6L5,6"/>
-                        <path d="M10,11v6M14,11v6"/>
-                        <path d="M9,6V4h6v2"/>
-                      </svg>
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1377,71 +1404,115 @@ export default function TransfertPage() {
   }, []);
  
   useEffect(() => { load(); }, [load]);
-
+ 
   /* ─────────────────────────────────────────────────────────────────────
-     POLLING SECRÉTAIRE — Détection des décisions Admin (Accepter/Refuser)
-     sur une autre machine.
-     - Actif uniquement pour le rôle "secretaire"
-     - Toutes les 8 secondes, compare les statuts avec ceux en mémoire
-     - Si un transfert est passé de "en_attente" → "accepte" ou "refuse",
-       déclenche une notification toast + anime la cloche locale
+     POLLING DOUBLE — Détection des changements en temps réel (toutes machines)
+ 
+     ┌─────────────────────────────────────────────────────────────┐
+     │  SECRÉTAIRE reçoit :                                        │
+     │    • transfert:accepte  → quand Admin accepte               │
+     │    • transfert:refuse   → quand Admin refuse                 │
+     │                                                             │
+     │  ADMINISTRATEUR reçoit :                                    │
+     │    • transfert:nouvelle_demande → quand Secrétaire crée     │
+     │      une nouvelle demande (comme une notif Facebook)        │
+     └─────────────────────────────────────────────────────────────┘
+ 
+     Toutes les 6 secondes, on compare la liste courante avec celle
+     en mémoire (snapshot via useRef) pour détecter :
+       - Nouveaux transferts apparus (→ notification Admin)
+       - Statuts changés (→ notification Secrétaire)
   ───────────────────────────────────────────────────────────────────── */
   const transfertsRef = useRef([]);
   transfertsRef.current = transferts;
-
+ 
   useEffect(() => {
-    // Polling uniquement pour le secrétaire (l'admin voit ses propres actions)
-    if (user?.role !== "secretaire") return;
-
-    const POLL_INTERVAL = 8000; // 8 secondes
-
+    // Les deux rôles reçoivent des notifications, mais pas les mêmes
+    const role = user?.role;
+    if (!["administrateur", "secretaire"].includes(role)) return;
+ 
+    const POLL_INTERVAL = 6000; // 6 secondes — réactif sans surcharger le serveur
+ 
     const poll = async () => {
       try {
         const { data } = await api.get("/transferts");
         const nouveaux = data.data || [];
         const anciens  = transfertsRef.current;
-
-        // Chercher les transferts dont le statut a changé depuis le dernier poll
-        nouveaux.forEach(nouveau => {
-          const ancien = anciens.find(a => a.id === nouveau.id);
-          if (!ancien) return; // nouveau transfert, pas une décision
-
-          // Transition en_attente → accepte
-          if (ancien.statut === "en_attente" && nouveau.statut === "accepte") {
-            const prenom = nouveau.etudiant_prenom || "";
-            const nom    = nouveau.etudiant_nom    || "";
-            notify.success(
-              `✅ Transfert accepté — La demande de ${prenom} ${nom} a été acceptée par l'administrateur.`,
-              7000
-            );
-            // Déclencher l'animation de la cloche locale
-            window.dispatchEvent(new CustomEvent("transfert:accepte", {
-              detail: { etudiantId: nouveau.etudiant_id, etudiantPrenom: prenom, etudiantNom: nom }
-            }));
-          }
-
-          // Transition en_attente → refuse
-          if (ancien.statut === "en_attente" && nouveau.statut === "refuse") {
-            const prenom = nouveau.etudiant_prenom || "";
-            const nom    = nouveau.etudiant_nom    || "";
-            notify.error(
-              `🚫 Transfert refusé — La demande de ${prenom} ${nom} a été refusée par l'administrateur.`,
-              7000
-            );
-            // Déclencher l'animation de la cloche locale
-            window.dispatchEvent(new CustomEvent("transfert:refuse", {
-              detail: { etudiantId: nouveau.etudiant_id, etudiantPrenom: prenom, etudiantNom: nom }
-            }));
-          }
-        });
-
-        // Mettre à jour la liste sans spinner (silencieux)
+ 
+        // ── CAS 1 : ADMINISTRATEUR ──────────────────────────────────────
+        // Détecter les nouvelles demandes créées par le Secrétaire
+        // Un transfert "nouveau" = présent dans nouveaux mais absent de anciens
+        if (role === "administrateur") {
+          nouveaux.forEach(nouveau => {
+            const existeDeja = anciens.find(a => a.id === nouveau.id);
+            if (!existeDeja && nouveau.statut === "en_attente") {
+              // Nouvelle demande détectée → notifier l'Admin immédiatement
+              const prenom = nouveau.etudiant_prenom || "";
+              const nom    = nouveau.etudiant_nom    || "";
+              const filiere = nouveau.filiere_destination || "";
+              const niveau  = nouveau.niveau || "";
+ 
+              notify.info(
+                `🔔 Nouvelle demande de transfert — ${prenom} ${nom} souhaite rejoindre ${filiere} (${niveau}). Action requise.`,
+                9000
+              );
+ 
+              // Animer la cloche + ajouter dans le panneau de notifications
+              window.dispatchEvent(new CustomEvent("transfert:nouvelle_demande", {
+                detail: {
+                  etudiantPrenom: prenom,
+                  etudiantNom: nom,
+                  filiere,
+                  niveau,
+                  transfertId: nouveau.id,
+                }
+              }));
+            }
+          });
+        }
+ 
+        // ── CAS 2 : SECRÉTAIRE ──────────────────────────────────────────
+        // Détecter les décisions de l'Admin (accepté ou refusé)
+        if (role === "secretaire") {
+          nouveaux.forEach(nouveau => {
+            const ancien = anciens.find(a => a.id === nouveau.id);
+            if (!ancien) return; // nouvelle entrée, pas une décision
+ 
+            // Transition en_attente → accepte
+            if (ancien.statut === "en_attente" && nouveau.statut === "accepte") {
+              const prenom = nouveau.etudiant_prenom || "";
+              const nom    = nouveau.etudiant_nom    || "";
+              notify.success(
+                `✅ Transfert accepté — La demande de ${prenom} ${nom} a été acceptée par l'administrateur.`,
+                7000
+              );
+              window.dispatchEvent(new CustomEvent("transfert:accepte", {
+                detail: { etudiantId: nouveau.etudiant_id, etudiantPrenom: prenom, etudiantNom: nom }
+              }));
+            }
+ 
+            // Transition en_attente → refuse
+            if (ancien.statut === "en_attente" && nouveau.statut === "refuse") {
+              const prenom = nouveau.etudiant_prenom || "";
+              const nom    = nouveau.etudiant_nom    || "";
+              notify.error(
+                `🚫 Transfert refusé — La demande de ${prenom} ${nom} a été refusée par l'administrateur.`,
+                7000
+              );
+              window.dispatchEvent(new CustomEvent("transfert:refuse", {
+                detail: { etudiantId: nouveau.etudiant_id, etudiantPrenom: prenom, etudiantNom: nom }
+              }));
+            }
+          });
+        }
+ 
+        // Mettre à jour la liste silencieusement (sans spinner)
         setTransferts(nouveaux);
       } catch {
         // Erreur réseau silencieuse — on réessaiera au prochain cycle
       }
     };
-
+ 
     const intervalId = setInterval(poll, POLL_INTERVAL);
     return () => clearInterval(intervalId);
   }, [user?.role, notify]);
