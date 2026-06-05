@@ -27,6 +27,7 @@ const STATUT_COLOR = {
   suspendu: "warning",
   diplome: "accent",
   abandonne: "danger",
+  transfere: "info",
 };
 const MENTION_COLOR = {
   Admis: "success",

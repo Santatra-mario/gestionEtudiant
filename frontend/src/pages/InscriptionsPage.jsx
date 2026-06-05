@@ -43,18 +43,20 @@ import {
 
 // ─── Constantes ─────────────────────────────────────────────────────────────
 const NIVEAUX = ["L1", "L2", "L3", "M1", "M2"];
-const STATUTS = ["actif", "suspendu", "diplome", "abandonne"];
+const STATUTS = ["actif", "suspendu", "diplome", "abandonne", "transfere"];
 const STATUT_COLOR = {
   actif: "success",
   suspendu: "warning",
   diplome: "accent",
   abandonne: "danger",
+  transfere: "info",
 };
 const STATUT_LABELS = {
   actif: "Actif",
   suspendu: "Suspendu",
   diplome: "Diplômé",
   abandonne: "Abandonné",
+  transfere: "Transféré",
 };
 
 const PALETTE = [
@@ -322,6 +324,7 @@ function StatutPicker({ value, onChange }) {
             suspendu: { bg: "#f59e0b", ring: "rgba(245,158,11,0.22)" },
             diplome: { bg: "#4f8ef7", ring: "rgba(79,142,247,0.22)" },
             abandonne: { bg: "#ef4444", ring: "rgba(239,68,68,0.22)" },
+            transfere: { bg: "#8b5cf6", ring: "rgba(139,92,246,0.22)" },
           };
           const c = colors[s] || {
             bg: "var(--accent)",
@@ -1400,6 +1403,7 @@ export default function InscriptionsPage() {
                     suspendu: { bg: "#f59e0b", ring: "rgba(245,158,11,0.22)" },
                     diplome: { bg: "#4f8ef7", ring: "rgba(79,142,247,0.22)" },
                     abandonne: { bg: "#ef4444", ring: "rgba(239,68,68,0.22)" },
+                    transfere: { bg: "#8b5cf6", ring: "rgba(139,92,246,0.22)" },
                   };
                   const c = colors[key];
                   return (

@@ -17,6 +17,10 @@ ALTER TABLE `matieres`
   ADD COLUMN `volume_horaire` INT            NULL          AFTER `credit`,
   MODIFY COLUMN `filiere_id`  INT UNSIGNED   NULL;
 
+-- Ajouter 'transfere' à l'ENUM statut de la table inscriptions
+ALTER TABLE `inscriptions`
+  MODIFY COLUMN `statut` ENUM('actif','suspendu','diplome','abandonne','transfere') NOT NULL DEFAULT 'actif';
+
 -- Supprimer et recréer la vue vue_bulletins avec le nouveau nom credit
 DROP VIEW IF EXISTS `vue_bulletins`;
 
