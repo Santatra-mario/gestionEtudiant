@@ -699,15 +699,11 @@ function EtudiantModal({ onClose, onSaved, initial }) {
     !phoneError &&
     !hasFieldError();
 
-  // ── Passe à l'étape 2 (inscription) ou soumet directement ───
+  // ── Passe à l'étape 2 (inscription) ou soumet directement si édition ───
   const handleNext = (e) => {
     e.preventDefault();
     if (!isValid) return;
-    // Édition → soumet directement
     if (isEdit) { handleSubmit(e); return; }
-    // Création sans inscription → soumet directement, skip step 2
-    if (!withInscription) { handleSubmit(e); return; }
-    // Création avec inscription → step 2
     setStep(2);
   };
 
@@ -717,22 +713,20 @@ function EtudiantModal({ onClose, onSaved, initial }) {
     setError("");
     setLoading(true);
     try {
-      // ── Construire le numéro de téléphone avec indicatif ──
+      const fd = new FormData();
+      // Retire le 0 initial et aussi l'indicatif sans + s'il est deja present (ex: 261XXXXXXX)
       let rawTel = form.telephone.trim().replace(/[\s\-]/g, "");
       const dialWithoutPlus = selectedCountry.dial.replace("+", "");
       if (rawTel.startsWith(dialWithoutPlus)) rawTel = rawTel.slice(dialWithoutPlus.length);
       if (rawTel.startsWith("0")) rawTel = rawTel.slice(1);
       const telWithDial = rawTel ? `${selectedCountry.dial}${rawTel}` : "";
-
-      const fd = new FormData();
       Object.entries({
         ...form,
         telephone: telWithDial || form.telephone,
-      }).forEach(([k, v]) => { if (v !== null && v !== undefined && v !== "") fd.append(k, v); });
+      }).forEach(([k, v]) => v && fd.append(k, v));
       if (photo) fd.append("photo", photo);
 
       if (isEdit) {
-        // ── ÉDITION : mise à jour uniquement ──
         await api.put(`/etudiants/${initial.id}`, fd, {
           headers: { "Content-Type": "multipart/form-data" },
         });
@@ -742,33 +736,17 @@ function EtudiantModal({ onClose, onSaved, initial }) {
           `${form.prenom} ${form.nom} · Modifications enregistrées`,
         );
       } else {
-        // ── CRÉATION : POST /etudiants ──
-        const { data: etudiantResp } = await api.post("/etudiants", fd, {
+        // Ajout inscription optionnelle dans la même requête
+        if (withInscription && inscForm.filiere_id) {
+          fd.append("inscription", JSON.stringify(inscForm));
+        }
+        await api.post("/etudiants", fd, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        const newEtudiantId = etudiantResp?.data?.id;
-
-        // ── INSCRIPTION : POST /inscriptions séparé (si step 2 rempli) ──
-        if (withInscription && inscForm.filiere_id && newEtudiantId) {
-          await api.post("/inscriptions", {
-            etudiant_id: newEtudiantId,
-            filiere_id: inscForm.filiere_id,
-            niveau: inscForm.niveau,
-            annee_universitaire: inscForm.annee_universitaire,
-            date_inscription: inscForm.date_inscription,
-          });
-          showNotification(
-            `Nouvel étudiant créé et inscrit avec succès`,
-            "success",
-            `${form.prenom} ${form.nom} · Inscrit(e) en ${inscForm.niveau} — ${inscForm.annee_universitaire}`,
-          );
-        } else {
-          showNotification(
-            `Nouvel étudiant ajouté avec succès`,
-            "success",
-            `${form.prenom} ${form.nom} · Profil créé sans inscription`,
-          );
-        }
+        const msgDetail = withInscription && inscForm.filiere_id
+          ? `${form.prenom} ${form.nom} · Inscrit(e) en ${inscForm.niveau} (${inscForm.annee_universitaire})`
+          : `${form.prenom} ${form.nom} · Bienvenue dans la plateforme`;
+        showNotification(`Nouvel étudiant ajouté avec succès`, "success", msgDetail);
       }
       setTimeout(() => { onSaved(); }, 500);
     } catch (err) {
@@ -776,7 +754,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
       showNotification(
         "Une erreur est survenue",
         "error",
-        formatErrorMessage(err) || "Veuillez vérifier les informations et réessayer",
+        "Veuillez vérifier les informations et réessayer",
       );
     } finally {
       setLoading(false);
@@ -817,8 +795,8 @@ function EtudiantModal({ onClose, onSaved, initial }) {
           onSubmit={step === 1 ? handleNext : handleSubmit}
           style={{ display: "flex", flexDirection: "column", gap: 0 }}
         >
-          {/* ── Indicateur de step (création avec inscription seulement) ── */}
-          {!isEdit && withInscription && (
+          {/* ── Indicateur de step (création seulement) ── */}
+          {!isEdit && (
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16 }}>
               {[1, 2].map((s) => (
                 <div key={s} style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -844,308 +822,289 @@ function EtudiantModal({ onClose, onSaved, initial }) {
 
           {/* ══ STEP 1 : infos étudiant ══ */}
           <div style={{ display: step === 1 ? "block" : "none" }}>
-          <PhotoPicker
-            photo={initial?.photo}
-            preview={photoPreview}
-            prenom={form.prenom}
-            nom={form.nom}
-            onFileChange={handlePhoto}
-          />
+            <PhotoPicker
+              photo={initial?.photo}
+              preview={photoPreview}
+              prenom={form.prenom}
+              nom={form.nom}
+              onFileChange={handlePhoto}
+            />
 
-          {error && (
-            <div style={{ margin: "12px 0 4px" }}>
-              <Alert type="danger">{error}</Alert>
-            </div>
-          )}
+            {error && (
+              <div style={{ margin: "12px 0 4px" }}>
+                <Alert type="danger">{error}</Alert>
+              </div>
+            )}
 
-          <div
-            style={{
-              height: 1,
-              background:
-                "linear-gradient(to right, transparent, var(--border), transparent)",
-              margin: "16px 0",
-            }}
-          />
+            <div
+              style={{
+                height: 1,
+                background:
+                  "linear-gradient(to right, transparent, var(--border), transparent)",
+                margin: "16px 0",
+              }}
+            />
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
-            <FormSection title="Identité" icon={User}>
-              <FormRow>
-                {/* ── PRÉNOM : espaces autorisés ── */}
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 0,
-                    flex: 1,
-                  }}
-                >
-                  <Input
-                    label="Prénom"
-                    required
-                    value={form.prenom}
-                    onChange={handlePrenomChange}
-                    placeholder="Jean Marie"
-                    icon={User}
-                    hint="Prénom(s) de l'étudiant — espaces autorisés"
-                    error={fieldErrors.prenom}
-                  />
-                  <FieldErr msg={fieldErrors.prenom} />
-                </div>
-                {/* ── NOM : espaces interdits ── */}
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 0,
-                    flex: 1,
-                  }}
-                >
-                  <Input
-                    label="Nom"
-                    required
-                    value={form.nom}
-                    onChange={handleNomChange}
-                    placeholder="Rakoto"
-                    icon={User}
-                    hint="Nom de famille — sans espaces"
-                    error={fieldErrors.nom}
-                  />
-                  <FieldErr msg={fieldErrors.nom} />
-                </div>
-              </FormRow>
-              <FormRow>
-                <Input
-                  label="Date de naissance"
-                  required
-                  type="date"
-                  value={form.date_naissance}
-                  onChange={set("date_naissance")}
-                  icon={Calendar}
-                  hint="Sélectionnez une date passée"
-                  min="1900-01-01"
-                  max={today}
-                />
-                <Select
-                  label="Sexe"
-                  required
-                  value={form.sexe}
-                  onChange={set("sexe")}
-                >
-                  <option value="M">👦 Masculin</option>
-                  <option value="F">👧 Féminin</option>
-                </Select>
-              </FormRow>
-            </FormSection>
-
-            <FormSection title="Contact" icon={Phone}>
-              <Input
-                label="Adresse e-mail"
-                type="email"
-                value={form.email}
-                onChange={set("email")}
-                placeholder="jean.rakoto@email.com"
-                icon={Mail}
-              />
-              <FormRow>
-                {/* ── Téléphone avec sélecteur de pays ── */}
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 0,
-                    flex: 1,
-                  }}
-                >
-                  <label
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: "var(--text-muted)",
-                      marginBottom: 6,
-                      display: "block",
-                    }}
-                  >
-                    Téléphone
-                  </label>
+            <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+              <FormSection title="Identité" icon={User}>
+                <FormRow>
+                  {/* ── PRÉNOM : espaces autorisés ── */}
                   <div
-                    style={{ display: "flex", gap: 6, alignItems: "stretch" }}
-                  >
-                    <CountryDialPicker
-                      value={countryCode}
-                      onChange={setCountryCode}
-                    />
-                    <div style={{ position: "relative", flex: 1 }}>
-                      <Phone
-                        size={14}
-                        style={{
-                          position: "absolute",
-                          left: 11,
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                          color: "var(--text-muted)",
-                          pointerEvents: "none",
-                        }}
-                      />
-                      <input
-                        value={form.telephone}
-                        onChange={(e) => {
-                          let val = e.target.value.replace(/[^\d\s\-]/g, "");
-                          if (countryCode === "MG" && val.startsWith("0")) {
-                            val = val.replace(/^0+/, "");
-                          }
-                          setForm((f) => ({ ...f, telephone: val }));
-                        }}
-                        placeholder={
-                          countryCode === "MG" ? "33 187 4598" : "XX XX XX XX"
-                        }
-                        maxLength={15}
-                        style={{
-                          width: "100%",
-                          boxSizing: "border-box",
-                          paddingLeft: 32,
-                          paddingRight: 12,
-                          paddingTop: 10,
-                          paddingBottom: 10,
-                          background: "var(--surface2)",
-                          border: `1px solid ${phoneError ? "#ef4444" : "var(--border)"}`,
-                          borderRadius: 8,
-                          color: "var(--text)",
-                          fontSize: 14,
-                          outline: "none",
-                          transition: "border-color .18s, box-shadow .18s",
-                          boxShadow: phoneError
-                            ? "0 0 0 3px rgba(239,68,68,0.14)"
-                            : "none",
-                        }}
-                        onFocus={(e) => {
-                          e.currentTarget.style.borderColor = phoneError
-                            ? "#ef4444"
-                            : "var(--accent)";
-                          e.currentTarget.style.boxShadow = phoneError
-                            ? "0 0 0 3px rgba(239,68,68,0.14)"
-                            : "0 0 0 3px rgba(99,102,241,0.18)";
-                        }}
-                        onBlur={(e) => {
-                          e.currentTarget.style.borderColor = phoneError
-                            ? "#ef4444"
-                            : "var(--border)";
-                          e.currentTarget.style.boxShadow = phoneError
-                            ? "0 0 0 3px rgba(239,68,68,0.14)"
-                            : "none";
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <span
                     style={{
-                      fontSize: 11,
-                      color: "var(--text-muted)",
-                      marginTop: 4,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 0,
+                      flex: 1,
                     }}
                   >
-                    {selectedCountry.flag} {selectedCountry.name} ·{" "}
-                    {selectedCountry.dial}
-                    {countryCode === "MG" && (
-                      <span
-                        style={{ color: "var(--accent-light)", marginLeft: 6 }}
-                      >
-                        · sans le 0 initial
-                      </span>
-                    )}
-                  </span>
-                  {phoneError && (
-                    <span
+                    <Input
+                      label="Prénom"
+                      required
+                      value={form.prenom}
+                      onChange={handlePrenomChange}
+                      placeholder="Jean Marie"
+                      icon={User}
+                      hint="Prénom(s) de l'étudiant — espaces autorisés"
+                      error={fieldErrors.prenom}
+                    />
+                    <FieldErr msg={fieldErrors.prenom} />
+                  </div>
+                  {/* ── NOM : espaces interdits ── */}
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 0,
+                      flex: 1,
+                    }}
+                  >
+                    <Input
+                      label="Nom"
+                      required
+                      value={form.nom}
+                      onChange={handleNomChange}
+                      placeholder="Rakoto"
+                      icon={User}
+                      hint="Nom de famille — sans espaces"
+                      error={fieldErrors.nom}
+                    />
+                    <FieldErr msg={fieldErrors.nom} />
+                  </div>
+                </FormRow>
+                <FormRow>
+                  <Input
+                    label="Date de naissance"
+                    required
+                    type="date"
+                    value={form.date_naissance}
+                    onChange={set("date_naissance")}
+                    icon={Calendar}
+                    hint="Sélectionnez une date passée"
+                    min="1900-01-01"
+                    max={today}
+                  />
+                  <Select
+                    label="Sexe"
+                    required
+                    value={form.sexe}
+                    onChange={set("sexe")}
+                  >
+                    <option value="M">👦 Masculin</option>
+                    <option value="F">👧 Féminin</option>
+                  </Select>
+                </FormRow>
+              </FormSection>
+
+              <FormSection title="Contact" icon={Phone}>
+                <Input
+                  label="Adresse e-mail"
+                  type="email"
+                  value={form.email}
+                  onChange={set("email")}
+                  placeholder="jean.rakoto@email.com"
+                  icon={Mail}
+                />
+                <FormRow>
+                  {/* ── Téléphone avec sélecteur de pays ── */}
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 0,
+                      flex: 1,
+                    }}
+                  >
+                    <label
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                        fontSize: 11,
-                        color: "#fca5a5",
-                        fontWeight: 500,
-                        marginTop: 4,
-                        animation: "fadeErrIn .2s ease both",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "var(--text-muted)",
+                        marginBottom: 6,
+                        display: "block",
                       }}
                     >
-                      <AlertCircle size={11} style={{ flexShrink: 0 }} />
-                      {phoneError}
+                      Téléphone
+                    </label>
+                    <div
+                      style={{ display: "flex", gap: 6, alignItems: "stretch" }}
+                    >
+                      <CountryDialPicker
+                        value={countryCode}
+                        onChange={setCountryCode}
+                      />
+                      <div style={{ position: "relative", flex: 1 }}>
+                        <Phone
+                          size={14}
+                          style={{
+                            position: "absolute",
+                            left: 11,
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            color: "var(--text-muted)",
+                            pointerEvents: "none",
+                          }}
+                        />
+                        <input
+                          value={form.telephone}
+                          onChange={(e) => {
+                            let val = e.target.value.replace(/[^\d\s\-]/g, "");
+                            if (countryCode === "MG" && val.startsWith("0")) {
+                              val = val.replace(/^0+/, "");
+                            }
+                            setForm((f) => ({ ...f, telephone: val }));
+                          }}
+                          placeholder={
+                            countryCode === "MG" ? "33 187 4598" : "XX XX XX XX"
+                          }
+                          maxLength={15}
+                          style={{
+                            width: "100%",
+                            boxSizing: "border-box",
+                            paddingLeft: 32,
+                            paddingRight: 12,
+                            paddingTop: 10,
+                            paddingBottom: 10,
+                            background: "var(--surface2)",
+                            border: `1px solid ${phoneError ? "#ef4444" : "var(--border)"}`,
+                            borderRadius: 8,
+                            color: "var(--text)",
+                            fontSize: 14,
+                            outline: "none",
+                            transition: "border-color .18s, box-shadow .18s",
+                            boxShadow: phoneError
+                              ? "0 0 0 3px rgba(239,68,68,0.14)"
+                              : "none",
+                          }}
+                          onFocus={(e) => {
+                            e.currentTarget.style.borderColor = phoneError
+                              ? "#ef4444"
+                              : "var(--accent)";
+                            e.currentTarget.style.boxShadow = phoneError
+                              ? "0 0 0 3px rgba(239,68,68,0.14)"
+                              : "0 0 0 3px rgba(99,102,241,0.18)";
+                          }}
+                          onBlur={(e) => {
+                            e.currentTarget.style.borderColor = phoneError
+                              ? "#ef4444"
+                              : "var(--border)";
+                            e.currentTarget.style.boxShadow = phoneError
+                              ? "0 0 0 3px rgba(239,68,68,0.14)"
+                              : "none";
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: "var(--text-muted)",
+                        marginTop: 4,
+                      }}
+                    >
+                      {selectedCountry.flag} {selectedCountry.name} ·{" "}
+                      {selectedCountry.dial}
+                      {countryCode === "MG" && (
+                        <span
+                          style={{ color: "var(--accent-light)", marginLeft: 6 }}
+                        >
+                          · sans le 0 initial
+                        </span>
+                      )}
                     </span>
-                  )}
-                </div>
+                    {phoneError && (
+                      <span
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                          fontSize: 11,
+                          color: "#fca5a5",
+                          fontWeight: 500,
+                          marginTop: 4,
+                          animation: "fadeErrIn .2s ease both",
+                        }}
+                      >
+                        <AlertCircle size={11} style={{ flexShrink: 0 }} />
+                        {phoneError}
+                      </span>
+                    )}
+                  </div>
 
-                {/* ── Adresse avec validation ── */}
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 0,
-                    flex: 1,
-                  }}
-                >
-                  <Input
-                    label="Adresse"
-                    value={form.adresse}
-                    onChange={handleAdresseChange}
-                    placeholder="Antananarivo"
-                    icon={MapPin}
-                    error={fieldErrors.adresse}
-                  />
-                  <FieldErr msg={fieldErrors.adresse} />
-                </div>
-              </FormRow>
-            </FormSection>
-          </div>
-
-          {/* ── Toggle inscription (création seulement) ── */}
-          {!isEdit && (
-            <div style={{
-              display: "flex", alignItems: "center", gap: 12,
-              padding: "12px 16px", marginTop: 20,
-              background: withInscription ? "rgba(99,102,241,0.08)" : "var(--surface2)",
-              border: `1px solid ${withInscription ? "rgba(99,102,241,0.3)" : "var(--border)"}`,
-              borderRadius: 10, cursor: "pointer", transition: "all .2s",
-            }} onClick={() => setWithInscription(v => !v)}>
-              <div style={{
-                width: 20, height: 20, borderRadius: 5,
-                background: withInscription ? "var(--accent)" : "var(--surface)",
-                border: `2px solid ${withInscription ? "var(--accent)" : "var(--border)"}`,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                flexShrink: 0, transition: "all .2s",
-              }}>
-                {withInscription && <span style={{ color: "#fff", fontSize: 13, lineHeight: 1 }}>✓</span>}
-              </div>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
-                  Inscrire immédiatement
-                </div>
-                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                  {withInscription
-                    ? "Cliquez pour créer le profil sans inscription"
-                    : "Cliquez pour ajouter une inscription à cette étape"}
-                </div>
-              </div>
+                  {/* ── Adresse avec validation ── */}
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 0,
+                      flex: 1,
+                    }}
+                  >
+                    <Input
+                      label="Adresse"
+                      value={form.adresse}
+                      onChange={handleAdresseChange}
+                      placeholder="Antananarivo"
+                      icon={MapPin}
+                      error={fieldErrors.adresse}
+                    />
+                    <FieldErr msg={fieldErrors.adresse} />
+                  </div>
+                </FormRow>
+              </FormSection>
             </div>
-          )}
-
           </div>{/* fin step 1 */}
+
           {/* ══ STEP 2 : inscription initiale (création seulement) ══ */}
           {!isEdit && step === 2 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              {/* Titre step 2 */}
+              {/* Toggle inscription */}
               <div style={{
-                padding: "10px 16px",
-                background: "rgba(99,102,241,0.08)",
-                border: "1px solid rgba(99,102,241,0.3)",
-                borderRadius: 10,
-              }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
-                  Inscription initiale
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "12px 16px",
+                background: withInscription ? "rgba(99,102,241,0.08)" : "var(--surface2)",
+                border: `1px solid ${withInscription ? "rgba(99,102,241,0.3)" : "var(--border)"}`,
+                borderRadius: 10, cursor: "pointer", transition: "all .2s",
+              }} onClick={() => setWithInscription(v => !v)}>
+                <div style={{
+                  width: 20, height: 20, borderRadius: 5,
+                  background: withInscription ? "var(--accent)" : "var(--surface)",
+                  border: `2px solid ${withInscription ? "var(--accent)" : "var(--border)"}`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  flexShrink: 0, transition: "all .2s",
+                }}>
+                  {withInscription && <span style={{ color: "#fff", fontSize: 13, lineHeight: 1 }}>✓</span>}
                 </div>
-                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
-                  Choisissez la filière et le niveau pour cet étudiant
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+                    Inscrire immédiatement
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                    Créer l'inscription en même temps que le profil
+                  </div>
                 </div>
               </div>
 
-              {true && (
+              {withInscription && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                   {/* Filière */}
                   <div>
@@ -1230,10 +1189,12 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                 <Btn
                   type="submit"
                   loading={loading}
-                  disabled={!inscForm.filiere_id}
+                  disabled={withInscription && !inscForm.filiere_id}
                   icon={<Save size={15} />}
                 >
-                  {inscForm.filiere_id ? "Créer + Inscrire" : "Choisir une filière d'abord"}
+                  {withInscription && inscForm.filiere_id
+                    ? "Créer + Inscrire"
+                    : "Créer sans inscription"}
                 </Btn>
               </>
             ) : (
@@ -1247,11 +1208,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                   disabled={!isValid}
                   icon={<Save size={15} />}
                 >
-                  {isEdit
-                    ? "Enregistrer les modifications"
-                    : withInscription
-                      ? "Suivant → Inscription"
-                      : "Créer l'étudiant"}
+                  {isEdit ? "Enregistrer les modifications" : "Suivant →"}
                 </Btn>
               </>
             )}
