@@ -25,7 +25,7 @@ import {
   UserX,
   ChevronDown,
 } from "lucide-react";
-import api from "../services/api";
+import api, { getPhotoUrl } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { useNotification, NotificationDisplay } from "../hooks/useNotification";
 import { Messages, formatErrorMessage } from "../utils/messages";
@@ -144,7 +144,7 @@ function Avatar({ photo, prenom, nom, size = 40 }) {
   if (photo && !imgError) {
     return (
       <img
-        src={`http://localhost:3000/uploads/photos/${photo}`}
+        src={getPhotoUrl(photo)}
         alt={`${prenom} ${nom}`}
         onError={() => setImgError(true)}
         style={{
@@ -186,7 +186,7 @@ function Avatar({ photo, prenom, nom, size = 40 }) {
 // ─── Sélecteur de photo ───────────────────────────────────────────────────
 function PhotoPicker({ photo, preview, prenom, nom, onFileChange }) {
   const [from, to] = getColors(prenom);
-  const src = preview || (photo ? `http://localhost:3000/uploads/photos/${photo}` : null);
+  const src = preview || getPhotoUrl(photo);
   const initials = `${(prenom?.[0] || "").toUpperCase()}${(nom?.[0] || "").toUpperCase()}`;
 
   return (
@@ -717,20 +717,22 @@ function EtudiantModal({ onClose, onSaved, initial }) {
     setError("");
     setLoading(true);
     try {
-      const fd = new FormData();
-      // Retire le 0 initial et aussi l'indicatif sans + s'il est deja present (ex: 261XXXXXXX)
+      // ── Construire le numéro de téléphone avec indicatif ──
       let rawTel = form.telephone.trim().replace(/[\s\-]/g, "");
       const dialWithoutPlus = selectedCountry.dial.replace("+", "");
       if (rawTel.startsWith(dialWithoutPlus)) rawTel = rawTel.slice(dialWithoutPlus.length);
       if (rawTel.startsWith("0")) rawTel = rawTel.slice(1);
       const telWithDial = rawTel ? `${selectedCountry.dial}${rawTel}` : "";
+
+      const fd = new FormData();
       Object.entries({
         ...form,
         telephone: telWithDial || form.telephone,
-      }).forEach(([k, v]) => v && fd.append(k, v));
+      }).forEach(([k, v]) => { if (v !== null && v !== undefined && v !== "") fd.append(k, v); });
       if (photo) fd.append("photo", photo);
 
       if (isEdit) {
+        // ── ÉDITION : mise à jour uniquement ──
         await api.put(`/etudiants/${initial.id}`, fd, {
           headers: { "Content-Type": "multipart/form-data" },
         });
@@ -740,17 +742,33 @@ function EtudiantModal({ onClose, onSaved, initial }) {
           `${form.prenom} ${form.nom} · Modifications enregistrées`,
         );
       } else {
-        // Ajout inscription optionnelle dans la même requête
-        if (withInscription && inscForm.filiere_id) {
-          fd.append("inscription", JSON.stringify(inscForm));
-        }
-        await api.post("/etudiants", fd, {
+        // ── CRÉATION : POST /etudiants ──
+        const { data: etudiantResp } = await api.post("/etudiants", fd, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        const msgDetail = withInscription && inscForm.filiere_id
-          ? `${form.prenom} ${form.nom} · Inscrit(e) en ${inscForm.niveau} (${inscForm.annee_universitaire})`
-          : `${form.prenom} ${form.nom} · Bienvenue dans la plateforme`;
-        showNotification(`Nouvel étudiant ajouté avec succès`, "success", msgDetail);
+        const newEtudiantId = etudiantResp?.data?.id;
+
+        // ── INSCRIPTION : POST /inscriptions séparé (si step 2 rempli) ──
+        if (withInscription && inscForm.filiere_id && newEtudiantId) {
+          await api.post("/inscriptions", {
+            etudiant_id: newEtudiantId,
+            filiere_id: inscForm.filiere_id,
+            niveau: inscForm.niveau,
+            annee_universitaire: inscForm.annee_universitaire,
+            date_inscription: inscForm.date_inscription,
+          });
+          showNotification(
+            `Nouvel étudiant créé et inscrit avec succès`,
+            "success",
+            `${form.prenom} ${form.nom} · Inscrit(e) en ${inscForm.niveau} — ${inscForm.annee_universitaire}`,
+          );
+        } else {
+          showNotification(
+            `Nouvel étudiant ajouté avec succès`,
+            "success",
+            `${form.prenom} ${form.nom} · Profil créé sans inscription`,
+          );
+        }
       }
       setTimeout(() => { onSaved(); }, 500);
     } catch (err) {
@@ -758,7 +776,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
       showNotification(
         "Une erreur est survenue",
         "error",
-        "Veuillez vérifier les informations et réessayer",
+        formatErrorMessage(err) || "Veuillez vérifier les informations et réessayer",
       );
     } finally {
       setLoading(false);

@@ -20,7 +20,7 @@ import {
   Printer,
   X,
 } from "lucide-react";
-import api from "../services/api";
+import api, { getPhotoUrl } from "../services/api";
 import { useNotification, NotificationDisplay } from "../hooks/useNotification";
 import { PageHeader, Card, Badge, Btn, Spinner, Alert } from "../components/ui";
 
@@ -97,7 +97,7 @@ function CarteEtudiantModal({ etudiant, onClose }) {
   // URL directe vers le backend — indépendante du imgError du parent
   const photoSrc =
     etudiant.photo && !carteImgError
-      ? `http://localhost:3000/uploads/photos/${etudiant.photo}`
+      ? getPhotoUrl(etudiant.photo)
       : null;
 
   const handlePrint = () => {
@@ -1039,7 +1039,7 @@ export default function EtudiantDetailPage() {
   /* ── Photo : URL corrigée vers le backend port 3000 ── */
   const photoSrc =
     etudiant.photo && !imgError
-      ? `http://localhost:3000/uploads/photos/${etudiant.photo}`
+      ? getPhotoUrl(etudiant.photo)
       : null;
 
   const idx = (etudiant.prenom?.charCodeAt(0) || 0) % AVATAR_COLORS.length;

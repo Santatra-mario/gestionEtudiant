@@ -109,18 +109,6 @@ const create = async (req, res) => {
   const { nom, prenom, date_naissance, sexe, adresse, telephone, email } =
     req.body;
 
-  // Inscription optionnelle envoyée en JSON dans le champ "inscription"
-  let inscriptionData = null;
-  if (req.body.inscription) {
-    try {
-      inscriptionData = typeof req.body.inscription === "string"
-        ? JSON.parse(req.body.inscription)
-        : req.body.inscription;
-    } catch (e) {
-      inscriptionData = null;
-    }
-  }
-
   if (!nom || !prenom || !date_naissance || !sexe) {
     return res
       .status(400)
@@ -132,15 +120,11 @@ const create = async (req, res) => {
       .json({ success: false, message: "Sexe invalide (M ou F)." });
   }
 
-  // Utiliser une transaction si inscription incluse
-  const conn = await db.getConnection();
   try {
-    await conn.beginTransaction();
-
     const matricule = await genMatricule();
     const photo = req.file ? req.file.filename : null;
 
-    const [result] = await conn.query(
+    const [result] = await db.query(
       `INSERT INTO etudiants (matricule, nom, prenom, date_naissance, sexe, adresse, telephone, email, photo)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
@@ -156,40 +140,14 @@ const create = async (req, res) => {
       ],
     );
 
-    const etudiantId = result.insertId;
-
-    // ── Créer l'inscription si les données sont fournies ──────────────────
-    if (inscriptionData && inscriptionData.filiere_id && inscriptionData.niveau && inscriptionData.annee_universitaire) {
-      const { filiere_id, niveau, annee_universitaire, date_inscription } = inscriptionData;
-      const dateInsc = date_inscription || new Date().toISOString().split("T")[0];
-
-      // Vérifier doublon
-      const [existing] = await conn.query(
-        "SELECT id FROM inscriptions WHERE etudiant_id = ? AND annee_universitaire = ? AND niveau = ?",
-        [etudiantId, annee_universitaire, niveau]
-      );
-
-      if (existing.length === 0) {
-        await conn.query(
-          `INSERT INTO inscriptions (etudiant_id, filiere_id, niveau, annee_universitaire, date_inscription, statut)
-           VALUES (?, ?, ?, ?, ?, 'actif')`,
-          [etudiantId, filiere_id, niveau, annee_universitaire, dateInsc]
-        );
-      }
-    }
-
-    await conn.commit();
     return res.status(201).json({
       success: true,
-      message: inscriptionData?.filiere_id ? "Étudiant créé et inscrit." : "Étudiant créé.",
-      data: { id: etudiantId, matricule },
+      message: "Étudiant créé.",
+      data: { id: result.insertId, matricule },
     });
   } catch (err) {
-    await conn.rollback();
     console.error("create etudiant:", err);
     return res.status(500).json({ success: false, message: "Erreur serveur." });
-  } finally {
-    conn.release();
   }
 };
 
@@ -199,34 +157,47 @@ const update = async (req, res) => {
     req.body;
   const { id } = req.params;
 
+  // Validation des champs obligatoires
+  if (!nom || !prenom || !date_naissance || !sexe) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Champs obligatoires manquants (nom, prenom, date_naissance, sexe)." });
+  }
+  if (!["M", "F"].includes(sexe)) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Sexe invalide (M ou F)." });
+  }
+
   try {
-    const [exist] = await db.query("SELECT id FROM etudiants WHERE id = ?", [
-      id,
-    ]);
+    const [exist] = await db.query("SELECT id FROM etudiants WHERE id = ?", [id]);
     if (exist.length === 0)
       return res
         .status(404)
         .json({ success: false, message: "Étudiant introuvable." });
 
-    const photo = req.file ? req.file.filename : undefined;
+    // Construire les champs à mettre à jour
+    // On utilise null explicitement pour effacer les champs optionnels vides
     const fields = {
-      nom,
-      prenom,
+      nom: nom.trim(),
+      prenom: prenom.trim(),
       date_naissance,
       sexe,
-      adresse,
-      telephone,
-      email,
+      adresse: adresse ? adresse.trim() : null,
+      telephone: telephone ? telephone.trim() : null,
+      email: email ? email.trim() : null,
     };
-    if (photo) fields.photo = photo;
 
-    const sets = Object.keys(fields)
-      .filter((k) => fields[k] !== undefined)
-      .map((k) => `${k} = ?`)
-      .join(", ");
-    const vals = Object.keys(fields)
-      .filter((k) => fields[k] !== undefined)
-      .map((k) => fields[k]);
+    // Ajouter la photo seulement si un nouveau fichier est envoyé
+    if (req.file) fields.photo = req.file.filename;
+
+    const keys = Object.keys(fields);
+    const sets = keys.map((k) => `${k} = ?`).join(", ");
+    const vals = keys.map((k) => fields[k]);
+
+    if (!sets) {
+      return res.json({ success: true, message: "Aucune modification détectée." });
+    }
 
     await db.query(`UPDATE etudiants SET ${sets} WHERE id = ?`, [...vals, id]);
     return res.json({ success: true, message: "Étudiant mis à jour." });
