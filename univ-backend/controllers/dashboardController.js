@@ -40,28 +40,28 @@ const getStats = async (req, res) => {
             ? Math.round((admis / total_avec_notes) * 100)
             : 0;
 
-        // Répartition par filière
+        // Répartition par filière (toutes inscriptions non abandonnées/transférées)
         const [par_filiere] = await db.query(
             `SELECT f.nom AS filiere, COUNT(i.id) AS nb_etudiants
              FROM inscriptions i
              JOIN filieres f ON i.filiere_id = f.id
-             WHERE i.statut = 'actif'
+             WHERE i.statut NOT IN ('abandonne', 'transfere') OR i.statut IS NULL
              GROUP BY f.id
              ORDER BY nb_etudiants DESC`
         );
 
-        // Répartition par niveau
+        // Répartition par niveau (toutes inscriptions non abandonnées/transférées)
         const [par_niveau] = await db.query(
             `SELECT niveau, COUNT(*) AS nb
              FROM inscriptions
-             WHERE statut = 'actif'
+             WHERE statut NOT IN ('abandonne', 'transfere') OR statut IS NULL
              GROUP BY niveau
              ORDER BY FIELD(niveau,'L1','L2','L3','M1','M2')`
         );
 
-        // Derniers inscrits (5 derniers) avec décision et notes
+        // Derniers inscrits (10 derniers) avec décision et notes
         const [derniers_inscrits] = await db.query(
-            `SELECT e.matricule, CONCAT(e.nom,' ',e.prenom) AS nom_complet,
+            `SELECT e.matricule, CONCAT(e.prenom,' ',e.nom) AS nom_complet,
                     f.nom AS filiere, i.niveau, i.statut, i.date_inscription, i.id AS inscription_id,
                     COALESCE(vb.mention, 'En attente') AS decision,
                     COALESCE(vb.moyenne, NULL) AS moyenne,
@@ -84,7 +84,7 @@ const getStats = async (req, res) => {
                 GROUP BY i2.id
              ) vb ON i.id = vb.id
              ORDER BY i.date_inscription DESC
-             LIMIT 5`
+             LIMIT 10`
         );
 
         return res.json({

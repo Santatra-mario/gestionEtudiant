@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Phone,
@@ -16,6 +16,9 @@ import {
   AlertCircle,
   Clock,
   BarChart3,
+  CreditCard,
+  Printer,
+  X,
 } from "lucide-react";
 import api from "../services/api";
 import { useNotification, NotificationDisplay } from "../hooks/useNotification";
@@ -28,6 +31,13 @@ const STATUT_COLOR = {
   diplome: "accent",
   abandonne: "danger",
   transfere: "info",
+};
+const STATUT_LABELS = {
+  actif: "Actif",
+  suspendu: "Suspendu",
+  diplome: "Diplômé",
+  abandonne: "Abandonné",
+  transfere: "Transféré",
 };
 const MENTION_COLOR = {
   Admis: "success",
@@ -64,11 +74,532 @@ function moyenneColor(m) {
   return parseFloat(m) >= 10 ? "var(--success)" : "var(--danger)";
 }
 
-/* ─── Composant : Ligne d'information avec emojis pour le sexe ───────────────────── */
+/* ─── QR Code SVG simple (data matrix basé sur le matricule) ────────────── */
+function QRCodeSVG({ value, size = 80 }) {
+  // Génère un QR code simple via l'API publique gratuite de QR Server
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(value)}&size=${size}x${size}&format=svg&bgcolor=ffffff&color=1a1a2e&margin=2`;
+  return (
+    <img
+      src={qrUrl}
+      alt={`QR code - ${value}`}
+      width={size}
+      height={size}
+      style={{ display: "block", borderRadius: 4 }}
+      crossOrigin="anonymous"
+    />
+  );
+}
+
+/* ─── Composant : Carte d'étudiant imprimable ───────────────────────────── */
+function CarteEtudiantModal({ etudiant, onClose }) {
+  const cardRef = useRef(null);
+  const [carteImgError, setCarteImgError] = useState(false);
+  // URL directe vers le backend — indépendante du imgError du parent
+  const photoSrc =
+    etudiant.photo && !carteImgError
+      ? `http://localhost:3000/uploads/photos/${etudiant.photo}`
+      : null;
+
+  const handlePrint = () => {
+    const printContent = cardRef.current;
+    if (!printContent) return;
+
+    const printWindow = window.open("", "_blank", "width=800,height=600");
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Carte Étudiant – ${etudiant.prenom} ${etudiant.nom}</title>
+        <meta charset="utf-8" />
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #f0f4f8;
+          }
+          .card-wrapper {
+            width: 85.6mm;
+            height: 54mm;
+            page-break-inside: avoid;
+          }
+          @media print {
+            body { background: white; }
+            .card-wrapper { width: 85.6mm; height: 54mm; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="card-wrapper">
+          ${printContent.innerHTML}
+        </div>
+        <script>
+          window.onload = function() {
+            setTimeout(function() { window.print(); window.close(); }, 500);
+          };
+        </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const qrData = `MATRICULE:${etudiant.matricule}|NOM:${etudiant.nom}|PRENOM:${etudiant.prenom}|EMAIL:${etudiant.email || ""}`;
+
+  const inscriptionActive = etudiant.inscription_active || null;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.75)",
+        zIndex: 1000,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 24,
+        padding: 24,
+      }}
+      onClick={onClose}
+    >
+      {/* Titre et boutons */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 16,
+          color: "#fff",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2
+          style={{
+            fontSize: 20,
+            fontWeight: 700,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <CreditCard size={22} /> Carte d'étudiant
+        </h2>
+        <button
+          onClick={handlePrint}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            background: "#4f8ef7",
+            color: "#fff",
+            border: "none",
+            borderRadius: 8,
+            padding: "8px 16px",
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: "pointer",
+            transition: "background .2s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "#2d6ee0")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "#4f8ef7")}
+        >
+          <Printer size={15} /> Imprimer
+        </button>
+        <button
+          onClick={onClose}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 34,
+            height: 34,
+            background: "rgba(255,255,255,0.15)",
+            border: "none",
+            borderRadius: "50%",
+            cursor: "pointer",
+            color: "#fff",
+          }}
+        >
+          <X size={16} />
+        </button>
+      </div>
+
+      {/* Carte principale (format CB : 85.6mm × 54mm ≈ 323px × 204px à 96dpi) */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ filter: "drop-shadow(0 12px 40px rgba(0,0,0,0.5))" }}
+      >
+        <div
+          ref={cardRef}
+          style={{
+            width: 340,
+            height: 215,
+            borderRadius: 14,
+            overflow: "hidden",
+            background: "linear-gradient(135deg, #0f0c29, #1a1a4e, #24243e)",
+            position: "relative",
+            fontFamily: "'Segoe UI', Arial, sans-serif",
+          }}
+        >
+          {/* Décoration fond */}
+          <div
+            style={{
+              position: "absolute",
+              top: -40,
+              right: -40,
+              width: 160,
+              height: 160,
+              borderRadius: "50%",
+              background: "rgba(79,142,247,0.12)",
+              pointerEvents: "none",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              bottom: -30,
+              left: -30,
+              width: 120,
+              height: 120,
+              borderRadius: "50%",
+              background: "rgba(79,142,247,0.08)",
+              pointerEvents: "none",
+            }}
+          />
+
+          {/* Bande supérieure */}
+          <div
+            style={{
+              background: "linear-gradient(90deg, #4f8ef7, #2d6ee0)",
+              height: 6,
+              width: "100%",
+            }}
+          />
+
+          {/* Contenu carte */}
+          <div
+            style={{
+              display: "flex",
+              padding: "12px 14px 10px",
+              gap: 12,
+              height: "calc(100% - 6px)",
+            }}
+          >
+            {/* Colonne gauche : logo + photo */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 8,
+                minWidth: 72,
+              }}
+            >
+              {/* Logo université */}
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 2,
+                }}
+              >
+                <div
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: "50%",
+                    background: "linear-gradient(135deg,#4f8ef7,#2d6ee0)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <GraduationCap size={15} color="#fff" />
+                </div>
+                <span
+                  style={{
+                    fontSize: 7,
+                    color: "#a0aec0",
+                    textAlign: "center",
+                    lineHeight: 1.2,
+                    fontWeight: 600,
+                    letterSpacing: "0.03em",
+                  }}
+                >
+                  UNIV.
+                  <br />
+                  GESTION
+                </span>
+              </div>
+
+              {/* Photo étudiant */}
+              {photoSrc ? (
+                <img
+                  src={photoSrc}
+                  alt={`${etudiant.prenom} ${etudiant.nom}`}
+                  onError={() => setCarteImgError(true)}
+                  crossOrigin="anonymous"
+                  style={{
+                    width: 64,
+                    height: 72,
+                    objectFit: "cover",
+                    borderRadius: 8,
+                    border: "2.5px solid #4f8ef7",
+                    boxShadow: "0 2px 12px rgba(79,142,247,0.35)",
+                    display: "block",
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 64,
+                    height: 72,
+                    borderRadius: 8,
+                    background: "linear-gradient(135deg,#4f8ef7,#2d6ee0)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    border: "2.5px solid #4f8ef7",
+                    fontSize: 24,
+                    fontWeight: 700,
+                    color: "#fff",
+                  }}
+                >
+                  {`${(etudiant.prenom?.[0] || "").toUpperCase()}${(etudiant.nom?.[0] || "").toUpperCase()}`}
+                </div>
+              )}
+            </div>
+
+            {/* Colonne centrale : infos */}
+            <div
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                minWidth: 0,
+              }}
+            >
+              {/* Header titre */}
+              <div>
+                <div
+                  style={{
+                    fontSize: 8,
+                    color: "#4f8ef7",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.1em",
+                    marginBottom: 3,
+                  }}
+                >
+                  Carte d'Étudiant
+                </div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "#fff",
+                    lineHeight: 1.25,
+                    wordBreak: "break-word",
+                  }}
+                >
+                  {etudiant.prenom} {etudiant.nom}
+                </div>
+              </div>
+
+              {/* Matricule */}
+              <div
+                style={{
+                  background: "rgba(79,142,247,0.15)",
+                  border: "1px solid rgba(79,142,247,0.3)",
+                  borderRadius: 5,
+                  padding: "3px 7px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  alignSelf: "flex-start",
+                }}
+              >
+                <Hash size={9} color="#4f8ef7" />
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontFamily: "monospace",
+                    color: "#4f8ef7",
+                    fontWeight: 700,
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  {etudiant.matricule}
+                </span>
+              </div>
+
+              {/* Infos */}
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: 3 }}
+              >
+                {etudiant.date_naissance && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
+                      fontSize: 9,
+                      color: "#cbd5e0",
+                    }}
+                  >
+                    <Calendar size={9} color="#4f8ef7" />
+                    Né(e) le{" "}
+                    {new Date(etudiant.date_naissance).toLocaleDateString(
+                      "fr-FR",
+                    )}
+                  </div>
+                )}
+                {etudiant.email && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
+                      fontSize: 9,
+                      color: "#cbd5e0",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    <Mail size={9} color="#4f8ef7" />
+                    {etudiant.email}
+                  </div>
+                )}
+                {etudiant.telephone && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
+                      fontSize: 9,
+                      color: "#cbd5e0",
+                    }}
+                  >
+                    <Phone size={9} color="#4f8ef7" />
+                    {etudiant.telephone}
+                  </div>
+                )}
+              </div>
+
+              {/* Statut */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 8,
+                    padding: "2px 7px",
+                    borderRadius: 20,
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                    background:
+                      etudiant.statut === "actif"
+                        ? "rgba(34,197,94,0.2)"
+                        : "rgba(239,68,68,0.2)",
+                    color:
+                      etudiant.statut === "actif" ? "#4ade80" : "#f87171",
+                    border: `1px solid ${etudiant.statut === "actif" ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
+                  }}
+                >
+                  ● {STATUT_LABELS[etudiant.statut] || etudiant.statut || "Actif"}
+                </div>
+                <div
+                  style={{
+                    fontSize: 7,
+                    color: "#718096",
+                    fontStyle: "italic",
+                  }}
+                >
+                  {new Date().getFullYear()}-{new Date().getFullYear() + 1}
+                </div>
+              </div>
+            </div>
+
+            {/* Colonne droite : QR code */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 4,
+                minWidth: 72,
+              }}
+            >
+              <div
+                style={{
+                  background: "#fff",
+                  borderRadius: 7,
+                  padding: 3,
+                  boxShadow: "0 2px 12px rgba(0,0,0,0.3)",
+                }}
+              >
+                <QRCodeSVG value={qrData} size={66} />
+              </div>
+              <span
+                style={{
+                  fontSize: 7,
+                  color: "#718096",
+                  textAlign: "center",
+                  lineHeight: 1.3,
+                }}
+              >
+                Scanner
+                <br />
+                pour vérifier
+              </span>
+            </div>
+          </div>
+
+          {/* Bande inférieure */}
+          <div
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: 4,
+              background: "linear-gradient(90deg, #4f8ef7, #2d6ee0, #a78bfa)",
+            }}
+          />
+        </div>
+      </div>
+
+      <p
+        style={{
+          color: "rgba(255,255,255,0.5)",
+          fontSize: 12,
+          textAlign: "center",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        Cliquez en dehors de la carte pour fermer · Format CB (85.6 × 54 mm)
+      </p>
+    </div>
+  );
+}
+
+/* ─── Composant : Ligne d'information avec emojis pour le sexe ───────────── */
 function InfoRow({ label, value, icon: Icon, last = false }) {
   if (!value) return null;
 
-  // Ajouter des emojis pour le sexe
   let displayValue = value;
   let SexeIcon = null;
 
@@ -270,7 +801,6 @@ function InscriptionCard({ h, onViewNotes }) {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            {/* Icône tendance */}
             <div
               style={{
                 width: 38,
@@ -316,7 +846,6 @@ function InscriptionCard({ h, onViewNotes }) {
               </div>
             </div>
 
-            {/* Barre de progression */}
             <div style={{ flex: 1, marginLeft: 8 }}>
               <div
                 style={{
@@ -366,7 +895,6 @@ function InscriptionCard({ h, onViewNotes }) {
             </div>
           </div>
 
-          {/* Seuil de passage */}
           <div
             style={{
               display: "flex",
@@ -414,7 +942,6 @@ function InscriptionCard({ h, onViewNotes }) {
         </div>
       )}
 
-      {/* Action */}
       <Btn
         small
         variant="ghost"
@@ -452,7 +979,6 @@ export default function EtudiantDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  // ✅ Notifications
   const {
     notification,
     hideNotification,
@@ -465,6 +991,7 @@ export default function EtudiantDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [imgError, setImgError] = useState(false);
+  const [showCarte, setShowCarte] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -475,20 +1002,17 @@ export default function EtudiantDetailPage() {
       .then(([e, h]) => {
         setEtudiant(e.data.data);
         setHistorique(h.data.data);
-        // ✅ Notification de chargement réussi
         success(
           `Dossier de ${e.data.data.prenom} ${e.data.data.nom} chargé avec succès.`,
         );
       })
       .catch(() => {
         setError("Impossible de charger les données de l'étudiant.");
-        // ✅ Notification d'erreur de chargement
         showError("Erreur lors du chargement du dossier étudiant.");
       })
       .finally(() => setLoading(false));
   }, [id]);
 
-  // ✅ Handler navigation vers notes avec notification
   const handleViewNotes = (h) => {
     success(
       `Ouverture des notes — ${h.filiere_nom} (${h.annee_universitaire}, ${h.niveau})`,
@@ -512,14 +1036,16 @@ export default function EtudiantDetailPage() {
   if (error) return <Alert type="danger">{error}</Alert>;
   if (!etudiant) return <Alert type="warning">Étudiant introuvable.</Alert>;
 
-  /* Avatar */
+  /* ── Photo : URL corrigée vers le backend port 3000 ── */
   const photoSrc =
-    etudiant.photo && !imgError ? `/uploads/${etudiant.photo}` : null;
+    etudiant.photo && !imgError
+      ? `http://localhost:3000/uploads/photos/${etudiant.photo}`
+      : null;
+
   const idx = (etudiant.prenom?.charCodeAt(0) || 0) % AVATAR_COLORS.length;
   const [gradFrom, gradTo] = AVATAR_COLORS[idx];
   const initials = `${(etudiant.prenom?.[0] || "").toUpperCase()}${(etudiant.nom?.[0] || "").toUpperCase()}`;
 
-  /* Stats */
   const nbAdmis = historique.filter((h) => h.mention === "Admis").length;
   const nbRattrapage = historique.filter(
     (h) => h.mention === "Rattrapage",
@@ -533,43 +1059,33 @@ export default function EtudiantDetailPage() {
       ? (moyennes.reduce((a, b) => a + b, 0) / moyennes.length).toFixed(2)
       : null;
 
-  // Déterminer le sexe avec emoji pour l'affichage
   const getGenderDisplay = () => {
     const sexe = etudiant.sexe;
     if (sexe === "M") {
-      return {
-        text: "♂ Masculin",
-        emoji: "👨",
-        icon: "♂",
-        color: "text-blue-500",
-      };
+      return { text: "♂ Masculin", emoji: "👨", icon: "♂", color: "text-blue-500" };
     } else if (sexe === "F") {
-      return {
-        text: "♀ Féminin",
-        emoji: "👩",
-        icon: "♀",
-        color: "text-pink-500",
-      };
+      return { text: "♀ Féminin", emoji: "👩", icon: "♀", color: "text-pink-500" };
     }
-    return {
-      text: sexe || "Non spécifié",
-      emoji: "❓",
-      icon: "",
-      color: "text-gray-500",
-    };
+    return { text: sexe || "Non spécifié", emoji: "❓", icon: "", color: "text-gray-500" };
   };
 
   const genderInfo = getGenderDisplay();
 
   return (
     <div className="page-enter">
-      {/* ✅ NotificationDisplay en haut de page */}
+      {/* Modal carte étudiant */}
+      {showCarte && (
+        <CarteEtudiantModal
+          etudiant={etudiant}
+          onClose={() => setShowCarte(false)}
+        />
+      )}
+
       <NotificationDisplay
         notification={notification}
         onClose={hideNotification}
       />
 
-      {/* ── En-tête ── */}
       <PageHeader
         title={`${etudiant.prenom} ${etudiant.nom}`}
         back={() => navigate(-1)}
@@ -627,6 +1143,7 @@ export default function EtudiantDetailPage() {
                   marginBottom: 16,
                 }}
               >
+                {/* ── PHOTO CORRIGÉE : URL vers localhost:3000 ── */}
                 {photoSrc ? (
                   <img
                     src={photoSrc}
@@ -690,16 +1207,27 @@ export default function EtudiantDetailPage() {
                   </div>
                 </div>
 
-                {etudiant.statut && (
-                  <div style={{ marginTop: 10 }}>
-                    <Badge color={STATUT_COLOR[etudiant.statut] || "muted"} dot>
-                      {etudiant.statut}
-                    </Badge>
-                  </div>
-                )}
+                {etudiant.statut &&
+                  (() => {
+                    const statutAffiche =
+                      etudiant.statut === "abandonne" &&
+                      etudiant.matricule?.includes("H-")
+                        ? "transfere"
+                        : etudiant.statut;
+                    return (
+                      <div style={{ marginTop: 10 }}>
+                        <Badge
+                          color={STATUT_COLOR[statutAffiche] || "muted"}
+                          dot
+                        >
+                          {STATUT_LABELS[statutAffiche] || statutAffiche}
+                        </Badge>
+                      </div>
+                    );
+                  })()}
               </div>
 
-              {/* Informations personnelles avec emojis pour le sexe */}
+              {/* Informations personnelles */}
               <div>
                 <InfoRow
                   label="Genre"
@@ -731,6 +1259,16 @@ export default function EtudiantDetailPage() {
             </div>
           </div>
 
+          {/* ── Bouton Carte étudiant ── */}
+          <Btn
+            variant="accent"
+            onClick={() => setShowCarte(true)}
+            icon={<CreditCard size={15} />}
+            style={{ width: "100%", justifyContent: "center" }}
+          >
+            Carte d'étudiant
+          </Btn>
+
           {/* ── Bouton retour ── */}
           <Btn
             variant="ghost"
@@ -744,7 +1282,6 @@ export default function EtudiantDetailPage() {
 
         {/* ════════════════════ COLONNE DROITE ════════════════════ */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* ── Titre section historique ── */}
           <div
             style={{
               display: "flex",
@@ -798,7 +1335,6 @@ export default function EtudiantDetailPage() {
             </div>
           </div>
 
-          {/* ── Liste des inscriptions ── */}
           {historique.length === 0 ? (
             <div
               style={{
@@ -850,13 +1386,11 @@ export default function EtudiantDetailPage() {
               <InscriptionCard
                 key={h.id}
                 h={h}
-                // ✅ handleViewNotes avec notification dynamique
                 onViewNotes={() => handleViewNotes(h)}
               />
             ))
           )}
 
-          {/* ── Résumé académique ── */}
           {historique.length > 0 && (
             <div
               style={{

@@ -41,7 +41,19 @@ import {
   EmptyState,
 } from "../components/ui";
 
-// ─── Constantes ─────────────────────────────────────────────────────────────
+// ─── Fonction pour déterminer le statut affiché ─────────────────────────
+function getStatutDisplay(inscription) {
+  // Si le statut est 'abandonne' mais que le matricule contient 'H-' (transfert)
+  if (
+    inscription.statut === "abandonne" &&
+    inscription.matricule?.includes("H-")
+  ) {
+    return "transfere";
+  }
+  return inscription.statut;
+}
+
+// ─── Couleurs et labels des statuts ─────────────────────────────────────────
 const NIVEAUX = ["L1", "L2", "L3", "M1", "M2"];
 const STATUTS = ["actif", "suspendu", "diplome", "abandonne", "transfere"];
 const STATUT_COLOR = {
@@ -992,8 +1004,11 @@ function StatutModal({ inscription, onClose, onSaved, onSuccess, onError }) {
           <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
             Statut actuel
           </span>
-          <Badge color={STATUT_COLOR[inscription.statut] || "muted"} dot>
-            {STATUT_LABELS[inscription.statut] || inscription.statut}
+          <Badge
+            color={STATUT_COLOR[getStatutDisplay(inscription)] || "muted"}
+            dot
+          >
+            {STATUT_LABELS[getStatutDisplay(inscription)] || inscription.statut}
           </Badge>
         </div>
 
@@ -1531,8 +1546,11 @@ export default function InscriptionsPage() {
                     </span>
                   </Td>
                   <Td>
-                    <Badge color={STATUT_COLOR[i.statut] || "muted"} dot>
-                      {STATUT_LABELS[i.statut] || i.statut}
+                    <Badge
+                      color={STATUT_COLOR[getStatutDisplay(i)] || "muted"}
+                      dot
+                    >
+                      {STATUT_LABELS[getStatutDisplay(i)] || i.statut}
                     </Badge>
                   </Td>
                   <Td>

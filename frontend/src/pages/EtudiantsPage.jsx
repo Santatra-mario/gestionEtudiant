@@ -144,7 +144,7 @@ function Avatar({ photo, prenom, nom, size = 40 }) {
   if (photo && !imgError) {
     return (
       <img
-        src={`/uploads/${photo}`}
+        src={`http://localhost:3000/uploads/photos/${photo}`}
         alt={`${prenom} ${nom}`}
         onError={() => setImgError(true)}
         style={{
@@ -186,7 +186,7 @@ function Avatar({ photo, prenom, nom, size = 40 }) {
 // ─── Sélecteur de photo ───────────────────────────────────────────────────
 function PhotoPicker({ photo, preview, prenom, nom, onFileChange }) {
   const [from, to] = getColors(prenom);
-  const src = preview || (photo ? `/uploads/${photo}` : null);
+  const src = preview || (photo ? `http://localhost:3000/uploads/photos/${photo}` : null);
   const initials = `${(prenom?.[0] || "").toUpperCase()}${(nom?.[0] || "").toUpperCase()}`;
 
   return (
@@ -550,6 +550,54 @@ function FieldErr({ msg }) {
 function EtudiantModal({ onClose, onSaved, initial }) {
   const isEdit = !!initial?.id;
   const [toast, setToast] = useState(null);
+  // ── Step : 1 = infos étudiant, 2 = inscription initiale (création seulement) ──
+  const [step, setStep] = useState(1);
+  const [filieres, setFilieres] = useState([]);
+  const [filiereLoading, setFiliereLoading] = useState(false);
+  const [withInscription, setWithInscription] = useState(true);
+
+  function getTodayDate() { return new Date().toISOString().split("T")[0]; }
+  function getCurrentAcademicYear() {
+    const now = new Date();
+    const y = now.getFullYear();
+    return now.getMonth() >= 8 ? `${y}-${y+1}` : `${y-1}-${y}`;
+  }
+
+  const [inscForm, setInscForm] = useState({
+    filiere_id: "",
+    niveau: "L1",
+    annee_universitaire: getCurrentAcademicYear(),
+    date_inscription: getTodayDate(),
+  });
+
+  // Charger les filières dès que le modal s'ouvre (création seulement)
+  useEffect(() => {
+    if (isEdit) return;
+    setFiliereLoading(true);
+    api.get("/filieres").then(({ data }) => {
+      setFilieres(data.data || []);
+    }).catch(() => {
+      setFilieres([]);
+    }).finally(() => setFiliereLoading(false));
+  }, [isEdit]);
+
+  // ── Détecte l'indicatif stocké et le retire du numéro affiché ──────────
+  function parseInitialPhone(telephone) {
+    if (!telephone) return { code: "MG", digits: "" };
+    const tel = telephone.trim();
+    const matched = COUNTRIES.find((c) => tel.startsWith(c.dial));
+    if (matched) {
+      let digits = tel.slice(matched.dial.length).trim();
+      // Fix double-prefixe ex: +261261XXXXXXX (sauvegarde precedente bugguee)
+      const dialWithoutPlus = matched.dial.replace("+", "");
+      if (digits.startsWith(dialWithoutPlus)) {
+        digits = digits.slice(dialWithoutPlus.length);
+      }
+      return { code: matched.code, digits };
+    }
+    return { code: "MG", digits: tel };
+  }
+  const { code: initCode, digits: initDigits } = parseInitialPhone(initial?.telephone);
 
   const [form, setForm] = useState({
     nom: initial?.nom || "",
@@ -557,7 +605,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
     date_naissance: initial?.date_naissance?.split("T")[0] || "",
     sexe: initial?.sexe || "M",
     adresse: initial?.adresse || "",
-    telephone: initial?.telephone || "",
+    telephone: initDigits,
     email: initial?.email || "",
   });
   const [photo, setPhoto] = useState(null);
@@ -565,7 +613,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const [countryCode, setCountryCode] = useState("MG");
+  const [countryCode, setCountryCode] = useState(initCode);
 
   const [fieldErrors, setFieldErrors] = useState({
     nom: "",
@@ -651,24 +699,37 @@ function EtudiantModal({ onClose, onSaved, initial }) {
     !phoneError &&
     !hasFieldError();
 
-  const handleSubmit = async (e) => {
+  // ── Passe à l'étape 2 (inscription) ou soumet directement ───
+  const handleNext = (e) => {
     e.preventDefault();
+    if (!isValid) return;
+    // Édition → soumet directement
+    if (isEdit) { handleSubmit(e); return; }
+    // Création sans inscription → soumet directement, skip step 2
+    if (!withInscription) { handleSubmit(e); return; }
+    // Création avec inscription → step 2
+    setStep(2);
+  };
+
+  const handleSubmit = async (e) => {
+    e && e.preventDefault();
     if (!isValid) return;
     setError("");
     setLoading(true);
     try {
       const fd = new FormData();
-      const rawTel = form.telephone.trim().replace(/[\s\-]/g, "");
-      const telWithDial = rawTel
-        ? countryCode === "MG"
-          ? `${selectedCountry.dial}${rawTel}`
-          : `${selectedCountry.dial}${rawTel.replace(/^0/, "")}`
-        : "";
+      // Retire le 0 initial et aussi l'indicatif sans + s'il est deja present (ex: 261XXXXXXX)
+      let rawTel = form.telephone.trim().replace(/[\s\-]/g, "");
+      const dialWithoutPlus = selectedCountry.dial.replace("+", "");
+      if (rawTel.startsWith(dialWithoutPlus)) rawTel = rawTel.slice(dialWithoutPlus.length);
+      if (rawTel.startsWith("0")) rawTel = rawTel.slice(1);
+      const telWithDial = rawTel ? `${selectedCountry.dial}${rawTel}` : "";
       Object.entries({
         ...form,
         telephone: telWithDial || form.telephone,
       }).forEach(([k, v]) => v && fd.append(k, v));
       if (photo) fd.append("photo", photo);
+
       if (isEdit) {
         await api.put(`/etudiants/${initial.id}`, fd, {
           headers: { "Content-Type": "multipart/form-data" },
@@ -679,18 +740,19 @@ function EtudiantModal({ onClose, onSaved, initial }) {
           `${form.prenom} ${form.nom} · Modifications enregistrées`,
         );
       } else {
+        // Ajout inscription optionnelle dans la même requête
+        if (withInscription && inscForm.filiere_id) {
+          fd.append("inscription", JSON.stringify(inscForm));
+        }
         await api.post("/etudiants", fd, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        showNotification(
-          `Nouvel étudiant ajouté avec succès`,
-          "success",
-          `${form.prenom} ${form.nom} · Bienvenue dans la plateforme`,
-        );
+        const msgDetail = withInscription && inscForm.filiere_id
+          ? `${form.prenom} ${form.nom} · Inscrit(e) en ${inscForm.niveau} (${inscForm.annee_universitaire})`
+          : `${form.prenom} ${form.nom} · Bienvenue dans la plateforme`;
+        showNotification(`Nouvel étudiant ajouté avec succès`, "success", msgDetail);
       }
-      setTimeout(() => {
-        onSaved();
-      }, 500);
+      setTimeout(() => { onSaved(); }, 500);
     } catch (err) {
       setError(formatErrorMessage(err) || Messages.STUDENT_ERROR);
       showNotification(
@@ -734,9 +796,36 @@ function EtudiantModal({ onClose, onSaved, initial }) {
         width={580}
       >
         <form
-          onSubmit={handleSubmit}
+          onSubmit={step === 1 ? handleNext : handleSubmit}
           style={{ display: "flex", flexDirection: "column", gap: 0 }}
         >
+          {/* ── Indicateur de step (création avec inscription seulement) ── */}
+          {!isEdit && withInscription && (
+            <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16 }}>
+              {[1, 2].map((s) => (
+                <div key={s} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div style={{
+                    width: 28, height: 28, borderRadius: "50%",
+                    background: step >= s ? "var(--accent)" : "var(--surface2)",
+                    border: `2px solid ${step >= s ? "var(--accent)" : "var(--border)"}`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 12, fontWeight: 700,
+                    color: step >= s ? "#fff" : "var(--text-muted)",
+                    transition: "all .2s",
+                  }}>
+                    {s}
+                  </div>
+                  <span style={{ fontSize: 12, color: step === s ? "var(--text)" : "var(--text-muted)", fontWeight: step === s ? 600 : 400 }}>
+                    {s === 1 ? "Identité" : "Inscription"}
+                  </span>
+                  {s === 1 && <span style={{ color: "var(--border)", fontSize: 12 }}>→</span>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ══ STEP 1 : infos étudiant ══ */}
+          <div style={{ display: step === 1 ? "block" : "none" }}>
           <PhotoPicker
             photo={initial?.photo}
             preview={photoPreview}
@@ -988,6 +1077,123 @@ function EtudiantModal({ onClose, onSaved, initial }) {
             </FormSection>
           </div>
 
+          {/* ── Toggle inscription (création seulement) ── */}
+          {!isEdit && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 12,
+              padding: "12px 16px", marginTop: 20,
+              background: withInscription ? "rgba(99,102,241,0.08)" : "var(--surface2)",
+              border: `1px solid ${withInscription ? "rgba(99,102,241,0.3)" : "var(--border)"}`,
+              borderRadius: 10, cursor: "pointer", transition: "all .2s",
+            }} onClick={() => setWithInscription(v => !v)}>
+              <div style={{
+                width: 20, height: 20, borderRadius: 5,
+                background: withInscription ? "var(--accent)" : "var(--surface)",
+                border: `2px solid ${withInscription ? "var(--accent)" : "var(--border)"}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0, transition: "all .2s",
+              }}>
+                {withInscription && <span style={{ color: "#fff", fontSize: 13, lineHeight: 1 }}>✓</span>}
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+                  Inscrire immédiatement
+                </div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                  {withInscription
+                    ? "Cliquez pour créer le profil sans inscription"
+                    : "Cliquez pour ajouter une inscription à cette étape"}
+                </div>
+              </div>
+            </div>
+          )}
+
+          </div>{/* fin step 1 */}
+          {/* ══ STEP 2 : inscription initiale (création seulement) ══ */}
+          {!isEdit && step === 2 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              {/* Titre step 2 */}
+              <div style={{
+                padding: "10px 16px",
+                background: "rgba(99,102,241,0.08)",
+                border: "1px solid rgba(99,102,241,0.3)",
+                borderRadius: 10,
+              }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+                  Inscription initiale
+                </div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                  Choisissez la filière et le niveau pour cet étudiant
+                </div>
+              </div>
+
+              {true && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {/* Filière */}
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+                      Filière <span style={{ color: "var(--danger)" }}>*</span>
+                    </label>
+                    {filiereLoading ? (
+                      <div style={{ padding: "10px 14px", background: "var(--surface2)", borderRadius: 8, fontSize: 13, color: "var(--text-muted)" }}>
+                        Chargement…
+                      </div>
+                    ) : (
+                      <select
+                        value={inscForm.filiere_id}
+                        onChange={(e) => setInscForm(f => ({ ...f, filiere_id: e.target.value }))}
+                        style={{
+                          width: "100%", padding: "10px 14px",
+                          background: "var(--surface2)", border: "1px solid var(--border)",
+                          borderRadius: 8, color: "var(--text)", fontSize: 14, outline: "none",
+                        }}
+                      >
+                        <option value="">-- Choisir une filière --</option>
+                        {filieres.map(f => (
+                          <option key={f.id} value={f.id}>{f.nom} ({f.code})</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  {/* Niveau + Année */}
+                  <div style={{ display: "flex", gap: 12 }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>Niveau</label>
+                      <select
+                        value={inscForm.niveau}
+                        onChange={(e) => setInscForm(f => ({ ...f, niveau: e.target.value }))}
+                        style={{ width: "100%", padding: "10px 14px", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text)", fontSize: 14, outline: "none" }}
+                      >
+                        {["L1","L2","L3","M1","M2"].map(n => <option key={n} value={n}>{n}</option>)}
+                      </select>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>Année universitaire</label>
+                      <input
+                        value={inscForm.annee_universitaire}
+                        onChange={(e) => setInscForm(f => ({ ...f, annee_universitaire: e.target.value }))}
+                        placeholder="2025-2026"
+                        style={{ width: "100%", boxSizing: "border-box", padding: "10px 14px", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text)", fontSize: 14, outline: "none" }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Date inscription */}
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>Date d'inscription</label>
+                    <input
+                      type="date"
+                      value={inscForm.date_inscription}
+                      onChange={(e) => setInscForm(f => ({ ...f, date_inscription: e.target.value }))}
+                      style={{ width: "100%", boxSizing: "border-box", padding: "10px 14px", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text)", fontSize: 14, outline: "none" }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div
             style={{
               display: "flex",
@@ -998,17 +1204,39 @@ function EtudiantModal({ onClose, onSaved, initial }) {
               borderTop: "1px solid var(--border)",
             }}
           >
-            <Btn variant="ghost" onClick={onClose} icon={<X size={15} />}>
-              Annuler
-            </Btn>
-            <Btn
-              type="submit"
-              loading={loading}
-              disabled={!isValid}
-              icon={<Save size={15} />}
-            >
-              {isEdit ? "Enregistrer les modifications" : "Créer l'étudiant"}
-            </Btn>
+            {step === 2 && !isEdit ? (
+              <>
+                <Btn variant="ghost" onClick={() => setStep(1)} icon={<X size={15} />}>
+                  Retour
+                </Btn>
+                <Btn
+                  type="submit"
+                  loading={loading}
+                  disabled={!inscForm.filiere_id}
+                  icon={<Save size={15} />}
+                >
+                  {inscForm.filiere_id ? "Créer + Inscrire" : "Choisir une filière d'abord"}
+                </Btn>
+              </>
+            ) : (
+              <>
+                <Btn variant="ghost" onClick={onClose} icon={<X size={15} />}>
+                  Annuler
+                </Btn>
+                <Btn
+                  type="submit"
+                  loading={loading}
+                  disabled={!isValid}
+                  icon={<Save size={15} />}
+                >
+                  {isEdit
+                    ? "Enregistrer les modifications"
+                    : withInscription
+                      ? "Suivant → Inscription"
+                      : "Créer l'étudiant"}
+                </Btn>
+              </>
+            )}
           </div>
         </form>
       </Modal>

@@ -233,12 +233,10 @@ exports.changerFiliere = async (req, res) => {
     );
     if (!inscriptions.length) {
       conn.release();
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Inscription introuvable pour cet étudiant",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Inscription introuvable pour cet étudiant",
+      });
     }
 
     const [existant] = await conn.query(
@@ -351,7 +349,7 @@ exports.accepter = async (req, res) => {
 
     // 2. Archiver toutes les inscriptions actives de l'étudiant
     await conn.query(
-      `UPDATE inscriptions SET statut = 'transfere'
+      `UPDATE inscriptions SET statut = 'abandonne'
              WHERE etudiant_id = ? AND statut = 'actif'`,
       [t.etudiant_id],
     );
@@ -377,15 +375,15 @@ exports.accepter = async (req, res) => {
       ],
     );
 
-    // 5. Supprimer l'étudiant (il rejoint le nouvel établissement)
-    await conn.query("DELETE FROM etudiants WHERE id = ?", [t.etudiant_id]);
+    // 5. L'étudiant reste dans le système avec son nouveau matricule (pas de suppression)
+    //     Le matricule H-XXX indique qu'il a été transféré
 
     await conn.commit();
     conn.release();
 
     res.json({
       success: true,
-      message: `Transfert accepté : matricule changé en "${nouveauMatricule}", inscription créée et étudiant retiré de la liste.`,
+      message: `Transfert accepté : matricule changé en "${nouveauMatricule}", nouvelle inscription créée.`,
       etudiant_id: t.etudiant_id,
       nouveau_matricule: nouveauMatricule,
     });
