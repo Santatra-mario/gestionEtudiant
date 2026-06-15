@@ -140,7 +140,7 @@ const create = async (req, res) => {
 
   try {
     const matricule = await genMatricule();
-    const photo = req.file ? req.file.filename : null;
+    const photo = req.file ? req.file.path : null;
 
     let hashedPassword = null;
     if (password && typeof password === "string") {
@@ -246,7 +246,7 @@ const update = async (req, res) => {
     };
 
     // Ajouter la photo seulement si un nouveau fichier est envoyé
-    if (req.file) fields.photo = req.file.filename;
+    if (req.file) fields.photo = req.file.path;
 
     const keys = Object.keys(fields);
     const sets = keys.map((k) => `${k} = ?`).join(", ");
