@@ -1,20 +1,27 @@
 // controllers/noteController.js – Gestion des notes & bulletins
+// ✅ Corrigé : champs réels de la table `matieres` :
+//    nom_matiere (pas nom), code_matiere (pas code), credit (pas coefficient)
+
 const db = require('../config/db');
 
 // ── GET /notes/inscription/:inscriptionId ─────────────────────────────────────
 const getNotesByInscription = async (req, res) => {
     try {
         const [rows] = await db.query(
-            `SELECT n.*, m.nom AS matiere_nom, m.coefficient, m.semestre,
-                    (n.note * m.coefficient) AS note_ponderee
+            `SELECT n.*,
+                    m.nom_matiere  AS matiere_nom,
+                    m.credit       AS coefficient,
+                    m.semestre,
+                    (n.note * m.credit) AS note_ponderee
              FROM notes n
              JOIN matieres m ON n.matiere_id = m.id
              WHERE n.inscription_id = ?
-             ORDER BY m.semestre, m.nom`,
+             ORDER BY m.semestre, m.nom_matiere`,
             [req.params.inscriptionId]
         );
         return res.json({ success: true, data: rows });
     } catch (err) {
+        console.error('getNotesByInscription:', err);
         return res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 };
@@ -35,15 +42,18 @@ const getBulletin = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Inscription introuvable.' });
         }
 
+        // ✅ nom_matiere AS matiere, credit AS coefficient
         const [notes] = await db.query(
             `SELECT n.note, n.id AS note_id,
-                    m.id AS matiere_id, m.nom AS matiere,
-                    m.coefficient, m.semestre,
-                    (n.note * m.coefficient) AS ponderee
+                    m.id          AS matiere_id,
+                    m.nom_matiere AS matiere,
+                    m.credit      AS coefficient,
+                    m.semestre,
+                    (n.note * m.credit) AS ponderee
              FROM notes n
              JOIN matieres m ON n.matiere_id = m.id
              WHERE n.inscription_id = ?
-             ORDER BY m.semestre, m.nom`,
+             ORDER BY m.semestre, m.nom_matiere`,
             [req.params.inscriptionId]
         );
 
@@ -94,7 +104,6 @@ const upsertNote = async (req, res) => {
     }
 
     try {
-        // Vérifier que la matière appartient bien à la filière de l'inscription
         const [check] = await db.query(
             `SELECT m.id FROM matieres m
              JOIN inscriptions i ON i.filiere_id = m.filiere_id
@@ -156,9 +165,9 @@ const batchUpsertNotes = async (req, res) => {
 
     try {
         // ✅ Vérifier que toutes les matières appartiennent bien à la filière de l'inscription
-        const matiereIds = notesValidees.map(n => n.matiere_id);
+        const matiereIds   = notesValidees.map(n => n.matiere_id);
         const placeholders = matiereIds.map(() => '?').join(',');
-        const [checkRows] = await db.query(
+        const [checkRows]  = await db.query(
             `SELECT m.id FROM matieres m
              JOIN inscriptions i ON i.filiere_id = m.filiere_id
              WHERE m.id IN (${placeholders}) AND i.id = ?`,
@@ -217,6 +226,7 @@ const remove = async (req, res) => {
         }
         return res.json({ success: true, message: 'Note supprimée.' });
     } catch (err) {
+        console.error('remove note:', err);
         return res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
 };

@@ -43,7 +43,6 @@ import {
 
 // ─── Fonction pour déterminer le statut affiché ─────────────────────────
 function getStatutDisplay(inscription) {
-  // Si le statut est 'abandonne' mais que le matricule contient 'H-' (transfert)
   if (
     inscription.statut === "abandonne" &&
     inscription.matricule?.includes("H-")
@@ -117,12 +116,15 @@ function MiniAvatar({ prenom, nom, size = 32 }) {
   );
 }
 
-// ─── Recherche étudiant autocomplete ─────────────────────────────────────────
-function StudentSearch({ onSelect, defaultLabel = "" }) {
+// ─── Recherche étudiant autocomplete + liste déroulante étudiants complets ───
+function StudentSearch({ onSelect, defaultLabel = "", preloadedStudents = [], loadingPreloaded = false }) {
   const [query, setQuery] = useState(defaultLabel);
   const [results, setResults] = useState([]);
   const [fetching, setFetching] = useState(false);
   const [open, setOpen] = useState(false);
+
+  // État pour la liste déroulante des étudiants avec inscription complète
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   useEffect(() => {
     if (query.length < 2) {
@@ -144,6 +146,21 @@ function StudentSearch({ onSelect, defaultLabel = "" }) {
     return () => clearTimeout(timer);
   }, [query]);
 
+  const handleSelectFromDropdown = (e) => {
+    const val = e.target.value;
+    if (!val) return;
+    const found = preloadedStudents.find((s) => String(s.id) === String(val));
+    if (found) {
+      onSelect({
+        id: found.id,
+        label: `${found.prenom} ${found.nom} (${found.matricule})`,
+        prenom: found.prenom,
+        nom: found.nom,
+      });
+      setQuery(`${found.prenom} ${found.nom} (${found.matricule})`);
+    }
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <label
@@ -159,6 +176,8 @@ function StudentSearch({ onSelect, defaultLabel = "" }) {
         <Users size={14} color="var(--accent)" />
         Étudiant <span style={{ color: "var(--danger, #ef4444)" }}>*</span>
       </label>
+
+      {/* ── Champ de recherche (inchangé) ── */}
       <div style={{ position: "relative" }}>
         <Search
           size={15}
@@ -307,6 +326,106 @@ function StudentSearch({ onSelect, defaultLabel = "" }) {
           </div>
         )}
       </div>
+
+      {/* ── Liste déroulante des étudiants avec inscription complète ── */}
+      {(preloadedStudents.length > 0 || loadingPreloaded) && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 4 }}>
+          {/* En-tête cliquable pour ouvrir/fermer */}
+          <button
+            type="button"
+            onClick={() => setDropdownOpen((v) => !v)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "9px 14px",
+              background: dropdownOpen
+                ? "rgba(99,102,241,0.12)"
+                : "rgba(99,102,241,0.06)",
+              border: "1.5px solid rgba(99,102,241,0.25)",
+              borderRadius: dropdownOpen
+                ? "var(--radius-sm) var(--radius-sm) 0 0"
+                : "var(--radius-sm)",
+              cursor: "pointer",
+              transition: "all 0.15s",
+              width: "100%",
+              fontFamily: "inherit",
+            }}
+          >
+            <span
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 7,
+                fontSize: 12,
+                fontWeight: 700,
+                color: "var(--accent-light, #818cf8)",
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+              }}
+            >
+              <GraduationCap size={13} color="var(--accent)" />
+              {loadingPreloaded
+                ? "Chargement…"
+                : `Étudiants avec inscription complète (${preloadedStudents.length})`}
+            </span>
+            <ChevronDown
+              size={15}
+              color="var(--accent)"
+              style={{
+                transform: dropdownOpen ? "rotate(180deg)" : "rotate(0deg)",
+                transition: "transform 0.2s",
+              }}
+            />
+          </button>
+
+          {/* Corps déroulant — liste native <select> scrollable */}
+          {dropdownOpen && !loadingPreloaded && (
+            <div
+              style={{
+                border: "1.5px solid rgba(99,102,241,0.25)",
+                borderTop: "none",
+                borderRadius: "0 0 var(--radius-sm) var(--radius-sm)",
+                background: "var(--surface2)",
+                overflow: "hidden",
+                animation: "slideDown 0.15s ease",
+              }}
+            >
+              <select
+                size={Math.min(preloadedStudents.length, 6)}
+                onChange={handleSelectFromDropdown}
+                defaultValue=""
+                style={{
+                  width: "100%",
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--text)",
+                  fontSize: 13,
+                  outline: "none",
+                  cursor: "pointer",
+                  padding: 0,
+                  colorScheme: "dark",
+                }}
+              >
+                <option value="" disabled style={{ color: "var(--text-muted)", padding: "8px 14px" }}>
+                  — Sélectionner un étudiant —
+                </option>
+                {preloadedStudents.map((e) => (
+                  <option
+                    key={e.id}
+                    value={e.id}
+                    style={{ padding: "8px 14px" }}
+                  >
+                    {e.prenom} {e.nom}
+                    {e.matricule ? `  ·  ${e.matricule}` : ""}
+                    {e.filiere_nom ? `  —  ${e.filiere_nom}` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -381,6 +500,10 @@ function InscriptionModal({ onClose, onSaved, onSuccess, onError }) {
   const [filiereLoading, setFiliereLoading] = useState(true);
   const [filiereError, setFiliereError] = useState(false);
   const [selected, setSelected] = useState(null);
+
+  const [completedStudents, setCompletedStudents] = useState([]);
+  const [completedLoading, setCompletedLoading] = useState(true);
+
   const [form, setForm] = useState({
     etudiant_id: "",
     filiere_id: "",
@@ -398,6 +521,30 @@ function InscriptionModal({ onClose, onSaved, onSuccess, onError }) {
       .then((r) => setFilieres(r.data?.data ?? r.data ?? []))
       .catch(() => setFiliereError(true))
       .finally(() => setFiliereLoading(false));
+
+    api
+      .get("/inscriptions", { params: { statut: "actif" } })
+      .then((r) => {
+        const inscrits = r.data?.data ?? [];
+        const seen = new Set();
+        const uniques = [];
+        for (const ins of inscrits) {
+          if (!seen.has(ins.etudiant_id)) {
+            seen.add(ins.etudiant_id);
+            const nomParts = ins.etudiant_nom?.split(" ") ?? [];
+            uniques.push({
+              id: ins.etudiant_id,
+              prenom: nomParts[0] ?? "",
+              nom: nomParts.slice(1).join(" ") || ins.etudiant_nom || "",
+              matricule: ins.matricule ?? "",
+              filiere_nom: ins.filiere_nom ?? "",
+            });
+          }
+        }
+        setCompletedStudents(uniques);
+      })
+      .catch(() => setCompletedStudents([]))
+      .finally(() => setCompletedLoading(false));
   }, []);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -416,7 +563,7 @@ function InscriptionModal({ onClose, onSaved, onSuccess, onError }) {
     setError("");
     setLoading(true);
     try {
-      const response = await api.post("/inscriptions", form);
+      await api.post("/inscriptions", form);
       onSuccess && onSuccess(Messages.INSCRIPTION_CREATED(form.etudiant_id));
       onClose();
       setTimeout(() => {
@@ -456,6 +603,8 @@ function InscriptionModal({ onClose, onSaved, onSuccess, onError }) {
                 setSelected(s);
                 setForm((f) => ({ ...f, etudiant_id: s.id }));
               }}
+              preloadedStudents={completedStudents}
+              loadingPreloaded={completedLoading}
             />
             {selected ? (
               <div
@@ -650,8 +799,6 @@ function InscriptionModal({ onClose, onSaved, onSuccess, onError }) {
     </Modal>
   );
 }
-
-// ─── Modal changement de statut ───────────────────────────────────────────────
 
 // ─── Modal Transfert ─────────────────────────────────────────────────────────
 function TransfertModal({ onClose, onSaved, onSuccess, onError }) {
@@ -947,6 +1094,7 @@ function TransfertModal({ onClose, onSaved, onSuccess, onError }) {
   );
 }
 
+// ─── Modal changement de statut ───────────────────────────────────────────────
 function StatutModal({ inscription, onClose, onSaved, onSuccess, onError }) {
   const [statut, setStatut] = useState(inscription.statut);
   const [loading, setLoading] = useState(false);
@@ -1115,6 +1263,7 @@ export default function InscriptionsPage() {
       <style>{`
         @keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }
         @keyframes spin { to { transform: translateY(-50%) rotate(360deg) } }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-6px) } to { opacity: 1; transform: translateY(0) } }
       `}</style>
 
       <div
@@ -1575,9 +1724,7 @@ export default function InscriptionsPage() {
       {showModal && (
         <InscriptionModal
           onClose={() => setShowModal(false)}
-          onSaved={() => {
-            load();
-          }}
+          onSaved={() => { load(); }}
           onSuccess={showSuccess}
           onError={showError}
         />
@@ -1586,9 +1733,7 @@ export default function InscriptionsPage() {
         <StatutModal
           inscription={statutModal}
           onClose={() => setStatutModal(null)}
-          onSaved={() => {
-            load();
-          }}
+          onSaved={() => { load(); }}
           onSuccess={showSuccess}
           onError={showError}
         />
@@ -1596,9 +1741,7 @@ export default function InscriptionsPage() {
       {showTransfertModal && (
         <TransfertModal
           onClose={() => setShowTransfertModal(false)}
-          onSaved={() => {
-            load();
-          }}
+          onSaved={() => { load(); }}
           onSuccess={showSuccess}
           onError={showError}
         />

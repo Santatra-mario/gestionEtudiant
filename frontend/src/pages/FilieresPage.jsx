@@ -18,6 +18,7 @@ import {
   UserCog,
   Briefcase,
   Layers,
+  LayoutGrid,
   BookMarked,
   FileText,
 } from "lucide-react";
@@ -882,7 +883,7 @@ export default function FilieresPage() {
                       justifyContent: "center",
                     }}
                   >
-                    <Briefcase size={20} color="white" />
+                    <LayoutGrid size={20} color="white" />
                   </div>
                   <div>
                     <Badge color="accent" style={{ marginBottom: 4 }}>

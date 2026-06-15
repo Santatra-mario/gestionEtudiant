@@ -7,8 +7,7 @@ const { verifyToken, authorizeRoles } = require('../middleware/auth');
 // Connexion – publique
 router.post('/login', login);
 
-// Inscription – publique (secrétaire/enseignant seulement)
-// Pour créer un admin, il faut être connecté en tant qu'administrateur
+// Inscription – publique (secrétaire / enseignant / etudiant)
 router.post('/register', register);
 
 // Inscription réservée aux admins connectés (route alternative protégée)

@@ -1,6 +1,7 @@
 // controllers/etudiantController.js – CRUD Étudiants
 const db = require("../config/db");
 const path = require("path");
+const bcrypt = require("bcrypt");
 
 // ── Générer un matricule unique (Format: 20XX H-F) ──────────────────────────────
 const genMatricule = async () => {
@@ -24,14 +25,23 @@ const genMatricule = async () => {
 
 // ── GET /etudiants  (liste + filtres) ────────────────────────────────────────
 const getAll = async (req, res) => {
-  const { filiere, niveau, annee, search, page = 1, limit = 20, avec_inscription } = req.query;
+  const {
+    filiere,
+    niveau,
+    annee,
+    search,
+    page = 1,
+    limit = 20,
+    avec_inscription,
+  } = req.query;
   const offset = (parseInt(page) - 1) * parseInt(limit);
 
   // Si avec_inscription=true : INNER JOIN pour n'avoir que les étudiants inscrits (actif)
   const joinType = avec_inscription === "true" ? "INNER" : "LEFT";
-  const inscriptionFilter = avec_inscription === "true"
-    ? "ON i.etudiant_id = e.id AND i.statut = 'actif'"
-    : "ON i.etudiant_id = e.id";
+  const inscriptionFilter =
+    avec_inscription === "true"
+      ? "ON i.etudiant_id = e.id AND i.statut = 'actif'"
+      : "ON i.etudiant_id = e.id";
 
   let sql = `
         SELECT e.*, f.nom AS filiere_nom, i.niveau, i.statut, i.annee_universitaire
@@ -106,8 +116,16 @@ const getOne = async (req, res) => {
 
 // ── POST /etudiants ───────────────────────────────────────────────────────────
 const create = async (req, res) => {
-  const { nom, prenom, date_naissance, sexe, adresse, telephone, email } =
-    req.body;
+  const {
+    nom,
+    prenom,
+    date_naissance,
+    sexe,
+    adresse,
+    telephone,
+    email,
+    password,
+  } = req.body;
 
   if (!nom || !prenom || !date_naissance || !sexe) {
     return res
@@ -124,9 +142,14 @@ const create = async (req, res) => {
     const matricule = await genMatricule();
     const photo = req.file ? req.file.filename : null;
 
+    let hashedPassword = null;
+    if (password && typeof password === "string") {
+      hashedPassword = await bcrypt.hash(password, 10);
+    }
+
     const [result] = await db.query(
-      `INSERT INTO etudiants (matricule, nom, prenom, date_naissance, sexe, adresse, telephone, email, photo)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO etudiants (matricule, nom, prenom, date_naissance, sexe, adresse, telephone, email, photo, password)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         matricule,
         nom,
@@ -137,13 +160,43 @@ const create = async (req, res) => {
         telephone || null,
         email || null,
         photo,
+        hashedPassword,
       ],
     );
 
+    // Créer l'inscription si demandée (inscription immédiate)
+    let inscriptionId = null;
+    if (req.body.inscription) {
+      try {
+        const inscData = JSON.parse(req.body.inscription);
+        if (
+          inscData.filiere_id &&
+          inscData.niveau &&
+          inscData.date_inscription
+        ) {
+          const [inscResult] = await db.query(
+            `INSERT INTO inscriptions (etudiant_id, filiere_id, niveau, annee_universitaire, date_inscription, statut)
+                   VALUES (?, ?, ?, ?, ?, 'actif')`,
+            [
+              result.insertId,
+              inscData.filiere_id,
+              inscData.niveau,
+              inscData.annee_universitaire,
+              inscData.date_inscription,
+            ],
+          );
+          inscriptionId = inscResult.insertId;
+        }
+      } catch (e) {
+        console.error("Erreur création inscription:", e.message);
+      }
+    }
+
     return res.status(201).json({
       success: true,
-      message: "Étudiant créé.",
-      data: { id: result.insertId, matricule },
+      message:
+        "Étudiant créé." + (inscriptionId ? " Inscription effectuée." : ""),
+      data: { id: result.insertId, matricule, inscription_id: inscriptionId },
     });
   } catch (err) {
     console.error("create etudiant:", err);
@@ -159,9 +212,11 @@ const update = async (req, res) => {
 
   // Validation des champs obligatoires
   if (!nom || !prenom || !date_naissance || !sexe) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Champs obligatoires manquants (nom, prenom, date_naissance, sexe)." });
+    return res.status(400).json({
+      success: false,
+      message:
+        "Champs obligatoires manquants (nom, prenom, date_naissance, sexe).",
+    });
   }
   if (!["M", "F"].includes(sexe)) {
     return res
@@ -170,7 +225,9 @@ const update = async (req, res) => {
   }
 
   try {
-    const [exist] = await db.query("SELECT id FROM etudiants WHERE id = ?", [id]);
+    const [exist] = await db.query("SELECT id FROM etudiants WHERE id = ?", [
+      id,
+    ]);
     if (exist.length === 0)
       return res
         .status(404)
@@ -196,7 +253,10 @@ const update = async (req, res) => {
     const vals = keys.map((k) => fields[k]);
 
     if (!sets) {
-      return res.json({ success: true, message: "Aucune modification détectée." });
+      return res.json({
+        success: true,
+        message: "Aucune modification détectée.",
+      });
     }
 
     await db.query(`UPDATE etudiants SET ${sets} WHERE id = ?`, [...vals, id]);
@@ -221,35 +281,35 @@ const remove = async (req, res) => {
     // 1. Vérifier que l'étudiant existe
     const [rows] = await conn.query(
       "SELECT id, nom, prenom, matricule FROM etudiants WHERE id = ?",
-      [id]
+      [id],
     );
     if (!rows.length) {
       conn.release();
-      return res.status(404).json({ success: false, message: "Étudiant introuvable." });
+      return res
+        .status(404)
+        .json({ success: false, message: "Étudiant introuvable." });
     }
     const etudiant = rows[0];
 
     // 2. Récupérer tous les IDs d'inscription de cet étudiant
     const [inscriptions] = await conn.query(
       "SELECT id FROM inscriptions WHERE etudiant_id = ?",
-      [id]
+      [id],
     );
-    const inscriptionIds = inscriptions.map(i => i.id);
+    const inscriptionIds = inscriptions.map((i) => i.id);
 
     await conn.beginTransaction();
 
     if (inscriptionIds.length > 0) {
       // 3. Supprimer les notes liées aux inscriptions
-      await conn.query(
-        "DELETE FROM notes WHERE inscription_id IN (?)",
-        [inscriptionIds]
-      );
+      await conn.query("DELETE FROM notes WHERE inscription_id IN (?)", [
+        inscriptionIds,
+      ]);
 
       // 4. Supprimer les présences liées aux inscriptions
-      await conn.query(
-        "DELETE FROM presences WHERE inscription_id IN (?)",
-        [inscriptionIds]
-      );
+      await conn.query("DELETE FROM presences WHERE inscription_id IN (?)", [
+        inscriptionIds,
+      ]);
     }
 
     // 5. Supprimer les transferts liés à l'étudiant
@@ -266,13 +326,15 @@ const remove = async (req, res) => {
 
     return res.json({
       success: true,
-      message: `Étudiant ${etudiant.prenom} ${etudiant.nom} (${etudiant.matricule}) supprimé avec toutes ses données liées.`
+      message: `Étudiant ${etudiant.prenom} ${etudiant.nom} (${etudiant.matricule}) supprimé avec toutes ses données liées.`,
     });
   } catch (err) {
     await conn.rollback().catch(() => {});
     conn.release();
     console.error("delete etudiant:", err);
-    return res.status(500).json({ success: false, message: "Erreur serveur : " + err.message });
+    return res
+      .status(500)
+      .json({ success: false, message: "Erreur serveur : " + err.message });
   }
 };
 

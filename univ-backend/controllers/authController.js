@@ -28,8 +28,14 @@ const login = async (req, res) => {
             return res.status(401).json({ success: false, message: 'Identifiants incorrects.' });
         }
 
+        // Ajout de etudiant_id dans le payload JWT (null si pas étudiant)
         const token = jwt.sign(
-            { id: user.id, email: user.email, role: user.role },
+            {
+                id:          user.id,
+                email:       user.email,
+                role:        user.role,
+                etudiant_id: user.etudiant_id || null,   // ← AJOUT
+            },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
         );
@@ -38,11 +44,12 @@ const login = async (req, res) => {
             success: true,
             token,
             user: {
-                id:     user.id,
-                nom:    user.nom,
-                prenom: user.prenom,
-                email:  user.email,
-                role:   user.role,
+                id:          user.id,
+                nom:         user.nom,
+                prenom:      user.prenom,
+                email:       user.email,
+                role:        user.role,
+                etudiant_id: user.etudiant_id || null,   // ← AJOUT
             }
         });
     } catch (err) {
@@ -62,7 +69,7 @@ const register = async (req, res) => {
     }
 
     // Validation du rôle
-    const rolesValides = ['administrateur', 'secretaire', 'enseignant'];
+    const rolesValides = ['administrateur', 'secretaire', 'enseignant', 'etudiant'];  // ← AJOUT 'etudiant'
     if (!rolesValides.includes(role)) {
         return res.status(400).json({ success: false, message: 'Rôle invalide.' });
     }
@@ -100,10 +107,30 @@ const register = async (req, res) => {
         // Hashage du mot de passe
         const hash = await bcrypt.hash(password, 10);
 
+        // etudiant_id : obligatoire si rôle etudiant, ignoré sinon
+        const etudiantId = (role === 'etudiant' && req.body.etudiant_id)
+            ? req.body.etudiant_id
+            : null;
+
+        // Si rôle etudiant, vérifier que l'etudiant_id existe et n'est pas déjà lié
+        if (role === 'etudiant') {
+            if (!etudiantId) {
+                return res.status(400).json({ success: false, message: 'etudiant_id requis pour le rôle étudiant.' });
+            }
+            const [etCheck] = await db.query('SELECT id FROM etudiants WHERE id = ?', [etudiantId]);
+            if (etCheck.length === 0) {
+                return res.status(404).json({ success: false, message: 'Étudiant introuvable.' });
+            }
+            const [alreadyLinked] = await db.query('SELECT id FROM users WHERE etudiant_id = ?', [etudiantId]);
+            if (alreadyLinked.length > 0) {
+                return res.status(409).json({ success: false, message: 'Cet étudiant a déjà un compte.' });
+            }
+        }
+
         // Insertion en base
         const [result] = await db.query(
-            'INSERT INTO users (nom, prenom, email, password, role) VALUES (?, ?, ?, ?, ?)',
-            [nom, prenom, email, hash, role]
+            'INSERT INTO users (nom, prenom, email, password, role, etudiant_id) VALUES (?, ?, ?, ?, ?, ?)',
+            [nom, prenom, email, hash, role, etudiantId]
         );
 
         return res.status(201).json({
@@ -121,7 +148,7 @@ const register = async (req, res) => {
 const getProfile = async (req, res) => {
     try {
         const [rows] = await db.query(
-            'SELECT id, nom, prenom, email, role, is_active, created_at, updated_at FROM users WHERE id = ?',
+            'SELECT id, nom, prenom, email, role, etudiant_id, is_active, created_at, updated_at FROM users WHERE id = ?',  // ← AJOUT etudiant_id
             [req.user.id]
         );
         if (rows.length === 0) return res.status(404).json({ success: false, message: 'Utilisateur introuvable.' });

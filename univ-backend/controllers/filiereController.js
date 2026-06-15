@@ -57,12 +57,10 @@ const createFiliere = async (req, res) => {
       code.trim().toUpperCase(),
     ]);
     if (exist.length > 0) {
-      return res
-        .status(409)
-        .json({
-          success: false,
-          message: `Le code "${code.toUpperCase()}" est déjà utilisé.`,
-        });
+      return res.status(409).json({
+        success: false,
+        message: `Le code "${code.toUpperCase()}" est déjà utilisé.`,
+      });
     }
 
     // description est optionnel — on envoie '' si vide (colonne NOT NULL dans la BDD)
@@ -133,13 +131,15 @@ const getMatieresByFiliere = async (req, res) => {
              FROM matieres m
              LEFT JOIN users u ON u.id = m.enseignant_id AND u.role = 'enseignant'
              WHERE m.filiere_id = ?
-             ORDER BY m.semestre, m.nom_matiere`,
+             ORDER BY m.semestre, m.id`,
       [req.params.filiereId],
     );
     return res.json({ success: true, data: rows });
   } catch (err) {
-    console.error("getMatieresByFiliere:", err.message);
-    return res.status(500).json({ success: false, message: "Erreur serveur." });
+    console.error("GET_MATIERES_ERROR:", err.message, err.sql);
+    return res
+      .status(500)
+      .json({ success: false, message: "ERREUR SQL: " + err.message });
   }
 };
 
@@ -176,12 +176,10 @@ const createMatiere = async (req, res) => {
         [ensId],
       );
       if (ensCheck.length === 0) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message: "Enseignant introuvable ou inactif.",
-          });
+        return res.status(400).json({
+          success: false,
+          message: "Enseignant introuvable ou inactif.",
+        });
       }
     }
 
@@ -198,13 +196,11 @@ const createMatiere = async (req, res) => {
         ensId,
       ],
     );
-    return res
-      .status(201)
-      .json({
-        success: true,
-        message: "Matière ajoutée.",
-        id: result.insertId,
-      });
+    return res.status(201).json({
+      success: true,
+      message: "Matière ajoutée.",
+      id: result.insertId,
+    });
   } catch (err) {
     console.error("createMatiere:", err.message);
     if (err.code === "ER_DUP_ENTRY") {
@@ -243,12 +239,10 @@ const updateMatiere = async (req, res) => {
         [ensId],
       );
       if (ensCheck.length === 0) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message: "Enseignant introuvable ou inactif.",
-          });
+        return res.status(400).json({
+          success: false,
+          message: "Enseignant introuvable ou inactif.",
+        });
       }
     }
 

@@ -4,6 +4,7 @@
 //    1. Redirection selon rôle après login (Admin → /admin, Secrétaire → /)
 //    2. Spinner de chargement centré avec message
 //    3. Route 404 propre
+//    4. Route /mon-profil réservée au rôle etudiant
 // ════════════════════════════════════════════════════════════════
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -14,6 +15,7 @@ import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import EtudiantsPage from "./pages/EtudiantsPage";
 import EtudiantDetailPage from "./pages/EtudiantDetailPage";
+import MonProfilPage from "./pages/MonProfilPage";
 import InscriptionsPage from "./pages/InscriptionsPage";
 import NotesPage from "./pages/NotesPage";
 import NotesSaisiePage from "./pages/NotesSaisiePage";
@@ -22,6 +24,8 @@ import UtilisateursPage from "./pages/UtilisateursPage";
 import PresencePage from "./pages/PresencePage";
 import TransfertPage from "./pages/TransfertPage";
 import MatieresPage from "./pages/MatieresPage";
+import StudentLoginPage from "./pages/StudentLoginPage";
+import StudentDashboardPage from "./pages/StudentDashboardPage";
 
 /* ─── Écran de chargement ───────────────────────────────────── */
 function LoadingScreen() {
@@ -104,13 +108,22 @@ function NotFoundPage() {
 /* ─── Routes de l'application ───────────────────────────────── */
 function AppRoutes() {
   const { user } = useAuth();
+
+  // Redirection post-login selon le rôle
+  const defaultHome = user?.role === "etudiant" ? "/mon-profil" : "/";
+
   return (
     <Routes>
       {/* Login */}
       <Route
         path="/login"
-        element={user ? <Navigate to="/" replace /> : <LoginPage />}
+        element={user ? <Navigate to={defaultHome} replace /> : <LoginPage />}
       />
+
+      {/* Portail étudiant */}
+      <Route path="etudiant/login" element={<StudentLoginPage />} />
+      <Route path="etudiant/dashboard" element={<StudentDashboardPage />} />
+      <Route path="etudiant/profil" element={<MonProfilPage />} />
 
       {/* Application principale */}
       <Route
@@ -121,8 +134,27 @@ function AppRoutes() {
           </PrivateRoute>
         }
       >
-        {/* Tableau de bord — tous les rôles */}
-        <Route index element={<DashboardPage />} />
+        {/* Tableau de bord — Admin + Secrétaire + Enseignant */}
+        <Route
+          index
+          element={
+            user?.role === "etudiant" ? (
+              <Navigate to="/mon-profil" replace />
+            ) : (
+              <DashboardPage />
+            )
+          }
+        />
+
+        {/* ── Interface Étudiant (Mon Profil) ── */}
+        <Route
+          path="mon-profil"
+          element={
+            <PrivateRoute roles={["etudiant"]}>
+              <MonProfilPage />
+            </PrivateRoute>
+          }
+        />
 
         {/* Gestion académique — Admin + Secrétaire */}
         <Route
@@ -174,7 +206,7 @@ function AppRoutes() {
           }
         />
 
-        {/* Pédagogie — tous les rôles */}
+        {/* Pédagogie — Admin + Secrétaire + Enseignant */}
         <Route
           path="notes/saisie"
           element={
@@ -212,7 +244,7 @@ function AppRoutes() {
       </Route>
 
       {/* Fallback global */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to={defaultHome} replace />} />
     </Routes>
   );
 }

@@ -49,7 +49,7 @@ app.use("/api/presences", require("./routes/presences"));
 app.use("/api/dashboard", require("./routes/dashboard"));
 app.use("/api/users", require("./routes/users"));
 app.use("/api/transferts", require("./routes/transferts"));
-app.use("/uploads", express.static("uploads"));
+app.use("/api/student", require("./routes/studentAuth"));
 
 // ── Route de santé ────────────────────────────────────────────────────────────
 app.get("/api/health", (req, res) => {

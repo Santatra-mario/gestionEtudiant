@@ -24,6 +24,7 @@ import {
   UserCheck,
   UserX,
   ChevronDown,
+  Lock,
 } from "lucide-react";
 import api, { getPhotoUrl } from "../services/api";
 import { useAuth } from "../context/AuthContext";
@@ -488,39 +489,47 @@ function CountryDialPicker({ value, onChange }) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// ── Fonctions de validation ──────────────────────────────────────────────
+// ── Regex & helpers de validation ────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════════════════
 
-// NOM : lettres (avec accents), chiffres, tirets, apostrophes — SANS espaces
-const TEXT_REGEX = /^[A-Za-zÀ-ÖØ-öø-ÿ0-9'\-]+$/;
+// ── Caractères autorisés pour NOM et PRÉNOM ──────────────────────────────
+// Uniquement : lettres (avec accents), apostrophes, tirets simples, espaces
+// INTERDIT : chiffres, @, #, $, *, /, \, ;, :, !, ?, (, ), etc.
+const NAME_ALLOWED_RE = /^[A-Za-zÀ-ÖØ-öø-ÿ '\-]+$/;
 
-// PRÉNOM : même chose MAIS avec espaces autorisés (ex: "Santatra Mario Jonsthone")
-const PRENOM_REGEX = /^[A-Za-zÀ-ÖØ-öø-ÿ0-9'\- ]+$/;
+// ── Caractères autorisés pour ADRESSE ────────────────────────────────────
+// Lettres, chiffres, espaces, virgules, points, tirets, apostrophes
+const ADDR_ALLOWED_RE = /^[A-Za-zÀ-ÖØ-öø-ÿ0-9 ,.\-']+$/;
 
-// Validation NOM (espaces interdits)
-function validateTextField(value) {
-  if (!value) return null;
-  if (/\s/.test(value)) return "Les espaces ne sont pas autorisés";
-  if (!TEXT_REGEX.test(value))
-    return "Caractères spéciaux non autorisés (ex: /* ; : ! …)";
-  return null;
+// ── Filtre direct : retire les caractères NON autorisés ──────────────────
+// Pour NOM et PRÉNOM : supprime tout ce qui n'est pas lettre/accent/espace/tiret/apostrophe
+function filterNameChars(raw) {
+  // On ne garde que les caractères de l'alphabet (avec accents), l'espace, le tiret et l'apostrophe
+  return raw.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ '\-]/g, "");
 }
 
-// Validation PRÉNOM (espaces autorisés)
-function validatePrenomField(value) {
-  if (!value) return null;
-  if (!PRENOM_REGEX.test(value))
-    return "Caractères spéciaux non autorisés (ex: /* ; : ! …)";
-  return null;
+// Pour ADRESSE : on garde lettres, chiffres, espaces, virgules, points, tirets, apostrophes
+function filterAddrChars(raw) {
+  return raw.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ0-9 ,.\-']/g, "");
 }
 
-// Adresse : autorise lettres, chiffres, espaces, virgules, tirets, points
-const ADDR_REGEX = /^[A-Za-zÀ-ÖØ-öø-ÿ0-9\s,.\-']+$/;
+// ── Validation finale (affichage d'erreur) ───────────────────────────────
+function validateNameField(value, label) {
+  if (!value) return null; // champ totalement vide = pas d'erreur ici (géré par `required`)
+  // Espace(s) uniquement → champ considéré comme vide → erreur
+  if (!value.trim())
+    return `${label} : ne peut pas contenir uniquement des espaces`;
+  if (!NAME_ALLOWED_RE.test(value))
+    return `${label} : caractères non autorisés (chiffres, symboles interdits)`;
+  if (value.trim().length < 2)
+    return `${label} : au moins 2 caractères requis`;
+  return null;
+}
 
 function validateAddressField(value) {
-  if (!value) return null;
-  if (!ADDR_REGEX.test(value))
-    return "Caractères spéciaux non autorisés dans l'adresse";
+  if (!value || !value.trim()) return null;
+  if (!ADDR_ALLOWED_RE.test(value))
+    return "Adresse : caractères non autorisés";
   return null;
 }
 
@@ -556,11 +565,13 @@ function EtudiantModal({ onClose, onSaved, initial }) {
   const [filiereLoading, setFiliereLoading] = useState(false);
   const [withInscription, setWithInscription] = useState(true);
 
-  function getTodayDate() { return new Date().toISOString().split("T")[0]; }
+  function getTodayDate() {
+    return new Date().toISOString().split("T")[0];
+  }
   function getCurrentAcademicYear() {
     const now = new Date();
     const y = now.getFullYear();
-    return now.getMonth() >= 8 ? `${y}-${y+1}` : `${y-1}-${y}`;
+    return now.getMonth() >= 8 ? `${y}-${y + 1}` : `${y - 1}-${y}`;
   }
 
   const [inscForm, setInscForm] = useState({
@@ -574,11 +585,15 @@ function EtudiantModal({ onClose, onSaved, initial }) {
   useEffect(() => {
     if (isEdit) return;
     setFiliereLoading(true);
-    api.get("/filieres").then(({ data }) => {
-      setFilieres(data.data || []);
-    }).catch(() => {
-      setFilieres([]);
-    }).finally(() => setFiliereLoading(false));
+    api
+      .get("/filieres")
+      .then(({ data }) => {
+        setFilieres(data.data || []);
+      })
+      .catch(() => {
+        setFilieres([]);
+      })
+      .finally(() => setFiliereLoading(false));
   }, [isEdit]);
 
   // ── Détecte l'indicatif stocké et le retire du numéro affiché ──────────
@@ -597,9 +612,13 @@ function EtudiantModal({ onClose, onSaved, initial }) {
     }
     return { code: "MG", digits: tel };
   }
-  const { code: initCode, digits: initDigits } = parseInitialPhone(initial?.telephone);
+  const { code: initCode, digits: initDigits } = parseInitialPhone(
+    initial?.telephone,
+  );
 
   const [form, setForm] = useState({
+    password: "",
+    password_confirm: "",
     nom: initial?.nom || "",
     prenom: initial?.prenom || "",
     date_naissance: initial?.date_naissance?.split("T")[0] || "",
@@ -629,29 +648,41 @@ function EtudiantModal({ onClose, onSaved, initial }) {
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  // ── PRÉNOM : espaces autorisés ───────────────────────────────────────
+  // ── PRÉNOM : filtre agressif + validation ────────────────────────────
+  // 1. On filtre IMMÉDIATEMENT les caractères non autorisés (ils n'apparaissent jamais)
+  // 2. On bloque l'espace en premier caractère (si rien d'autre n'est écrit)
+  // 3. On valide ce qui reste et on affiche une erreur si besoin
   const handlePrenomChange = (e) => {
-    const val = e.target.value;
-    setForm((f) => ({ ...f, prenom: val }));
+    const raw = e.target.value;
+    // Filtre les caractères non autorisés, puis supprime les espaces en début de saisie
+    const filtered = filterNameChars(raw).replace(/^\s+/, "");
+    setForm((f) => ({ ...f, prenom: filtered }));
     setFieldErrors((prev) => ({
       ...prev,
-      prenom: validatePrenomField(val) || "",
+      prenom: validateNameField(filtered, "Prénom") || "",
     }));
   };
 
-  // ── NOM : espaces interdits ──────────────────────────────────────────
+  // ── NOM : idem ───────────────────────────────────────────────────────
   const handleNomChange = (e) => {
-    const val = e.target.value;
-    setForm((f) => ({ ...f, nom: val }));
-    setFieldErrors((prev) => ({ ...prev, nom: validateTextField(val) || "" }));
-  };
-
-  const handleAdresseChange = (e) => {
-    const val = e.target.value;
-    setForm((f) => ({ ...f, adresse: val }));
+    const raw = e.target.value;
+    // Filtre les caractères non autorisés, puis supprime les espaces en début de saisie
+    const filtered = filterNameChars(raw).replace(/^\s+/, "");
+    setForm((f) => ({ ...f, nom: filtered }));
     setFieldErrors((prev) => ({
       ...prev,
-      adresse: validateAddressField(val) || "",
+      nom: validateNameField(filtered, "Nom") || "",
+    }));
+  };
+
+  // ── ADRESSE : filtre doux + validation ───────────────────────────────
+  const handleAdresseChange = (e) => {
+    const raw = e.target.value;
+    const filtered = filterAddrChars(raw); // ← filtre les symboles dangereux
+    setForm((f) => ({ ...f, adresse: filtered }));
+    setFieldErrors((prev) => ({
+      ...prev,
+      adresse: validateAddressField(filtered) || "",
     }));
   };
 
@@ -703,7 +734,10 @@ function EtudiantModal({ onClose, onSaved, initial }) {
   const handleNext = (e) => {
     e.preventDefault();
     if (!isValid) return;
-    if (isEdit) { handleSubmit(e); return; }
+    if (isEdit) {
+      handleSubmit(e);
+      return;
+    }
     setStep(2);
   };
 
@@ -717,7 +751,8 @@ function EtudiantModal({ onClose, onSaved, initial }) {
       // Retire le 0 initial et aussi l'indicatif sans + s'il est deja present (ex: 261XXXXXXX)
       let rawTel = form.telephone.trim().replace(/[\s\-]/g, "");
       const dialWithoutPlus = selectedCountry.dial.replace("+", "");
-      if (rawTel.startsWith(dialWithoutPlus)) rawTel = rawTel.slice(dialWithoutPlus.length);
+      if (rawTel.startsWith(dialWithoutPlus))
+        rawTel = rawTel.slice(dialWithoutPlus.length);
       if (rawTel.startsWith("0")) rawTel = rawTel.slice(1);
       const telWithDial = rawTel ? `${selectedCountry.dial}${rawTel}` : "";
       Object.entries({
@@ -743,12 +778,19 @@ function EtudiantModal({ onClose, onSaved, initial }) {
         await api.post("/etudiants", fd, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        const msgDetail = withInscription && inscForm.filiere_id
-          ? `${form.prenom} ${form.nom} · Inscrit(e) en ${inscForm.niveau} (${inscForm.annee_universitaire})`
-          : `${form.prenom} ${form.nom} · Bienvenue dans la plateforme`;
-        showNotification(`Nouvel étudiant ajouté avec succès`, "success", msgDetail);
+        const msgDetail =
+          withInscription && inscForm.filiere_id
+            ? `${form.prenom} ${form.nom} · Inscrit(e) en ${inscForm.niveau} (${inscForm.annee_universitaire})`
+            : `${form.prenom} ${form.nom} · Bienvenue dans la plateforme`;
+        showNotification(
+          `Nouvel étudiant ajouté avec succès`,
+          "success",
+          msgDetail,
+        );
       }
-      setTimeout(() => { onSaved(); }, 500);
+      setTimeout(() => {
+        onSaved();
+      }, 500);
     } catch (err) {
       setError(formatErrorMessage(err) || Messages.STUDENT_ERROR);
       showNotification(
@@ -797,24 +839,52 @@ function EtudiantModal({ onClose, onSaved, initial }) {
         >
           {/* ── Indicateur de step (création seulement) ── */}
           {!isEdit && (
-            <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16 }}>
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                alignItems: "center",
+                marginBottom: 16,
+              }}
+            >
               {[1, 2].map((s) => (
-                <div key={s} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <div style={{
-                    width: 28, height: 28, borderRadius: "50%",
-                    background: step >= s ? "var(--accent)" : "var(--surface2)",
-                    border: `2px solid ${step >= s ? "var(--accent)" : "var(--border)"}`,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 12, fontWeight: 700,
-                    color: step >= s ? "#fff" : "var(--text-muted)",
-                    transition: "all .2s",
-                  }}>
+                <div
+                  key={s}
+                  style={{ display: "flex", alignItems: "center", gap: 6 }}
+                >
+                  <div
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: "50%",
+                      background:
+                        step >= s ? "var(--accent)" : "var(--surface2)",
+                      border: `2px solid ${step >= s ? "var(--accent)" : "var(--border)"}`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: step >= s ? "#fff" : "var(--text-muted)",
+                      transition: "all .2s",
+                    }}
+                  >
                     {s}
                   </div>
-                  <span style={{ fontSize: 12, color: step === s ? "var(--text)" : "var(--text-muted)", fontWeight: step === s ? 600 : 400 }}>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      color: step === s ? "var(--text)" : "var(--text-muted)",
+                      fontWeight: step === s ? 600 : 400,
+                    }}
+                  >
                     {s === 1 ? "Identité" : "Inscription"}
                   </span>
-                  {s === 1 && <span style={{ color: "var(--border)", fontSize: 12 }}>→</span>}
+                  {s === 1 && (
+                    <span style={{ color: "var(--border)", fontSize: 12 }}>
+                      →
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
@@ -848,7 +918,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
               <FormSection title="Identité" icon={User}>
                 <FormRow>
-                  {/* ── PRÉNOM : espaces autorisés ── */}
+                  {/* ── PRÉNOM ── */}
                   <div
                     style={{
                       display: "flex",
@@ -864,12 +934,12 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                       onChange={handlePrenomChange}
                       placeholder="Jean Marie"
                       icon={User}
-                      hint="Prénom(s) de l'étudiant — espaces autorisés"
+                      hint="Lettres et espaces uniquement"
                       error={fieldErrors.prenom}
                     />
                     <FieldErr msg={fieldErrors.prenom} />
                   </div>
-                  {/* ── NOM : espaces interdits ── */}
+                  {/* ── NOM ── */}
                   <div
                     style={{
                       display: "flex",
@@ -885,7 +955,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                       onChange={handleNomChange}
                       placeholder="Rakoto"
                       icon={User}
-                      hint="Nom de famille — sans espaces"
+                      hint="Lettres et espaces uniquement"
                       error={fieldErrors.nom}
                     />
                     <FieldErr msg={fieldErrors.nom} />
@@ -1025,7 +1095,10 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                       {selectedCountry.dial}
                       {countryCode === "MG" && (
                         <span
-                          style={{ color: "var(--accent-light)", marginLeft: 6 }}
+                          style={{
+                            color: "var(--accent-light)",
+                            marginLeft: 6,
+                          }}
                         >
                           · sans le 0 initial
                         </span>
@@ -1050,7 +1123,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                     )}
                   </div>
 
-                  {/* ── Adresse avec validation ── */}
+                  {/* ── Adresse avec filtre + validation ── */}
                   <div
                     style={{
                       display: "flex",
@@ -1071,31 +1144,99 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                   </div>
                 </FormRow>
               </FormSection>
+
+              {/* ── Mot de passe (portail étudiant) ── */}
+              {!isEdit && (
+                <FormSection title="Mot de passe" icon={Lock}>
+                  <Input
+                    label="Mot de passe (portail étudiant)"
+                    type="password"
+                    value={form.password}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, password: e.target.value }))
+                    }
+                    placeholder="••••••••"
+                    icon={Lock}
+                    hint="Minimum 6 caractères"
+                  />
+                  <Input
+                    label="Confirmer le mot de passe"
+                    type="password"
+                    value={form.password_confirm}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        password_confirm: e.target.value,
+                      }))
+                    }
+                    placeholder="••••••••"
+                    icon={Lock}
+                    error={
+                      form.password &&
+                      form.password_confirm &&
+                      form.password !== form.password_confirm
+                        ? "Les mots de passe ne correspondent pas"
+                        : ""
+                    }
+                  />
+                </FormSection>
+              )}
             </div>
-          </div>{/* fin step 1 */}
+          </div>
+          {/* fin step 1 */}
 
           {/* ══ STEP 2 : inscription initiale (création seulement) ══ */}
           {!isEdit && step === 2 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               {/* Toggle inscription */}
-              <div style={{
-                display: "flex", alignItems: "center", gap: 12,
-                padding: "12px 16px",
-                background: withInscription ? "rgba(99,102,241,0.08)" : "var(--surface2)",
-                border: `1px solid ${withInscription ? "rgba(99,102,241,0.3)" : "var(--border)"}`,
-                borderRadius: 10, cursor: "pointer", transition: "all .2s",
-              }} onClick={() => setWithInscription(v => !v)}>
-                <div style={{
-                  width: 20, height: 20, borderRadius: 5,
-                  background: withInscription ? "var(--accent)" : "var(--surface)",
-                  border: `2px solid ${withInscription ? "var(--accent)" : "var(--border)"}`,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  flexShrink: 0, transition: "all .2s",
-                }}>
-                  {withInscription && <span style={{ color: "#fff", fontSize: 13, lineHeight: 1 }}>✓</span>}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "12px 16px",
+                  background: withInscription
+                    ? "rgba(99,102,241,0.08)"
+                    : "var(--surface2)",
+                  border: `1px solid ${withInscription ? "rgba(99,102,241,0.3)" : "var(--border)"}`,
+                  borderRadius: 10,
+                  cursor: "pointer",
+                  transition: "all .2s",
+                }}
+                onClick={() => setWithInscription((v) => !v)}
+              >
+                <div
+                  style={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: 5,
+                    background: withInscription
+                      ? "var(--accent)"
+                      : "var(--surface)",
+                    border: `2px solid ${withInscription ? "var(--accent)" : "var(--border)"}`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    transition: "all .2s",
+                  }}
+                >
+                  {withInscription && (
+                    <span
+                      style={{ color: "#fff", fontSize: 13, lineHeight: 1 }}
+                    >
+                      ✓
+                    </span>
+                  )}
                 </div>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "var(--text)",
+                    }}
+                  >
                     Inscrire immédiatement
                   </div>
                   <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
@@ -1105,29 +1246,59 @@ function EtudiantModal({ onClose, onSaved, initial }) {
               </div>
 
               {withInscription && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 16 }}
+                >
                   {/* Filière */}
                   <div>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+                    <label
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "var(--text-muted)",
+                        display: "block",
+                        marginBottom: 6,
+                      }}
+                    >
                       Filière <span style={{ color: "var(--danger)" }}>*</span>
                     </label>
                     {filiereLoading ? (
-                      <div style={{ padding: "10px 14px", background: "var(--surface2)", borderRadius: 8, fontSize: 13, color: "var(--text-muted)" }}>
+                      <div
+                        style={{
+                          padding: "10px 14px",
+                          background: "var(--surface2)",
+                          borderRadius: 8,
+                          fontSize: 13,
+                          color: "var(--text-muted)",
+                        }}
+                      >
                         Chargement…
                       </div>
                     ) : (
                       <select
                         value={inscForm.filiere_id}
-                        onChange={(e) => setInscForm(f => ({ ...f, filiere_id: e.target.value }))}
+                        onChange={(e) =>
+                          setInscForm((f) => ({
+                            ...f,
+                            filiere_id: e.target.value,
+                          }))
+                        }
                         style={{
-                          width: "100%", padding: "10px 14px",
-                          background: "var(--surface2)", border: "1px solid var(--border)",
-                          borderRadius: 8, color: "var(--text)", fontSize: 14, outline: "none",
+                          width: "100%",
+                          padding: "10px 14px",
+                          background: "var(--surface2)",
+                          border: "1px solid var(--border)",
+                          borderRadius: 8,
+                          color: "var(--text)",
+                          fontSize: 14,
+                          outline: "none",
                         }}
                       >
                         <option value="">-- Choisir une filière --</option>
-                        {filieres.map(f => (
-                          <option key={f.id} value={f.id}>{f.nom} ({f.code})</option>
+                        {filieres.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.nom} ({f.code})
+                          </option>
                         ))}
                       </select>
                     )}
@@ -1136,34 +1307,109 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                   {/* Niveau + Année */}
                   <div style={{ display: "flex", gap: 12 }}>
                     <div style={{ flex: 1 }}>
-                      <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>Niveau</label>
+                      <label
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: "var(--text-muted)",
+                          display: "block",
+                          marginBottom: 6,
+                        }}
+                      >
+                        Niveau
+                      </label>
                       <select
                         value={inscForm.niveau}
-                        onChange={(e) => setInscForm(f => ({ ...f, niveau: e.target.value }))}
-                        style={{ width: "100%", padding: "10px 14px", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text)", fontSize: 14, outline: "none" }}
+                        onChange={(e) =>
+                          setInscForm((f) => ({ ...f, niveau: e.target.value }))
+                        }
+                        style={{
+                          width: "100%",
+                          padding: "10px 14px",
+                          background: "var(--surface2)",
+                          border: "1px solid var(--border)",
+                          borderRadius: 8,
+                          color: "var(--text)",
+                          fontSize: 14,
+                          outline: "none",
+                        }}
                       >
-                        {["L1","L2","L3","M1","M2"].map(n => <option key={n} value={n}>{n}</option>)}
+                        {["L1", "L2", "L3", "M1", "M2"].map((n) => (
+                          <option key={n} value={n}>
+                            {n}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div style={{ flex: 1 }}>
-                      <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>Année universitaire</label>
+                      <label
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: "var(--text-muted)",
+                          display: "block",
+                          marginBottom: 6,
+                        }}
+                      >
+                        Année universitaire
+                      </label>
                       <input
                         value={inscForm.annee_universitaire}
-                        onChange={(e) => setInscForm(f => ({ ...f, annee_universitaire: e.target.value }))}
+                        onChange={(e) =>
+                          setInscForm((f) => ({
+                            ...f,
+                            annee_universitaire: e.target.value,
+                          }))
+                        }
                         placeholder="2025-2026"
-                        style={{ width: "100%", boxSizing: "border-box", padding: "10px 14px", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text)", fontSize: 14, outline: "none" }}
+                        style={{
+                          width: "100%",
+                          boxSizing: "border-box",
+                          padding: "10px 14px",
+                          background: "var(--surface2)",
+                          border: "1px solid var(--border)",
+                          borderRadius: 8,
+                          color: "var(--text)",
+                          fontSize: 14,
+                          outline: "none",
+                        }}
                       />
                     </div>
                   </div>
 
                   {/* Date inscription */}
                   <div>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>Date d'inscription</label>
+                    <label
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "var(--text-muted)",
+                        display: "block",
+                        marginBottom: 6,
+                      }}
+                    >
+                      Date d'inscription
+                    </label>
                     <input
                       type="date"
                       value={inscForm.date_inscription}
-                      onChange={(e) => setInscForm(f => ({ ...f, date_inscription: e.target.value }))}
-                      style={{ width: "100%", boxSizing: "border-box", padding: "10px 14px", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text)", fontSize: 14, outline: "none" }}
+                      onChange={(e) =>
+                        setInscForm((f) => ({
+                          ...f,
+                          date_inscription: e.target.value,
+                        }))
+                      }
+                      style={{
+                        width: "100%",
+                        boxSizing: "border-box",
+                        padding: "10px 14px",
+                        background: "var(--surface2)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 8,
+                        color: "var(--text)",
+                        fontSize: 14,
+                        outline: "none",
+                      }}
                     />
                   </div>
                 </div>
@@ -1183,7 +1429,11 @@ function EtudiantModal({ onClose, onSaved, initial }) {
           >
             {step === 2 && !isEdit ? (
               <>
-                <Btn variant="ghost" onClick={() => setStep(1)} icon={<X size={15} />}>
+                <Btn
+                  variant="ghost"
+                  onClick={() => setStep(1)}
+                  icon={<X size={15} />}
+                >
                   Retour
                 </Btn>
                 <Btn
@@ -1759,7 +2009,7 @@ export default function EtudiantsPage() {
                               onClick={() => setToDelete(e)}
                               icon={<Trash2 size={13} />}
                             >
-                              Suppr.
+                              Supprimer
                             </Btn>
                           </Tooltip>
                         </>

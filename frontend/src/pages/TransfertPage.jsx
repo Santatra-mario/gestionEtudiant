@@ -1384,11 +1384,48 @@ function TransfertModal({ onClose, onSaved }) {
       >
         {error && <Alert type="danger">{error}</Alert>}
         <FormSection title="Étudiant" icon={User}>
-          <StudentSearchSelect
-            etudiants={etudiants}
-            value={form.etudiant_id}
-            onChange={(id) => setForm((f) => ({ ...f, etudiant_id: id }))}
-          />
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: "var(--text)",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <User size={14} color="var(--accent)" />
+              Étudiant <span style={{ color: "var(--danger)" }}>*</span>
+            </label>
+            <select
+              value={form.etudiant_id}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, etudiant_id: e.target.value }))
+              }
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                padding: "11px 14px",
+                borderRadius: 10,
+                border: `1.5px solid ${form.etudiant_id ? "var(--accent)" : "var(--border)"}`,
+                background: "var(--surface)",
+                color: form.etudiant_id ? "var(--text)" : "var(--text-muted)",
+                fontSize: 14,
+                outline: "none",
+                cursor: "pointer",
+                fontFamily: "var(--font-body)",
+                transition: "border-color 0.15s",
+              }}
+            >
+              <option value="">-- Sélectionner un étudiant --</option>
+              {etudiants.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.prenom} {e.nom} — {e.matricule}
+                </option>
+              ))}
+            </select>
+          </div>
         </FormSection>
         <FormSection title="Établissement d'origine" icon={Building2}>
           <FormRow>
