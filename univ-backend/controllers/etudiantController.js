@@ -261,12 +261,8 @@ const update = async (req, res) => {
       email: email ? email.trim() : null,
     };
 
-<<<<<<< HEAD
-    // Ajouter la photo seulement si un nouveau fichier est envoyé
-    if (req.file) fields.photo = req.file.path;
-=======
     if (req.file) fields.photo = req.file.filename;
->>>>>>> 8ab4945 (NOte)
+
 
     const keys = Object.keys(fields);
     const sets = keys.map((k) => `${k} = ?`).join(", ");
