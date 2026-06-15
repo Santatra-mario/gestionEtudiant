@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Hôte : 127.0.0.1:3306
--- Généré le : sam. 13 juin 2026 à 05:53
+-- Généré le : lun. 15 juin 2026 à 06:16
 -- Version du serveur : 8.4.7
 -- Version de PHP : 8.2.29
 
@@ -24,6 +24,34 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
+-- Structure de la table `cours`
+--
+
+DROP TABLE IF EXISTS `cours`;
+CREATE TABLE IF NOT EXISTS `cours` (
+  `id_cours` int UNSIGNED NOT NULL AUTO_INCREMENT,
+  `id_enseignant` int UNSIGNED NOT NULL,
+  `id_matiere` int UNSIGNED NOT NULL,
+  `id_etudiant` int UNSIGNED NOT NULL,
+  `date_cours` date NOT NULL,
+  `heure_debut` time DEFAULT NULL,
+  `heure_fin` time DEFAULT NULL,
+  `statut_etudiant` enum('present','absent','retard','excuse') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'present',
+  `observation` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `enregistre_par` int UNSIGNED DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id_cours`),
+  UNIQUE KEY `uq_cours_presence` (`id_etudiant`,`id_matiere`,`date_cours`),
+  KEY `idx_cours_enseignant` (`id_enseignant`),
+  KEY `idx_cours_matiere` (`id_matiere`),
+  KEY `idx_cours_etudiant` (`id_etudiant`),
+  KEY `idx_cours_date` (`date_cours`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Structure de la table `etudiants`
 --
 
@@ -39,19 +67,12 @@ CREATE TABLE IF NOT EXISTS `etudiants` (
   `telephone` varchar(20) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `email` varchar(150) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `photo` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `password` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `matricule` (`matricule`)
-) ENGINE=MyISAM AUTO_INCREMENT=42 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Déchargement des données de la table `etudiants`
---
-
-INSERT INTO `etudiants` (`id`, `matricule`, `nom`, `prenom`, `date_naissance`, `sexe`, `adresse`, `telephone`, `email`, `photo`, `created_at`, `updated_at`) VALUES
-(39, '2000 H-F', 'LAHIMANITRARIVO', 'Mario  Jonsthone', '2012-02-25', 'M', 'Tanambao', '+261336398456', 'jessiniainab@gmail.com', 'photo-1781076215011.png', '2026-06-01 11:49:55', '2026-06-10 09:32:57'),
-(40, '2001 H-F', 'Santatra', 'Mario', '2020-07-02', 'M', 'Fianarantsoa', '+261387546513', 'mariosantatra@gmail.com', 'photo-1781078360577.png', '2026-06-10 09:59:20', '2026-06-10 09:59:20');
+) ENGINE=MyISAM AUTO_INCREMENT=51 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -69,15 +90,22 @@ CREATE TABLE IF NOT EXISTS `filieres` (
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM AUTO_INCREMENT=32 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=MyISAM AUTO_INCREMENT=39 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Déchargement des données de la table `filieres`
 --
 
 INSERT INTO `filieres` (`id`, `nom`, `code`, `description`, `is_active`, `created_at`, `updated_at`) VALUES
-(31, 'Faculté de Science', 'FACSCIENCE', '', 1, '2026-05-29 20:39:08', '2026-05-29 20:39:08'),
-(30, 'Economie Gestion', 'EGS', '', 1, '2026-05-29 20:38:35', '2026-05-29 20:38:35');
+(32, 'Genie Logciel et Base de Donnée', 'PRO', '', 1, '2026-06-13 20:10:03', '2026-06-13 20:10:03'),
+(31, 'Faculté de Science', 'FACSCIENCE', '', 0, '2026-05-29 20:39:08', '2026-06-13 20:09:25'),
+(30, 'Economie Gestion', 'EGS', '', 0, '2026-05-29 20:38:35', '2026-06-13 20:09:23'),
+(33, 'Informatique General', 'IG', '', 1, '2026-06-13 20:10:29', '2026-06-13 20:10:29'),
+(34, 'Administration  Système et Réseau', 'ASR', '', 1, '2026-06-13 20:11:19', '2026-06-13 20:11:19'),
+(35, 'Genie Logiciel', 'GB', '', 1, '2026-06-13 20:12:10', '2026-06-13 20:12:10'),
+(36, 'Objets Connecté et CyberSecurité', 'OCC', '', 1, '2026-06-13 20:12:27', '2026-06-13 20:18:09'),
+(37, 'Metier du Digital', 'MID', '', 1, '2026-06-13 20:12:52', '2026-06-13 20:17:24'),
+(38, 'Gouvernance et Ingénierie de Données', 'GID', '', 1, '2026-06-13 20:19:29', '2026-06-13 20:19:29');
 
 -- --------------------------------------------------------
 
@@ -99,16 +127,7 @@ CREATE TABLE IF NOT EXISTS `inscriptions` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_inscription` (`etudiant_id`,`annee_universitaire`,`niveau`),
   KEY `filiere_id` (`filiere_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=43 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Déchargement des données de la table `inscriptions`
---
-
-INSERT INTO `inscriptions` (`id`, `etudiant_id`, `filiere_id`, `niveau`, `annee_universitaire`, `statut`, `date_inscription`, `created_at`, `updated_at`) VALUES
-(41, 40, 30, 'L1', '2026-2027', 'actif', '2026-06-10', '2026-06-10 10:24:51', '2026-06-10 10:24:51'),
-(42, 40, 30, 'L3', '2026-2027', 'actif', '2026-06-12', '2026-06-12 19:26:07', '2026-06-12 19:26:07'),
-(39, 40, 31, 'L2', '2024-2025', 'actif', '2026-06-10', '2026-06-10 09:59:20', '2026-06-10 09:59:20');
+) ENGINE=MyISAM AUTO_INCREMENT=48 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -139,7 +158,7 @@ CREATE TABLE IF NOT EXISTS `matieres` (
 --
 
 INSERT INTO `matieres` (`id`, `filiere_id`, `niveau`, `nom_matiere`, `code_matiere`, `credit`, `volume_horaire`, `semestre`, `enseignant_id`, `created_at`, `updated_at`) VALUES
-(42, 30, 'L1', 'Français', 'FRS', 3.00, 40, 'S1', 3, '2026-05-29 20:44:23', '2026-06-12 19:11:49'),
+(42, 30, 'L1', 'Français', 'FRS', 3.00, 40, 'S2', 3, '2026-05-29 20:44:23', '2026-06-13 14:30:24'),
 (49, 30, 'L3', 'Entreprenaria', 'ENTA', 6.00, 5, 'S5', 8, '2026-06-12 19:18:35', '2026-06-12 19:18:35'),
 (44, 30, 'L3', 'Droit de Travail L3', 'DAT', 2.00, 2, 'S6', 8, '2026-05-29 20:47:16', '2026-06-12 19:11:37'),
 (50, 31, 'M2', 'Science', 'SCE', 10.00, 4, 'S10', 3, '2026-06-12 19:20:37', '2026-06-12 19:20:37');
@@ -189,6 +208,9 @@ CREATE TABLE IF NOT EXISTS `presences` (
   `inscription_id` int UNSIGNED NOT NULL,
   `matiere_id` int UNSIGNED NOT NULL,
   `date` date NOT NULL,
+  `heure_debut` time DEFAULT NULL COMMENT 'Heure de début de la séance',
+  `heure_fin` time DEFAULT NULL COMMENT 'Heure de fin de la séance',
+  `observation` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT 'Motif absence ou remarque',
   `statut` enum('present','absent','retard','excuse') COLLATE utf8mb4_general_ci NOT NULL,
   `enregistre_par` int UNSIGNED DEFAULT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
@@ -197,14 +219,7 @@ CREATE TABLE IF NOT EXISTS `presences` (
   UNIQUE KEY `uq_presence` (`inscription_id`,`matiere_id`,`date`),
   KEY `matiere_id` (`matiere_id`),
   KEY `enregistre_par` (`enregistre_par`)
-) ENGINE=MyISAM AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Déchargement des données de la table `presences`
---
-
-INSERT INTO `presences` (`id`, `inscription_id`, `matiere_id`, `date`, `statut`, `enregistre_par`, `created_at`, `updated_at`) VALUES
-(32, 42, 42, '2026-06-11', 'absent', NULL, '2026-06-12 19:27:43', '2026-06-12 19:27:43');
+) ENGINE=MyISAM AUTO_INCREMENT=36 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -240,7 +255,7 @@ CREATE TABLE IF NOT EXISTS `transferts` (
   KEY `idx_etudiant_id` (`etudiant_id`),
   KEY `idx_statut` (`statut`),
   KEY `idx_filiere_dest` (`filiere_destination_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Demandes de transfert inter-établissement';
+) ENGINE=MyISAM AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Demandes de transfert inter-établissement';
 
 --
 -- Déclencheurs `transferts`
@@ -287,26 +302,28 @@ CREATE TABLE IF NOT EXISTS `users` (
   `prenom` varchar(100) COLLATE utf8mb4_general_ci NOT NULL,
   `email` varchar(150) COLLATE utf8mb4_general_ci NOT NULL,
   `password` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
-  `role` enum('administrateur','secretaire','enseignant') COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'secretaire',
+  `role` enum('administrateur','secretaire','enseignant','etudiant') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'secretaire',
+  `etudiant_id` int UNSIGNED DEFAULT NULL COMMENT 'Lien vers etudiants.id — rempli uniquement si role = etudiant',
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `email` (`email`)
+  UNIQUE KEY `email` (`email`),
+  UNIQUE KEY `uq_etudiant_id` (`etudiant_id`)
 ) ENGINE=MyISAM AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Déchargement des données de la table `users`
 --
 
-INSERT INTO `users` (`id`, `nom`, `prenom`, `email`, `password`, `role`, `is_active`, `created_at`, `updated_at`) VALUES
-(1, 'Mario', 'koto', 'santatramario12@gmail.com', '$2b$10$IZMNsZH.djihM5hyOlIYW.bAupRp12qI/YTdBNtX9hGaucmVJHP9C', 'administrateur', 1, '2026-04-29 12:02:23', '2026-05-14 20:19:30'),
-(11, 'Lala', 'ydov', 'lalaydov@gmail.com', '$2b$10$vnT7Qq2Ajaa.yKW.JCoeMeikC6CLGqR4ltOgBJeC4b.sTlIZjT06.', 'secretaire', 1, '2026-06-09 18:15:30', '2026-06-09 18:15:30'),
-(3, 'Sandratra', 'Razanamparany', 'sandratra@gmail.com', '$2b$10$sXuEMwo.Fmjiz/.DCDgaFe1wWVpe1dgCkBIrCD0tlqVCAyYjC05D6', 'enseignant', 1, '2026-04-29 18:38:53', '2026-04-29 18:38:53'),
-(6, 'Sitraka', 'Jonsthone', 'sitraka@gmail.com', '$2b$10$8utxq50gbBIV6P1SIHTPC.XFj8Iiq7n67PgXnAzslquxh.PpKNhKu', 'secretaire', 1, '2026-04-30 07:19:21', '2026-05-27 13:11:21'),
-(7, 'Sandratra', 'Mario', 'boniajons@gamil.com', '$2b$10$Ar3gnT2Dh0IBqvY/HwJtDeXn5r2qvZXburmdBX3s.q7QWJD97zACW', 'administrateur', 1, '2026-04-30 17:31:36', '2026-06-09 18:37:44'),
-(8, 'enseignant', 'role', 'enseignant@gmail.com', '$2b$10$hexEFWQEtK/dVoL4U77j1OH4HuDc57j4nnSMhoxIomsceiKM4kQL2', 'enseignant', 1, '2026-04-30 18:40:16', '2026-04-30 18:40:16'),
-(9, 'secretaire', 'sec', 'secretaire@gmail.com', '$2b$10$QfLuvvZcSbhtJ/Svomq7mOGyD/XBRsBnK1Y63l6CPAlv4lz5Pvy12', 'secretaire', 1, '2026-04-30 18:43:52', '2026-06-09 18:28:23');
+INSERT INTO `users` (`id`, `nom`, `prenom`, `email`, `password`, `role`, `etudiant_id`, `is_active`, `created_at`, `updated_at`) VALUES
+(1, 'Mario', 'koto', 'santatramario12@gmail.com', '$2b$10$IZMNsZH.djihM5hyOlIYW.bAupRp12qI/YTdBNtX9hGaucmVJHP9C', 'administrateur', NULL, 1, '2026-04-29 12:02:23', '2026-05-14 20:19:30'),
+(11, 'Lala', 'ydov', 'lalaydov@gmail.com', '$2b$10$vnT7Qq2Ajaa.yKW.JCoeMeikC6CLGqR4ltOgBJeC4b.sTlIZjT06.', 'secretaire', NULL, 1, '2026-06-09 18:15:30', '2026-06-09 18:15:30'),
+(3, 'Sandratra', 'Razanamparany', 'sandratra@gmail.com', '$2b$10$sXuEMwo.Fmjiz/.DCDgaFe1wWVpe1dgCkBIrCD0tlqVCAyYjC05D6', 'enseignant', NULL, 1, '2026-04-29 18:38:53', '2026-04-29 18:38:53'),
+(6, 'Sitraka', 'Jonsthone', 'sitraka@gmail.com', '$2b$10$8utxq50gbBIV6P1SIHTPC.XFj8Iiq7n67PgXnAzslquxh.PpKNhKu', 'secretaire', NULL, 1, '2026-04-30 07:19:21', '2026-05-27 13:11:21'),
+(7, 'Sandratra', 'Mario', 'boniajons@gamil.com', '$2b$10$Ar3gnT2Dh0IBqvY/HwJtDeXn5r2qvZXburmdBX3s.q7QWJD97zACW', 'administrateur', NULL, 1, '2026-04-30 17:31:36', '2026-06-09 18:37:44'),
+(8, 'enseignant', 'role', 'enseignant@gmail.com', '$2b$10$hexEFWQEtK/dVoL4U77j1OH4HuDc57j4nnSMhoxIomsceiKM4kQL2', 'enseignant', NULL, 1, '2026-04-30 18:40:16', '2026-04-30 18:40:16'),
+(9, 'secretaire', 'sec', 'secretaire@gmail.com', '$2b$10$QfLuvvZcSbhtJ/Svomq7mOGyD/XBRsBnK1Y63l6CPAlv4lz5Pvy12', 'secretaire', NULL, 1, '2026-04-30 18:43:52', '2026-06-09 18:28:23');
 
 -- --------------------------------------------------------
 
