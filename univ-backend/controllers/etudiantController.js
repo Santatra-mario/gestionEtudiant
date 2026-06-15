@@ -2,15 +2,16 @@
 const db = require("../config/db");
 const path = require("path");
 const bcrypt = require("bcrypt");
+const crypto = require("crypto");
+const { sendCredentialsEmail } = require('../utils/mailer');
 
 // ── Générer un matricule unique (Format: 20XX H-F) ──────────────────────────────
 const genMatricule = async () => {
-  // 1. Trouver le dernier numéro utilisé (ex: extraire 2042 de "2042 H-F")
   const [rows] = await db.query(
     "SELECT matricule FROM etudiants WHERE matricule REGEXP '^[0-9]{4} H-F$' ORDER BY CAST(SUBSTRING_INDEX(matricule, ' ', 1) AS UNSIGNED) DESC LIMIT 1",
   );
 
-  let nextNum = 2000; // Valeur de départ demandée
+  let nextNum = 2000;
   if (rows.length > 0) {
     const lastMatricule = rows[0].matricule;
     const lastNum = parseInt(lastMatricule.split(" ")[0], 10);
@@ -19,7 +20,6 @@ const genMatricule = async () => {
     }
   }
 
-  // 2. Formater avec le suffixe fixe "H-F"
   return `${nextNum} H-F`;
 };
 
@@ -36,7 +36,6 @@ const getAll = async (req, res) => {
   } = req.query;
   const offset = (parseInt(page) - 1) * parseInt(limit);
 
-  // Si avec_inscription=true : INNER JOIN pour n'avoir que les étudiants inscrits (actif)
   const joinType = avec_inscription === "true" ? "INNER" : "LEFT";
   const inscriptionFilter =
     avec_inscription === "true"
@@ -70,7 +69,6 @@ const getAll = async (req, res) => {
     params.push(annee);
   }
 
-  // GROUP BY évite les doublons quand un étudiant a plusieurs inscriptions
   sql += " GROUP BY e.id ORDER BY e.created_at DESC LIMIT ? OFFSET ?";
   params.push(parseInt(limit), offset);
 
@@ -142,10 +140,13 @@ const create = async (req, res) => {
     const matricule = await genMatricule();
     const photo = req.file ? req.file.path : null;
 
-    let hashedPassword = null;
-    if (password && typeof password === "string") {
-      hashedPassword = await bcrypt.hash(password, 10);
-    }
+    // ✅ CORRIGÉ — Générer un mot de passe aléatoire si non fourni
+    const motDePasseClair =
+      password && typeof password === "string" && password.trim()
+        ? password.trim()
+        : crypto.randomBytes(4).toString("hex"); // ex: "a3f9c12b"
+
+    const hashedPassword = await bcrypt.hash(motDePasseClair, 10);
 
     const [result] = await db.query(
       `INSERT INTO etudiants (matricule, nom, prenom, date_naissance, sexe, adresse, telephone, email, photo, password)
@@ -192,10 +193,28 @@ const create = async (req, res) => {
       }
     }
 
+    // ✅ AJOUT — Envoyer email avec matricule + mot de passe si l'étudiant a un email
+    if (email && email.trim()) {
+      try {
+        await sendCredentialsEmail(
+          email.trim(),
+          `${prenom} ${nom}`,
+          matricule,
+          motDePasseClair
+        );
+        console.log(`✅ Email identifiants envoyé à ${email}`);
+      } catch (emailErr) {
+        // Échec silencieux — l'inscription reste valide même si l'email échoue
+        console.error("⚠️ Échec envoi email identifiants:", emailErr.message);
+      }
+    }
+
     return res.status(201).json({
       success: true,
       message:
-        "Étudiant créé." + (inscriptionId ? " Inscription effectuée." : ""),
+        "Étudiant créé." +
+        (inscriptionId ? " Inscription effectuée." : "") +
+        (email && email.trim() ? " Email de bienvenue envoyé." : ""),
       data: { id: result.insertId, matricule, inscription_id: inscriptionId },
     });
   } catch (err) {
@@ -210,7 +229,6 @@ const update = async (req, res) => {
     req.body;
   const { id } = req.params;
 
-  // Validation des champs obligatoires
   if (!nom || !prenom || !date_naissance || !sexe) {
     return res.status(400).json({
       success: false,
@@ -233,8 +251,6 @@ const update = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Étudiant introuvable." });
 
-    // Construire les champs à mettre à jour
-    // On utilise null explicitement pour effacer les champs optionnels vides
     const fields = {
       nom: nom.trim(),
       prenom: prenom.trim(),
@@ -245,8 +261,12 @@ const update = async (req, res) => {
       email: email ? email.trim() : null,
     };
 
+<<<<<<< HEAD
     // Ajouter la photo seulement si un nouveau fichier est envoyé
     if (req.file) fields.photo = req.file.path;
+=======
+    if (req.file) fields.photo = req.file.filename;
+>>>>>>> 8ab4945 (NOte)
 
     const keys = Object.keys(fields);
     const sets = keys.map((k) => `${k} = ?`).join(", ");
@@ -268,17 +288,11 @@ const update = async (req, res) => {
 };
 
 // ── DELETE /etudiants/:id ─────────────────────────────────────────────────────
-// Suppression en cascade manuelle dans le bon ordre :
-// notes → presences → transferts → inscriptions → etudiant
-// IMPORTANT : notes et presences n'ont PAS de colonne etudiant_id —
-//             elles sont liées via inscription_id. On récupère d'abord
-//             les IDs d'inscription, puis on supprime dans cet ordre.
 const remove = async (req, res) => {
   const conn = await db.getConnection();
   try {
     const id = req.params.id;
 
-    // 1. Vérifier que l'étudiant existe
     const [rows] = await conn.query(
       "SELECT id, nom, prenom, matricule FROM etudiants WHERE id = ?",
       [id],
@@ -291,7 +305,6 @@ const remove = async (req, res) => {
     }
     const etudiant = rows[0];
 
-    // 2. Récupérer tous les IDs d'inscription de cet étudiant
     const [inscriptions] = await conn.query(
       "SELECT id FROM inscriptions WHERE etudiant_id = ?",
       [id],
@@ -301,24 +314,16 @@ const remove = async (req, res) => {
     await conn.beginTransaction();
 
     if (inscriptionIds.length > 0) {
-      // 3. Supprimer les notes liées aux inscriptions
       await conn.query("DELETE FROM notes WHERE inscription_id IN (?)", [
         inscriptionIds,
       ]);
-
-      // 4. Supprimer les présences liées aux inscriptions
       await conn.query("DELETE FROM presences WHERE inscription_id IN (?)", [
         inscriptionIds,
       ]);
     }
 
-    // 5. Supprimer les transferts liés à l'étudiant
     await conn.query("DELETE FROM transferts WHERE etudiant_id = ?", [id]);
-
-    // 6. Supprimer les inscriptions liées
     await conn.query("DELETE FROM inscriptions WHERE etudiant_id = ?", [id]);
-
-    // 7. Supprimer l'étudiant
     await conn.query("DELETE FROM etudiants WHERE id = ?", [id]);
 
     await conn.commit();

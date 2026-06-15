@@ -1044,7 +1044,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                             setForm((f) => ({ ...f, telephone: val }));
                           }}
                           placeholder={
-                            countryCode === "MG" ? "33 187 4598" : "XX XX XX XX"
+                            countryCode === "MG" ? "XX XX XXX XX" : "XX XX XXX XX"
                           }
                           maxLength={15}
                           style={{

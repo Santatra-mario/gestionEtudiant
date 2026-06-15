@@ -17,8 +17,13 @@
     "express-rate-limit": "^8.5.1",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
+<<<<<<< HEAD
     "multer-storage-cloudinary": "^4.0.0",
     "mysql2": "^3.22.3"
+=======
+    "mysql2": "^3.22.3",
+    "nodemailer": "^9.0.0"
+>>>>>>> 8ab4945 (NOte)
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
