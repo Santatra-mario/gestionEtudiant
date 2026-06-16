@@ -223,3 +223,18 @@ sexe=M, filiere_id=1, photo=[fichier image]
 ```
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
+
+MAX_FILE_SIZE=5242880
+
+# Cloudinary
+CLOUDINARY_CLOUD_NAME=dig3ss1au
+CLOUDINARY_API_KEY=374735458647145
+CLOUDINARY_API_SECRET=sROyZ5ILy9YYP5JBMwvM_-FmKQk
+
+# Email (Gmail)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=sandratrarazanamparany@gmail.com
+EMAIL_PASS=osihwwlbrapcxglm
+EMAIL_FROM=UniGest <sandratrarazanamparany@gmail.com>
+STUDENT_LOGIN_URL=http://localhost:5173/etudiant/login
