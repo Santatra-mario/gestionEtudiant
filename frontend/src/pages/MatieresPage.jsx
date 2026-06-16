@@ -487,6 +487,12 @@ export default function MatieresPage() {
     setFiltreFiliere("");
   };
 
+  // ── Couleur IHM de la filière actuellement sélectionnée dans le filtre (dropdown) ──
+  const filiereFiltreIndex = filieres.findIndex((f) => String(f.id) === String(filtreFiliere));
+  const filiereFiltreColor = filiereFiltreIndex >= 0
+    ? FILIERE_COLORS[filiereFiltreIndex % FILIERE_COLORS.length]
+    : null;
+
   return (
     <>
       <style>{`
@@ -507,6 +513,11 @@ export default function MatieresPage() {
 
         .search-input:focus {
           border-color: var(--accent) !important;
+          box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+          outline: none;
+        }
+
+        .filiere-select-filter:focus {
           box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
           outline: none;
         }
@@ -749,6 +760,57 @@ export default function MatieresPage() {
             </div>
 
             <div style={{ width: 1, height: 28, background: "var(--border)", flexShrink: 0 }} />
+
+            {/* Filtre par filière (liste déroulante) — respecte les couleurs IHM de chaque filière */}
+            {filieres.length > 0 && (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: "var(--text-muted)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                    whiteSpace: "nowrap",
+                  }}>
+                    Filière
+                  </span>
+                  <select
+                    className="filiere-select-filter"
+                    value={filtreFiliere}
+                    onChange={(e) => setFiltreFiliere(e.target.value)}
+                    aria-label="Filtrer par filière"
+                    style={{
+                      boxSizing: "border-box",
+                      background: filiereFiltreColor ? filiereFiltreColor.bg : "transparent",
+                      border: `1.5px solid ${filiereFiltreColor ? filiereFiltreColor.border : "var(--border)"}`,
+                      borderRadius: 20,
+                      color: filiereFiltreColor ? filiereFiltreColor.text : "var(--text-muted)",
+                      padding: "7px 30px 7px 14px",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      fontFamily: "var(--font-body)",
+                      letterSpacing: "0.02em",
+                      appearance: "none",
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+                      backgroundRepeat: "no-repeat",
+                      backgroundPosition: "right 10px center",
+                      transition: "all 0.18s",
+                    }}
+                  >
+                    <option value="">Toutes les filières</option>
+                    {filieres.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.nom} ({f.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ width: 1, height: 28, background: "var(--border)", flexShrink: 0 }} />
+              </>
+            )}
 
             {/* Filtres par niveau */}
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
