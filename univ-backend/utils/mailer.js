@@ -165,7 +165,7 @@ const sendCredentialsEmail = async (email, nom, matricule, motDePasse) => {
                             <path d="M13 12H22M19 9V12M22 9V12" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round"/>
                           </svg>
                           <span style="font-size:12px; color:#94a3b8; font-weight:500; text-transform:uppercase; letter-spacing:0.8px; vertical-align:middle;">
-                            Mot de passe temporaire
+                           Code de Confirmation du Compte de l'etudiant
                           </span>
                         </td>
                       </tr>

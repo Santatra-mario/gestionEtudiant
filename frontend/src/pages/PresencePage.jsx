@@ -28,6 +28,7 @@ import {
   StickyNote,
   Timer,
   X,
+  MessageSquare,
 } from "lucide-react";
 import {
   PageHeader,
@@ -236,6 +237,8 @@ function AddAbsenceModal({
     statut: "absent",
     motif: "",
     duree: "",
+    heure: "",
+    observation: "",
   });
   const [touched, setTouched] = useState({});
 
@@ -248,6 +251,8 @@ function AddAbsenceModal({
         statut: "absent",
         motif: "",
         duree: "",
+        heure: "",
+        observation: "",
       });
       setTouched({});
     }
@@ -268,13 +273,14 @@ function AddAbsenceModal({
       touched.inscription_id && !form.inscription_id ? "Étudiant requis" : "",
     matiere_id: touched.matiere_id && !form.matiere_id ? "Matière requise" : "",
     date: touched.date && !form.date ? "Date requise" : "",
+    heure: touched.heure && !form.heure ? "Veuillez renseigner l'heure de l'absence." : "",
   };
 
   const isFormValid =
-    !!form.inscription_id && !!form.matiere_id && !!form.date && !!form.statut;
+    !!form.inscription_id && !!form.matiere_id && !!form.date && !!form.statut && !!form.heure;
 
   const handleSubmit = () => {
-    setTouched({ inscription_id: true, matiere_id: true, date: true });
+    setTouched({ inscription_id: true, matiere_id: true, date: true, heure: true });
     if (isFormValid) onSave(form);
   };
 
@@ -545,6 +551,47 @@ function AddAbsenceModal({
               />
             </ModalField>
 
+            {/* ── Heure de l'absence (nouveau champ obligatoire) ── */}
+            <ModalField
+              label="Heure"
+              required
+              icon={Clock}
+              error={errors.heure}
+            >
+              <input
+                type="time"
+                value={form.heure}
+                onChange={set("heure")}
+                onBlur={touch("heure")}
+                style={getInputStyle(form.heure, !!errors.heure)}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = "var(--accent)";
+                  e.currentTarget.style.boxShadow =
+                    "0 0 0 3px rgba(99,102,241,0.15)";
+                }}
+                onBlurCapture={(e) => {
+                  if (!form.heure) {
+                    e.currentTarget.style.borderColor = errors.heure
+                      ? "#DC2626"
+                      : "var(--border)";
+                    e.currentTarget.style.boxShadow = "none";
+                  }
+                }}
+              />
+              <Clock
+                size={15}
+                style={{
+                  position: "absolute",
+                  left: 12,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  color: form.heure ? "var(--accent)" : "var(--text-muted)",
+                  pointerEvents: "none",
+                  transition: "color 0.2s",
+                }}
+              />
+            </ModalField>
+
             <ModalField label="Statut" required icon={AlertCircle}>
               <select
                 value={form.statut}
@@ -657,6 +704,46 @@ function AddAbsenceModal({
             />
           </ModalField>
 
+          {/* ── Observation / Remarque (nouveau champ facultatif) ── */}
+          <ModalField label="Observation / Remarque" icon={MessageSquare}>
+            <textarea
+              value={form.observation}
+              onChange={set("observation")}
+              placeholder="Ajouter une remarque ou un commentaire libre (facultatif)…"
+              rows={3}
+              style={{
+                ...getInputStyle(form.observation),
+                padding: "11px 14px 11px 38px",
+                resize: "vertical",
+                minHeight: 80,
+                fontFamily: "inherit",
+                width: "100%",
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = "var(--accent)";
+                e.currentTarget.style.boxShadow =
+                  "0 0 0 3px rgba(99,102,241,0.15)";
+              }}
+              onBlur={(e) => {
+                if (!form.observation) {
+                  e.currentTarget.style.borderColor = "var(--border)";
+                  e.currentTarget.style.boxShadow = "none";
+                }
+              }}
+            />
+            <MessageSquare
+              size={15}
+              style={{
+                position: "absolute",
+                left: 12,
+                top: 13,
+                color: form.observation ? "var(--accent)" : "var(--text-muted)",
+                pointerEvents: "none",
+                transition: "color 0.2s",
+              }}
+            />
+          </ModalField>
+
           {/* Barre de progression */}
           <div
             style={{
@@ -694,7 +781,7 @@ function AddAbsenceModal({
                     background: isFormValid
                       ? "var(--success)"
                       : "var(--accent)",
-                    width: `${([form.inscription_id, form.matiere_id, form.date, form.statut].filter(Boolean).length / 4) * 100}%`,
+                    width: `${([form.inscription_id, form.matiere_id, form.date, form.statut, form.heure].filter(Boolean).length / 5) * 100}%`,
                     transition: "width 0.3s ease, background 0.3s",
                   }}
                 />
@@ -713,9 +800,10 @@ function AddAbsenceModal({
                   form.matiere_id,
                   form.date,
                   form.statut,
+                  form.heure,
                 ].filter(Boolean).length
               }
-              /4
+              /5
             </span>
           </div>
         </div>

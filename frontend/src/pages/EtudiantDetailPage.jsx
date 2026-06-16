@@ -19,6 +19,7 @@ import {
   CreditCard,
   Printer,
   X,
+  Image as ImageIcon,
 } from "lucide-react";
 import api, { getPhotoUrl } from "../services/api";
 import { useNotification, NotificationDisplay } from "../hooks/useNotification";
@@ -74,10 +75,11 @@ function moyenneColor(m) {
   return parseFloat(m) >= 10 ? "var(--success)" : "var(--danger)";
 }
 
-/* ─── QR Code SVG simple (data matrix basé sur le matricule) ────────────── */
+/* ─── QR Code via api.qrserver.com ──────────────────────────────────────── */
 function QRCodeSVG({ value, size = 80 }) {
-  // Génère un QR code simple via l'API publique gratuite de QR Server
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(value)}&size=${size}x${size}&format=svg&bgcolor=ffffff&color=1a1a2e&margin=2`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(
+    value
+  )}&size=${size}x${size}&format=svg&bgcolor=ffffff&color=1a1a2e&margin=2`;
   return (
     <img
       src={qrUrl}
@@ -90,513 +92,620 @@ function QRCodeSVG({ value, size = 80 }) {
   );
 }
 
-/* ─── Composant : Carte d'étudiant imprimable ───────────────────────────── */
-function CarteEtudiantModal({ etudiant, onClose }) {
+/* ─── Champ d'aperçu de la carte ─────────────────────────────────────────── */
+function CarteField({ icon: Icon, label, value }) {
+  return (
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 8, minWidth: 0 }}>
+      <div
+        style={{
+          width: 26,
+          height: 26,
+          borderRadius: 7,
+          flexShrink: 0,
+          background: "rgba(29,78,216,0.08)",
+          border: "1px solid rgba(29,78,216,0.18)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Icon size={13} color="#1D4ED8" />
+      </div>
+      <div style={{ minWidth: 0 }}>
+        <div
+          style={{
+            fontSize: 9,
+            fontWeight: 700,
+            color: "#64748B",
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            marginBottom: 2,
+          }}
+        >
+          {label}
+        </div>
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            color: "#0F172A",
+            wordBreak: "break-word",
+            lineHeight: 1.3,
+          }}
+        >
+          {value || "—"}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Champ du formulaire d'édition de la carte ──────────────────────────── */
+function CarteFormField({ icon: Icon, label, children }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <label
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          fontSize: 11,
+          fontWeight: 700,
+          color: "#475569",
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+        }}
+      >
+        {Icon && <Icon size={12} color="#1D4ED8" />}
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+/* ─── Modal : Carte d'étudiant imprimable ────────────────────────────────── */
+function CarteEtudiantModal({ etudiant, historique = [], onClose }) {
   const cardRef = useRef(null);
   const [carteImgError, setCarteImgError] = useState(false);
-  // URL directe vers le backend — indépendante du imgError du parent
-  const photoSrc =
-    etudiant.photo && !carteImgError
-      ? getPhotoUrl(etudiant.photo)
-      : null;
 
+  const inscriptionRecente = historique?.[0] || null;
+
+  const [form, setForm] = useState({
+    photoUrl: etudiant.photo ? getPhotoUrl(etudiant.photo) : "",
+    nom: etudiant.nom || "",
+    prenom: etudiant.prenom || "",
+    idEtudiant: etudiant.matricule || "",
+    filiere: inscriptionRecente?.filiere_nom || "",
+    dateNaissance: etudiant.date_naissance
+      ? new Date(etudiant.date_naissance).toISOString().slice(0, 10)
+      : "",
+    anneeAcademique:
+      inscriptionRecente?.annee_universitaire ||
+      `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
+    telephone: etudiant.telephone || "",
+  });
+
+  const setField = (key) => (e) =>
+    setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const initials =
+    `${(form.prenom?.[0] || "").toUpperCase()}${(form.nom?.[0] || "").toUpperCase()}` ||
+    "??";
+
+  const photoSrc = form.photoUrl && !carteImgError ? form.photoUrl : null;
+
+  /* QR encode l'URL mockée de la page étudiant */
+  const qrData = `http://localhost:5173/etudiants/58`;
+
+  const dateNaissanceAffichee = form.dateNaissance
+    ? new Date(form.dateNaissance).toLocaleDateString("fr-FR", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      })
+    : "—";
+
+  /* ── Impression dans une nouvelle fenêtre ── */
   const handlePrint = () => {
     const printContent = cardRef.current;
     if (!printContent) return;
 
-    const printWindow = window.open("", "_blank", "width=800,height=600");
+    const printWindow = window.open("", "_blank", "width=900,height=700");
     printWindow.document.write(`
       <!DOCTYPE html>
-      <html>
+      <html lang="fr">
       <head>
-        <title>Carte Étudiant – ${etudiant.prenom} ${etudiant.nom}</title>
+        <title>Carte Étudiant – ${form.prenom} ${form.nom}</title>
         <meta charset="utf-8" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
+          @page {
+            size: A4;
+            margin: 2cm;
+          }
           body {
-            font-family: 'Segoe UI', Arial, sans-serif;
+            font-family: 'Inter', system-ui, sans-serif;
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
             min-height: 100vh;
-            background: #f0f4f8;
-          }
-          .card-wrapper {
-            width: 85.6mm;
-            height: 54mm;
-            page-break-inside: avoid;
+            background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%);
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            padding: 40px 20px;
           }
           @media print {
-            body { background: white; }
-            .card-wrapper { width: 85.6mm; height: 54mm; }
+            body {
+              background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%);
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
           }
         </style>
       </head>
       <body>
-        <div class="card-wrapper">
-          ${printContent.innerHTML}
-        </div>
+        ${printContent.outerHTML}
         <script>
           window.onload = function() {
-            setTimeout(function() { window.print(); window.close(); }, 500);
+            setTimeout(function() { window.print(); window.close(); }, 600);
           };
-        </script>
+        <\/script>
       </body>
       </html>
     `);
     printWindow.document.close();
   };
 
-  const qrData = `MATRICULE:${etudiant.matricule}|NOM:${etudiant.nom}|PRENOM:${etudiant.prenom}|EMAIL:${etudiant.email || ""}`;
+  const carteInputStyle = {
+    width: "100%",
+    boxSizing: "border-box",
+    border: "1.5px solid #CBD5E1",
+    borderRadius: 10,
+    padding: "9px 12px",
+    fontSize: 13.5,
+    color: "#0F172A",
+    background: "#fff",
+    outline: "none",
+    fontFamily: "'Inter', system-ui, sans-serif",
+    transition: "border-color 0.2s",
+  };
 
-  const inscriptionActive = etudiant.inscription_active || null;
+  /* ── Styles inline pour la carte imprimable ── */
+  const cardStyles = {
+    wrapper: {
+      position: "relative",
+      width: 380,
+      maxWidth: "100%",
+      background: "#FFFFFF",
+      borderRadius: 20,
+      overflow: "hidden",
+      boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
+      fontFamily: "'Inter', system-ui, sans-serif",
+    },
+    spine: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      bottom: 0,
+      width: 8,
+      background: "linear-gradient(180deg, #1D4ED8, #3B82F6)",
+      zIndex: 2,
+    },
+    header: {
+      height: 80,
+      marginLeft: 8,
+      background: "linear-gradient(135deg, #1D4ED8 0%, #3B82F6 100%)",
+      position: "relative",
+      overflow: "hidden",
+    },
+    headerPattern: {
+      position: "absolute",
+      inset: 0,
+      opacity: 0.12,
+      backgroundImage:
+        "radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)",
+      backgroundSize: "20px 20px",
+    },
+    headerLabel: {
+      position: "absolute",
+      top: 14,
+      right: 18,
+      fontSize: 10,
+      fontWeight: 700,
+      color: "rgba(255,255,255,0.85)",
+      textTransform: "uppercase",
+      letterSpacing: "0.14em",
+    },
+    headerYear: {
+      position: "absolute",
+      bottom: 12,
+      right: 18,
+      fontSize: 11,
+      fontWeight: 600,
+      color: "rgba(255,255,255,0.7)",
+      letterSpacing: "0.06em",
+    },
+    body: {
+      padding: "0 24px 22px",
+      marginLeft: 8,
+    },
+    avatarWrap: {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      marginTop: -50,
+      marginBottom: 16,
+    },
+    avatar: {
+      width: 96,
+      height: 96,
+      borderRadius: "50%",
+      border: "4px solid #FFFFFF",
+      boxShadow: "0 6px 20px rgba(29,78,216,0.28)",
+      objectFit: "cover",
+    },
+    avatarFallback: {
+      width: 96,
+      height: 96,
+      borderRadius: "50%",
+      background: "linear-gradient(135deg, #1D4ED8, #3B82F6)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      border: "4px solid #FFFFFF",
+      boxShadow: "0 6px 20px rgba(29,78,216,0.28)",
+      fontSize: 30,
+      fontWeight: 800,
+      color: "#fff",
+      letterSpacing: "-1px",
+    },
+    cardTitle: {
+      fontSize: 10,
+      fontWeight: 800,
+      color: "#1D4ED8",
+      textTransform: "uppercase",
+      letterSpacing: "0.14em",
+      marginTop: 12,
+      marginBottom: 4,
+    },
+    studentName: {
+      fontSize: 20,
+      fontWeight: 700,
+      color: "#0F172A",
+      textAlign: "center",
+      lineHeight: 1.25,
+      wordBreak: "break-word",
+    },
+    divider: {
+      height: 1,
+      background: "linear-gradient(90deg, transparent, #E2E8F0 20%, #E2E8F0 80%, transparent)",
+      margin: "16px 0",
+    },
+    fieldsGrid: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 14,
+      marginBottom: 16,
+    },
+    footer: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingTop: 14,
+      borderTop: "1px solid #E2E8F0",
+      gap: 10,
+    },
+    footerText: {
+      fontSize: 9,
+      color: "#64748B",
+      fontWeight: 600,
+      textTransform: "uppercase",
+      letterSpacing: "0.06em",
+      marginBottom: 4,
+    },
+    footerUrl: {
+      fontSize: 8,
+      color: "#94A3B8",
+      wordBreak: "break-all",
+      maxWidth: 180,
+    },
+    qrWrap: {
+      background: "#fff",
+      border: "1px solid #E2E8F0",
+      borderRadius: 10,
+      padding: 5,
+      flexShrink: 0,
+    },
+  };
 
   return (
     <div
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.75)",
+        background: "rgba(0,0,0,0.78)",
         zIndex: 1000,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        gap: 24,
-        padding: 24,
+        gap: 16,
+        padding: 20,
+        overflowY: "auto",
       }}
       onClick={onClose}
     >
-      {/* Titre et boutons */}
       <div
+        onClick={(e) => e.stopPropagation()}
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 16,
-          color: "#fff",
+          width: "min(920px, 100%)",
+          maxHeight: "93vh",
+          overflowY: "auto",
+          background: "linear-gradient(135deg, #F8FAFC 0%, #E2E8F0 100%)",
+          borderRadius: 22,
+          padding: 28,
+          boxShadow: "0 24px 80px rgba(0,0,0,0.45)",
         }}
-        onClick={(e) => e.stopPropagation()}
       >
-        <h2
-          style={{
-            fontSize: 20,
-            fontWeight: 700,
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
-          <CreditCard size={22} /> Carte d'étudiant
-        </h2>
-        <button
-          onClick={handlePrint}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            background: "#4f8ef7",
-            color: "#fff",
-            border: "none",
-            borderRadius: 8,
-            padding: "8px 16px",
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: "pointer",
-            transition: "background .2s",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "#2d6ee0")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "#4f8ef7")}
-        >
-          <Printer size={15} /> Imprimer
-        </button>
-        <button
-          onClick={onClose}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 34,
-            height: 34,
-            background: "rgba(255,255,255,0.15)",
-            border: "none",
-            borderRadius: "50%",
-            cursor: "pointer",
-            color: "#fff",
-          }}
-        >
-          <X size={16} />
-        </button>
-      </div>
-
-      {/* Carte principale (format CB : 85.6mm × 54mm ≈ 323px × 204px à 96dpi) */}
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{ filter: "drop-shadow(0 12px 40px rgba(0,0,0,0.5))" }}
-      >
+        {/* ── En-tête du modal ── */}
         <div
-          ref={cardRef}
           style={{
-            width: 340,
-            height: 215,
-            borderRadius: 14,
-            overflow: "hidden",
-            background: "linear-gradient(135deg, #0f0c29, #1a1a4e, #24243e)",
-            position: "relative",
-            fontFamily: "'Segoe UI', Arial, sans-serif",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 12,
+            marginBottom: 24,
           }}
         >
-          {/* Décoration fond */}
-          <div
-            style={{
-              position: "absolute",
-              top: -40,
-              right: -40,
-              width: 160,
-              height: 160,
-              borderRadius: "50%",
-              background: "rgba(79,142,247,0.12)",
-              pointerEvents: "none",
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              bottom: -30,
-              left: -30,
-              width: 120,
-              height: 120,
-              borderRadius: "50%",
-              background: "rgba(79,142,247,0.08)",
-              pointerEvents: "none",
-            }}
-          />
-
-          {/* Bande supérieure */}
-          <div
-            style={{
-              background: "linear-gradient(90deg, #4f8ef7, #2d6ee0)",
-              height: 6,
-              width: "100%",
-            }}
-          />
-
-          {/* Contenu carte */}
-          <div
-            style={{
-              display: "flex",
-              padding: "12px 14px 10px",
-              gap: 12,
-              height: "calc(100% - 6px)",
-            }}
-          >
-            {/* Colonne gauche : logo + photo */}
-            <div
+          <div>
+            <h2
               style={{
+                fontSize: 19,
+                fontWeight: 700,
+                color: "#0F172A",
                 display: "flex",
-                flexDirection: "column",
                 alignItems: "center",
-                gap: 8,
-                minWidth: 72,
+                gap: 9,
+                margin: 0,
+                fontFamily: "'Inter', system-ui, sans-serif",
               }}
             >
-              {/* Logo université */}
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 2,
-                }}
-              >
-                <div
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: "50%",
-                    background: "linear-gradient(135deg,#4f8ef7,#2d6ee0)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <GraduationCap size={15} color="#fff" />
-                </div>
-                <span
-                  style={{
-                    fontSize: 7,
-                    color: "#a0aec0",
-                    textAlign: "center",
-                    lineHeight: 1.2,
-                    fontWeight: 600,
-                    letterSpacing: "0.03em",
-                  }}
-                >
-                  UNIV.
-                  <br />
-                  GESTION
-                </span>
-              </div>
-
-              {/* Photo étudiant */}
-              {photoSrc ? (
-                <img
-                  src={photoSrc}
-                  alt={`${etudiant.prenom} ${etudiant.nom}`}
-                  onError={() => setCarteImgError(true)}
-                  crossOrigin="anonymous"
-                  style={{
-                    width: 64,
-                    height: 72,
-                    objectFit: "cover",
-                    borderRadius: 8,
-                    border: "2.5px solid #4f8ef7",
-                    boxShadow: "0 2px 12px rgba(79,142,247,0.35)",
-                    display: "block",
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: 64,
-                    height: 72,
-                    borderRadius: 8,
-                    background: "linear-gradient(135deg,#4f8ef7,#2d6ee0)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    border: "2.5px solid #4f8ef7",
-                    fontSize: 24,
-                    fontWeight: 700,
-                    color: "#fff",
-                  }}
-                >
-                  {`${(etudiant.prenom?.[0] || "").toUpperCase()}${(etudiant.nom?.[0] || "").toUpperCase()}`}
-                </div>
-              )}
-            </div>
-
-            {/* Colonne centrale : infos */}
-            <div
+              <CreditCard size={20} color="#1D4ED8" />
+              Carte d'étudiant
+            </h2>
+            <p style={{ fontSize: 12, color: "#64748B", margin: "4px 0 0 29px" }}>
+              Modifiez les champs et imprimez. Cliquez en dehors pour fermer.
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
+              onClick={handlePrint}
               style={{
-                flex: 1,
                 display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                minWidth: 0,
+                alignItems: "center",
+                gap: 7,
+                background: "linear-gradient(135deg, #1D4ED8, #3B82F6)",
+                color: "#fff",
+                border: "none",
+                borderRadius: 10,
+                padding: "10px 18px",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+                boxShadow: "0 4px 14px rgba(29,78,216,0.35)",
+                fontFamily: "'Inter', system-ui, sans-serif",
               }}
             >
-              {/* Header titre */}
-              <div>
-                <div
-                  style={{
-                    fontSize: 8,
-                    color: "#4f8ef7",
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.1em",
-                    marginBottom: 3,
-                  }}
-                >
-                  Carte d'Étudiant
-                </div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: "#fff",
-                    lineHeight: 1.25,
-                    wordBreak: "break-word",
-                  }}
-                >
-                  {etudiant.prenom} {etudiant.nom}
-                </div>
-              </div>
-
-              {/* Matricule */}
-              <div
-                style={{
-                  background: "rgba(79,142,247,0.15)",
-                  border: "1px solid rgba(79,142,247,0.3)",
-                  borderRadius: 5,
-                  padding: "3px 7px",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  alignSelf: "flex-start",
-                }}
-              >
-                <Hash size={9} color="#4f8ef7" />
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontFamily: "monospace",
-                    color: "#4f8ef7",
-                    fontWeight: 700,
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  {etudiant.matricule}
-                </span>
-              </div>
-
-              {/* Infos */}
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: 3 }}
-              >
-                {etudiant.date_naissance && (
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 5,
-                      fontSize: 9,
-                      color: "#cbd5e0",
-                    }}
-                  >
-                    <Calendar size={9} color="#4f8ef7" />
-                    Né(e) le{" "}
-                    {new Date(etudiant.date_naissance).toLocaleDateString(
-                      "fr-FR",
-                    )}
-                  </div>
-                )}
-                {etudiant.email && (
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 5,
-                      fontSize: 9,
-                      color: "#cbd5e0",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    <Mail size={9} color="#4f8ef7" />
-                    {etudiant.email}
-                  </div>
-                )}
-                {etudiant.telephone && (
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 5,
-                      fontSize: 9,
-                      color: "#cbd5e0",
-                    }}
-                  >
-                    <Phone size={9} color="#4f8ef7" />
-                    {etudiant.telephone}
-                  </div>
-                )}
-              </div>
-
-              {/* Statut */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 8,
-                    padding: "2px 7px",
-                    borderRadius: 20,
-                    fontWeight: 600,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                    background:
-                      etudiant.statut === "actif"
-                        ? "rgba(34,197,94,0.2)"
-                        : "rgba(239,68,68,0.2)",
-                    color:
-                      etudiant.statut === "actif" ? "#4ade80" : "#f87171",
-                    border: `1px solid ${etudiant.statut === "actif" ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
-                  }}
-                >
-                  ● {STATUT_LABELS[etudiant.statut] || etudiant.statut || "Actif"}
-                </div>
-                <div
-                  style={{
-                    fontSize: 7,
-                    color: "#718096",
-                    fontStyle: "italic",
-                  }}
-                >
-                  {new Date().getFullYear()}-{new Date().getFullYear() + 1}
-                </div>
-              </div>
-            </div>
-
-            {/* Colonne droite : QR code */}
-            <div
+              <Printer size={15} />
+              Télécharger / Imprimer en PDF
+            </button>
+            <button
+              onClick={onClose}
               style={{
                 display: "flex",
-                flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 4,
-                minWidth: 72,
+                width: 38,
+                height: 38,
+                background: "rgba(15,23,42,0.08)",
+                border: "none",
+                borderRadius: "50%",
+                cursor: "pointer",
+                color: "#0F172A",
               }}
             >
-              <div
-                style={{
-                  background: "#fff",
-                  borderRadius: 7,
-                  padding: 3,
-                  boxShadow: "0 2px 12px rgba(0,0,0,0.3)",
-                }}
-              >
-                <QRCodeSVG value={qrData} size={66} />
-              </div>
-              <span
-                style={{
-                  fontSize: 7,
-                  color: "#718096",
-                  textAlign: "center",
-                  lineHeight: 1.3,
-                }}
-              >
-                Scanner
-                <br />
-                pour vérifier
-              </span>
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* ── Grille : formulaire | aperçu ── */}
+        <div className="carte-modal-grid">
+
+          {/* ─ Formulaire d'édition ─ */}
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              padding: 20,
+              border: "1px solid #E2E8F0",
+              display: "flex",
+              flexDirection: "column",
+              gap: 14,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: "#1D4ED8",
+                textTransform: "uppercase",
+                letterSpacing: "0.1em",
+                marginBottom: 4,
+                borderBottom: "2px solid #EEF2FF",
+                paddingBottom: 8,
+              }}
+            >
+              Édition des champs
+            </div>
+
+            <CarteFormField icon={ImageIcon} label="Photo (URL)">
+              <input
+                type="text"
+                value={form.photoUrl}
+                onChange={setField("photoUrl")}
+                placeholder="https://exemple.com/photo.jpg"
+                style={carteInputStyle}
+              />
+            </CarteFormField>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <CarteFormField icon={User} label="Prénom">
+                <input value={form.prenom} onChange={setField("prenom")} style={carteInputStyle} />
+              </CarteFormField>
+              <CarteFormField icon={User} label="Nom">
+                <input value={form.nom} onChange={setField("nom")} style={carteInputStyle} />
+              </CarteFormField>
+            </div>
+
+            <CarteFormField icon={Hash} label="ID Étudiant">
+              <input value={form.idEtudiant} onChange={setField("idEtudiant")} style={carteInputStyle} />
+            </CarteFormField>
+
+            <CarteFormField icon={GraduationCap} label="Filière">
+              <input value={form.filiere} onChange={setField("filiere")} style={carteInputStyle} />
+            </CarteFormField>
+
+            <CarteFormField icon={Phone} label="Téléphone">
+              <input
+                type="tel"
+                value={form.telephone}
+                onChange={setField("telephone")}
+                placeholder="+261 XX XX XXX XX"
+                style={carteInputStyle}
+              />
+            </CarteFormField>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <CarteFormField icon={Calendar} label="Date de naissance">
+                <input
+                  type="date"
+                  value={form.dateNaissance}
+                  onChange={setField("dateNaissance")}
+                  style={carteInputStyle}
+                />
+              </CarteFormField>
+              <CarteFormField icon={Award} label="Année académique">
+                <input
+                  value={form.anneeAcademique}
+                  onChange={setField("anneeAcademique")}
+                  style={carteInputStyle}
+                />
+              </CarteFormField>
             </div>
           </div>
 
-          {/* Bande inférieure */}
+          {/* ─ Aperçu en direct ─ */}
           <div
             style={{
-              position: "absolute",
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: 4,
-              background: "linear-gradient(90deg, #4f8ef7, #2d6ee0, #a78bfa)",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "flex-start",
+              padding: "10px 0",
             }}
-          />
+          >
+            {/* ══ CARTE IMPRIMABLE (ref) ══ */}
+            <div ref={cardRef} style={cardStyles.wrapper}>
+
+              {/* Liseré gauche bleu */}
+              <div style={cardStyles.spine} />
+
+              {/* Bandeau supérieur dégradé */}
+              <div style={cardStyles.header}>
+                <div style={cardStyles.headerPattern} />
+                <div style={cardStyles.headerLabel}>CARTE D'ÉTUDIANT</div>
+                <div style={cardStyles.headerYear}>{form.anneeAcademique}</div>
+              </div>
+
+              {/* Corps de la carte */}
+              <div style={cardStyles.body}>
+
+                {/* Avatar + nom */}
+                <div style={cardStyles.avatarWrap}>
+                  {photoSrc ? (
+                    <img
+                      src={photoSrc}
+                      alt={`${form.prenom} ${form.nom}`}
+                      onError={() => setCarteImgError(true)}
+                      crossOrigin="anonymous"
+                      style={cardStyles.avatar}
+                    />
+                  ) : (
+                    <div style={cardStyles.avatarFallback}>{initials}</div>
+                  )}
+                  <div style={cardStyles.cardTitle}>CARTE D'ÉTUDIANT</div>
+                  <div style={cardStyles.studentName}>
+                    {form.prenom} {form.nom}
+                  </div>
+                </div>
+
+                <div style={cardStyles.divider} />
+
+                {/* Grille des champs 2×3 */}
+                <div style={cardStyles.fieldsGrid}>
+                  <CarteField icon={Hash} label="ID Étudiant" value={form.idEtudiant} />
+                  <CarteField icon={GraduationCap} label="Filière" value={form.filiere} />
+                  <CarteField icon={Calendar} label="Naissance" value={dateNaissanceAffichee} />
+                  <CarteField icon={Award} label="Année acad." value={form.anneeAcademique} />
+                  {form.telephone && (
+                    <CarteField
+                      icon={Phone}
+                      label="Téléphone"
+                      value={form.telephone}
+                    />
+                  )}
+                </div>
+
+                {/* Pied : QR code + scanner */}
+                <div style={cardStyles.footer}>
+                  <div>
+                    <div style={cardStyles.footerText}>Scanner pour vérifier</div>
+                    <div style={cardStyles.footerUrl}>{qrData}</div>
+                    <div style={{ fontSize: 8, color: "#94A3B8", marginTop: 3 }}>
+                      Valable {form.anneeAcademique}
+                    </div>
+                  </div>
+                  <div style={cardStyles.qrWrap}>
+                    <QRCodeSVG value={qrData} size={68} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <p
-        style={{
-          color: "rgba(255,255,255,0.5)",
-          fontSize: 12,
-          textAlign: "center",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        Cliquez en dehors de la carte pour fermer · Format CB (85.6 × 54 mm)
-      </p>
+      <style>{`
+        .carte-modal-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 20px;
+        }
+        @media (min-width: 820px) {
+          .carte-modal-grid {
+            grid-template-columns: 310px 1fr;
+          }
+        }
+      `}</style>
     </div>
   );
 }
 
-/* ─── Composant : Ligne d'information avec emojis pour le sexe ───────────── */
+/* ─── Ligne d'info ───────────────────────────────────────────────────────── */
 function InfoRow({ label, value, icon: Icon, last = false }) {
   if (!value) return null;
 
@@ -606,14 +715,14 @@ function InfoRow({ label, value, icon: Icon, last = false }) {
   if (label === "Genre" || label === "Sexe") {
     if (value.includes("Masculin") || value === "M" || value === "♂ Masculin") {
       displayValue = "♂ Masculin";
-      SexeIcon = () => <span className="text-blue-500 mr-2">👨</span>;
+      SexeIcon = () => <span style={{ marginRight: 4 }}></span>;
     } else if (
       value.includes("Féminin") ||
       value === "F" ||
       value === "♀ Féminin"
     ) {
       displayValue = "♀ Féminin";
-      SexeIcon = () => <span className="text-pink-500 mr-2">👩</span>;
+      SexeIcon = () => <span style={{ marginRight: 4 }}></span>;
     }
   }
 
@@ -641,15 +750,7 @@ function InfoRow({ label, value, icon: Icon, last = false }) {
             justifyContent: "center",
           }}
         >
-          {label === "Genre" || label === "Sexe" ? (
-            SexeIcon ? (
-              <SexeIcon />
-            ) : (
-              <Icon size={13} color="var(--accent)" />
-            )
-          ) : (
-            <Icon size={13} color="var(--accent)" />
-          )}
+          <Icon size={13} color="var(--accent)" />
         </div>
       )}
       <div style={{ minWidth: 0 }}>
@@ -689,7 +790,7 @@ function InfoRow({ label, value, icon: Icon, last = false }) {
   );
 }
 
-/* ─── Composant : Stat résumé ────────────────────────────────────────────── */
+/* ─── Stat résumé ────────────────────────────────────────────────────────── */
 function StatPill({ label, value, color = "var(--text)" }) {
   return (
     <div
@@ -707,7 +808,7 @@ function StatPill({ label, value, color = "var(--text)" }) {
   );
 }
 
-/* ─── Composant : Carte d'inscription (historique) ──────────────────────── */
+/* ─── Carte d'inscription ────────────────────────────────────────────────── */
 function InscriptionCard({ h, onViewNotes }) {
   const moyenne = h.moyenne != null ? parseFloat(h.moyenne) : null;
   const MIcon = mention_icon[h.mention] || Clock;
@@ -731,7 +832,6 @@ function InscriptionCard({ h, onViewNotes }) {
         e.currentTarget.style.boxShadow = "none";
       }}
     >
-      {/* En-tête de la carte */}
       <div
         style={{
           display: "flex",
@@ -782,14 +882,11 @@ function InscriptionCard({ h, onViewNotes }) {
             {h.statut}
           </Badge>
           {h.mention && (
-            <Badge color={MENTION_COLOR[h.mention] || "muted"}>
-              {h.mention}
-            </Badge>
+            <Badge color={MENTION_COLOR[h.mention] || "muted"}>{h.mention}</Badge>
           )}
         </div>
       </div>
 
-      {/* Bloc moyenne */}
       {moyenne != null ? (
         <div
           style={{
@@ -809,7 +906,9 @@ function InscriptionCard({ h, onViewNotes }) {
                 flexShrink: 0,
                 background:
                   moyenne >= 10 ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
-                border: `1px solid ${moyenne >= 10 ? "rgba(34,197,94,0.25)" : "rgba(239,68,68,0.25)"}`,
+                border: `1px solid ${
+                  moyenne >= 10 ? "rgba(34,197,94,0.25)" : "rgba(239,68,68,0.25)"
+                }`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -942,34 +1041,9 @@ function InscriptionCard({ h, onViewNotes }) {
         </div>
       )}
 
-      <Btn
-        small
-        variant="ghost"
-        onClick={onViewNotes}
-        icon={<BookOpen size={13} />}
-      >
+      <Btn small variant="ghost" onClick={onViewNotes} icon={<BookOpen size={13} />}>
         Consulter les notes
       </Btn>
-    </div>
-  );
-}
-
-/* ─── Composant amélioré pour afficher le sexe avec emoji ───────────────── */
-function GenderDisplay({ sexe }) {
-  if (!sexe) return null;
-
-  const isMale = sexe === "M" || sexe === "Masculin" || sexe === "♂";
-  const genderText = isMale ? "Masculin" : "Féminin";
-  const genderEmoji = isMale ? "👨" : "👩";
-  const genderIcon = isMale ? "♂" : "♀";
-  const colorClass = isMale ? "text-blue-500" : "text-pink-500";
-
-  return (
-    <div className="flex items-center gap-2">
-      <span className={`text-xl ${colorClass}`}>{genderEmoji}</span>
-      <span className="font-medium">
-        {genderIcon} {genderText}
-      </span>
     </div>
   );
 }
@@ -1003,7 +1077,7 @@ export default function EtudiantDetailPage() {
         setEtudiant(e.data.data);
         setHistorique(h.data.data);
         success(
-          `Dossier de ${e.data.data.prenom} ${e.data.data.nom} chargé avec succès.`,
+          `Dossier de ${e.data.data.prenom} ${e.data.data.nom} chargé avec succès.`
         );
       })
       .catch(() => {
@@ -1015,7 +1089,7 @@ export default function EtudiantDetailPage() {
 
   const handleViewNotes = (h) => {
     success(
-      `Ouverture des notes — ${h.filiere_nom} (${h.annee_universitaire}, ${h.niveau})`,
+      `Ouverture des notes — ${h.filiere_nom} (${h.annee_universitaire}, ${h.niveau})`
     );
     setTimeout(() => navigate(`/notes?inscription=${h.id}`), 600);
   };
@@ -1036,20 +1110,17 @@ export default function EtudiantDetailPage() {
   if (error) return <Alert type="danger">{error}</Alert>;
   if (!etudiant) return <Alert type="warning">Étudiant introuvable.</Alert>;
 
-  /* ── Photo : URL corrigée vers le backend port 3000 ── */
   const photoSrc =
-    etudiant.photo && !imgError
-      ? getPhotoUrl(etudiant.photo)
-      : null;
+    etudiant.photo && !imgError ? getPhotoUrl(etudiant.photo) : null;
 
   const idx = (etudiant.prenom?.charCodeAt(0) || 0) % AVATAR_COLORS.length;
   const [gradFrom, gradTo] = AVATAR_COLORS[idx];
-  const initials = `${(etudiant.prenom?.[0] || "").toUpperCase()}${(etudiant.nom?.[0] || "").toUpperCase()}`;
+  const initials = `${(etudiant.prenom?.[0] || "").toUpperCase()}${(
+    etudiant.nom?.[0] || ""
+  ).toUpperCase()}`;
 
   const nbAdmis = historique.filter((h) => h.mention === "Admis").length;
-  const nbRattrapage = historique.filter(
-    (h) => h.mention === "Rattrapage",
-  ).length;
+  const nbRattrapage = historique.filter((h) => h.mention === "Rattrapage").length;
   const nbAjourn = historique.filter((h) => h.mention === "Ajourné").length;
   const moyennes = historique
     .filter((h) => h.moyenne != null)
@@ -1059,37 +1130,20 @@ export default function EtudiantDetailPage() {
       ? (moyennes.reduce((a, b) => a + b, 0) / moyennes.length).toFixed(2)
       : null;
 
-  const getGenderDisplay = () => {
-    const sexe = etudiant.sexe;
-    if (sexe === "M") {
-      return { text: "♂ Masculin", emoji: "👨", icon: "♂", color: "text-blue-500" };
-    } else if (sexe === "F") {
-      return { text: "♀ Féminin", emoji: "👩", icon: "♀", color: "text-pink-500" };
-    }
-    return { text: sexe || "Non spécifié", emoji: "❓", icon: "", color: "text-gray-500" };
-  };
-
-  const genderInfo = getGenderDisplay();
-
   return (
     <div className="page-enter">
       {/* Modal carte étudiant */}
       {showCarte && (
         <CarteEtudiantModal
           etudiant={etudiant}
+          historique={historique}
           onClose={() => setShowCarte(false)}
         />
       )}
 
-      <NotificationDisplay
-        notification={notification}
-        onClose={hideNotification}
-      />
+      <NotificationDisplay notification={notification} onClose={hideNotification} />
 
-      <PageHeader
-        title={`${etudiant.prenom} ${etudiant.nom}`}
-        back={() => navigate(-1)}
-      />
+      <PageHeader title={`${etudiant.prenom} ${etudiant.nom}`} back={() => navigate(-1)} />
 
       <div
         style={{
@@ -1099,9 +1153,10 @@ export default function EtudiantDetailPage() {
           alignItems: "start",
         }}
       >
-        {/* ════════════════════ COLONNE GAUCHE ════════════════════ */}
+        {/* ════════ COLONNE GAUCHE ════════ */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* ── Carte profil ── */}
+
+          {/* Profil */}
           <div
             style={{
               background: "var(--surface)",
@@ -1111,7 +1166,7 @@ export default function EtudiantDetailPage() {
               boxShadow: "var(--shadow-sm)",
             }}
           >
-            {/* Bandeau décoratif */}
+            {/* Bandeau */}
             <div
               style={{
                 height: 72,
@@ -1133,7 +1188,6 @@ export default function EtudiantDetailPage() {
             </div>
 
             <div style={{ padding: "0 20px 20px", position: "relative" }}>
-              {/* Photo / Avatar */}
               <div
                 style={{
                   display: "flex",
@@ -1143,7 +1197,6 @@ export default function EtudiantDetailPage() {
                   marginBottom: 16,
                 }}
               >
-                {/* ── PHOTO CORRIGÉE : URL vers localhost:3000 ── */}
                 {photoSrc ? (
                   <img
                     src={photoSrc}
@@ -1179,7 +1232,6 @@ export default function EtudiantDetailPage() {
                   </div>
                 )}
 
-                {/* Nom & Matricule */}
                 <div style={{ marginTop: 12, textAlign: "center" }}>
                   <div
                     style={{
@@ -1216,10 +1268,7 @@ export default function EtudiantDetailPage() {
                         : etudiant.statut;
                     return (
                       <div style={{ marginTop: 10 }}>
-                        <Badge
-                          color={STATUT_COLOR[statutAffiche] || "muted"}
-                          dot
-                        >
+                        <Badge color={STATUT_COLOR[statutAffiche] || "muted"} dot>
                           {STATUT_LABELS[statutAffiche] || statutAffiche}
                         </Badge>
                       </div>
@@ -1239,27 +1288,14 @@ export default function EtudiantDetailPage() {
                   value={fmtDate(etudiant.date_naissance)}
                   icon={Calendar}
                 />
-                <InfoRow
-                  label="Adresse e-mail"
-                  value={etudiant.email}
-                  icon={Mail}
-                />
-                <InfoRow
-                  label="Téléphone"
-                  value={etudiant.telephone}
-                  icon={Phone}
-                />
-                <InfoRow
-                  label="Adresse"
-                  value={etudiant.adresse}
-                  icon={MapPin}
-                  last
-                />
+                <InfoRow label="Téléphone" value={etudiant.telephone} icon={Phone} />
+                <InfoRow label="Adresse e-mail" value={etudiant.email} icon={Mail} />
+                <InfoRow label="Adresse" value={etudiant.adresse} icon={MapPin} last />
               </div>
             </div>
           </div>
 
-          {/* ── Bouton Carte étudiant ── */}
+          {/* Bouton Carte */}
           <Btn
             variant="accent"
             onClick={() => setShowCarte(true)}
@@ -1269,7 +1305,7 @@ export default function EtudiantDetailPage() {
             Carte d'étudiant
           </Btn>
 
-          {/* ── Bouton retour ── */}
+          {/* Bouton retour */}
           <Btn
             variant="ghost"
             onClick={() => navigate(-1)}
@@ -1280,7 +1316,7 @@ export default function EtudiantDetailPage() {
           </Btn>
         </div>
 
-        {/* ════════════════════ COLONNE DROITE ════════════════════ */}
+        {/* ════════ COLONNE DROITE ════════ */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div
             style={{
@@ -1377,8 +1413,7 @@ export default function EtudiantDetailPage() {
                   lineHeight: 1.6,
                 }}
               >
-                Cet étudiant n'a encore aucune inscription enregistrée dans le
-                système.
+                Cet étudiant n'a encore aucune inscription enregistrée dans le système.
               </div>
             </div>
           ) : (
@@ -1436,16 +1471,8 @@ export default function EtudiantDetailPage() {
 
               <StatPill label="Total inscriptions" value={historique.length} />
               <StatPill label="Admis" value={nbAdmis} color="var(--success)" />
-              <StatPill
-                label="Rattrapages"
-                value={nbRattrapage}
-                color="var(--warning)"
-              />
-              <StatPill
-                label="Ajournés"
-                value={nbAjourn}
-                color="var(--danger)"
-              />
+              <StatPill label="Rattrapages" value={nbRattrapage} color="var(--warning)" />
+              <StatPill label="Ajournés" value={nbAjourn} color="var(--danger)" />
 
               {moyGlobale !== null && (
                 <div

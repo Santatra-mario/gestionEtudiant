@@ -20,7 +20,9 @@ const api = axios.create({
 // ── Helper : construit l'URL complète d'une photo étudiant ───────────────────
 export function getPhotoUrl(filename) {
   if (!filename) return null;
-  // Nettoie les doubles slashes
+  // Si c'est déjà une URL complète (Cloudinary), on la retourne directement
+  if (filename.startsWith("http")) return filename;
+  // Sinon ancien format local
   const baseUrl = UPLOADS_URL.endsWith("/")
     ? UPLOADS_URL.slice(0, -1)
     : UPLOADS_URL;

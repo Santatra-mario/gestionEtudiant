@@ -640,6 +640,26 @@ function EtudiantModal({ onClose, onSaved, initial }) {
     adresse: "",
   });
 
+  // ── VALIDATION ÂGE MINIMUM (13 ans révolus) ─────────────────────────────
+  // Calcul précis : compare année/mois/jour pour éviter les faux positifs
+  // (ex : né le 31/12/2013 → n'a pas encore 13 ans le 01/01/2026)
+  const calcAgeExact = (dateStr) => {
+    if (!dateStr) return null;
+    const dob = new Date(dateStr);
+    const now = new Date();
+    let age = now.getFullYear() - dob.getFullYear();
+    const monthDiff = now.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < dob.getDate())) {
+      age--;
+    }
+    return age;
+  };
+  const ageActuel = calcAgeExact(form.date_naissance);
+  const ageError =
+    form.date_naissance && ageActuel !== null && ageActuel < 13
+      ? `L'étudiant a ${ageActuel} an${ageActuel > 1 ? "s" : ""} — l'âge minimum requis est 13 ans.`
+      : "";
+
   const showNotification = (message, type = "success", details = null) => {
     setToast({ message, type, details });
   };
@@ -727,6 +747,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
     form.nom.trim() &&
     form.prenom.trim() &&
     form.date_naissance &&
+    !ageError &&
     !phoneError &&
     !hasFieldError();
 
@@ -744,6 +765,11 @@ function EtudiantModal({ onClose, onSaved, initial }) {
   const handleSubmit = async (e) => {
     e && e.preventDefault();
     if (!isValid) return;
+    // ── Garde côté soumission : double vérification âge minimum ──────────
+    if (ageError) {
+      showNotification("Soumission refusée", "error", ageError);
+      return;
+    }
     setError("");
     setLoading(true);
     try {
@@ -972,15 +998,81 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                     hint="Sélectionnez une date passée"
                     min="1900-01-01"
                     max={today}
+                    style={
+                      ageError
+                        ? {
+                            borderColor: "#DC2626",
+                            boxShadow: "0 0 0 3px #FEE2E2",
+                            outline: "none",
+                          }
+                        : undefined
+                    }
                   />
+                  {/* ── Message d'erreur âge minimum ── */}
+                  {ageError && (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        marginTop: 8,
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        background: "#FEF2F2",
+                        border: "1px solid #FECACA",
+                      }}
+                    >
+                      <AlertCircle
+                        size={16}
+                        style={{ color: "#DC2626", flexShrink: 0 }}
+                      />
+                      <div>
+                        <span
+                          style={{
+                            fontSize: 13,
+                            color: "#DC2626",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {ageError}
+                        </span>
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: "#9B1C1C",
+                            marginTop: 2,
+                          }}
+                        >
+                          L'âge minimum requis pour intégrer l'établissement est de 13 ans.
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {/* ── Indicateur de validation réussie ── */}
+                  {form.date_naissance && !ageError && (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        marginTop: 6,
+                        fontSize: 12,
+                        color: "#16A34A",
+                        fontWeight: 500,
+                      }}
+                    >
+                      <CheckCircle2 size={13} />
+                      {ageActuel} ans — âge valide
+                    </div>
+                  )}
                   <Select
                     label="Sexe"
                     required
                     value={form.sexe}
                     onChange={set("sexe")}
                   >
-                    <option value="M">👦 Masculin</option>
-                    <option value="F">👧 Féminin</option>
+                    <option value="M"> Masculin</option>
+                    <option value="F"> Féminin</option>
                   </Select>
                 </FormRow>
               </FormSection>

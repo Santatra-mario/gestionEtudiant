@@ -261,7 +261,7 @@ const update = async (req, res) => {
       email: email ? email.trim() : null,
     };
 
-    if (req.file) fields.photo = req.file.filename;
+    if (req.file) fields.photo = req.file.path;
 
 
     const keys = Object.keys(fields);

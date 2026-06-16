@@ -63,11 +63,18 @@ router.get("/", async (req, res) => {
 // POST /api/presences - Créer une présence
 router.post("/", async (req, res) => {
   try {
-    const { inscription_id, matiere_id, date, statut, enregistre_par } =
-      req.body;
+    const {
+      inscription_id,
+      matiere_id,
+      date,
+      statut,
+      enregistre_par,
+      heure,        // nouveau : heure de l'absence (ex: "09:30")
+      observation,  // nouveau : remarque libre de la secrétaire
+    } = req.body;
 
-    // Validation
-    if (!inscription_id || !matiere_id || !date || !statut) {
+    // Validation des champs obligatoires (heure désormais requis)
+    if (!inscription_id || !matiere_id || !date || !statut || !heure) {
       return res.status(400).json({ message: "Champs obligatoires manquants" });
     }
 
@@ -83,10 +90,10 @@ router.post("/", async (req, res) => {
     );
 
     if (existing.length > 0) {
-      // Mettre à jour la présence existante
+      // Mettre à jour la présence existante (inclut heure et observation)
       await db.execute(
-        "UPDATE presences SET statut = ?, enregistre_par = ?, updated_at = NOW() WHERE id = ?",
-        [statut, enregistre_par || null, existing[0].id],
+        "UPDATE presences SET statut = ?, heure_debut = ?, observation = ?, enregistre_par = ?, updated_at = NOW() WHERE id = ?",
+        [statut, heure || null, observation || null, enregistre_par || null, existing[0].id],
       );
       return res.json({
         message: "Présence mise à jour avec succès",
@@ -94,10 +101,10 @@ router.post("/", async (req, res) => {
       });
     }
 
-    // Créer une nouvelle présence
+    // Créer une nouvelle présence avec heure_debut et observation
     const [result] = await db.execute(
-      "INSERT INTO presences (inscription_id, matiere_id, date, statut, enregistre_par, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
-      [inscription_id, matiere_id, date, statut, enregistre_par || null],
+      "INSERT INTO presences (inscription_id, matiere_id, date, statut, heure_debut, observation, enregistre_par, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())",
+      [inscription_id, matiere_id, date, statut, heure || null, observation || null, enregistre_par || null],
     );
 
     res.json({
@@ -134,7 +141,12 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { statut, enregistre_par } = req.body;
+    const {
+      statut,
+      enregistre_par,
+      heure,        // nouveau
+      observation,  // nouveau
+    } = req.body;
 
     const statutsValides = ["present", "absent", "retard", "excuse"];
     if (!statutsValides.includes(statut)) {
@@ -142,8 +154,8 @@ router.put("/:id", async (req, res) => {
     }
 
     const [result] = await db.execute(
-      "UPDATE presences SET statut = ?, enregistre_par = ?, updated_at = NOW() WHERE id = ?",
-      [statut, enregistre_par || null, id],
+      "UPDATE presences SET statut = ?, heure_debut = ?, observation = ?, enregistre_par = ?, updated_at = NOW() WHERE id = ?",
+      [statut, heure || null, observation || null, enregistre_par || null, id],
     );
 
     if (result.affectedRows === 0) {

@@ -2,7 +2,8 @@ const express = require('express');
 const router  = express.Router();
 const ctrl    = require('../controllers/etudiantController');
 const { verifyToken, authorizeRoles } = require('../middleware/auth');
-const upload = require('../middleware/upload');
+const { upload } = require('../config/cloudinary');
+
 router.use(verifyToken);
 router.get ('/',     ctrl.getAll);
 router.get ('/:id',  ctrl.getOne);
