@@ -1149,7 +1149,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
               {!isEdit && (
                 <FormSection title="Mot de passe" icon={Lock}>
                   <Input
-                    label="Mot de passe (portail étudiant)"
+                    label="Code de Confirmation de l'etudiant (portail étudiant)"
                     type="password"
                     value={form.password}
                     onChange={(e) =>
@@ -1160,7 +1160,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                     hint="Minimum 6 caractères"
                   />
                   <Input
-                    label="Confirmer le mot de passe"
+                    label="Confirmer le code de confirmation"
                     type="password"
                     value={form.password_confirm}
                     onChange={(e) =>

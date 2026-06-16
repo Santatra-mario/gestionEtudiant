@@ -11,12 +11,10 @@ import {
   GraduationCap,
   Clock,
   Award,
-  Filter,
   RotateCcw,
   BookMarked,
   User,
   Layers,
-  AlertCircle,
   CheckCircle,
   BookText,
 } from "lucide-react";
@@ -53,25 +51,24 @@ const SEMESTRES_PAR_NIVEAU = {
   M2: ["S9", "S10"],
 };
 
-// Tous les semestres (fallback si pas de niveau sélectionné)
 const SEMESTRES_TOUS = ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10"];
 
 const NIVEAU_COLORS = {
   L1: { bg: "rgba(102,126,234,0.12)", text: "#667eea", border: "rgba(102,126,234,0.3)" },
-  L2: { bg: "rgba(168,85,247,0.12)", text: "#a855f7", border: "rgba(168,85,247,0.3)" },
-  L3: { bg: "rgba(6,182,212,0.12)", text: "#06b6d4", border: "rgba(6,182,212,0.3)" },
-  M1: { bg: "rgba(34,197,94,0.12)", text: "#22c55e", border: "rgba(34,197,94,0.3)" },
-  M2: { bg: "rgba(249,115,22,0.12)", text: "#f97316", border: "rgba(249,115,22,0.3)" },
+  L2: { bg: "rgba(168,85,247,0.12)",  text: "#a855f7", border: "rgba(168,85,247,0.3)" },
+  L3: { bg: "rgba(6,182,212,0.12)",   text: "#06b6d4", border: "rgba(6,182,212,0.3)" },
+  M1: { bg: "rgba(34,197,94,0.12)",   text: "#22c55e", border: "rgba(34,197,94,0.3)" },
+  M2: { bg: "rgba(249,115,22,0.12)",  text: "#f97316", border: "rgba(249,115,22,0.3)" },
 };
 
 // ─── Palette couleurs filières (cycle automatique) ────────────────────────
 const FILIERE_COLORS = [
-  { bg: "rgba(236,72,153,0.12)", text: "#ec4899", border: "rgba(236,72,153,0.3)" },
-  { bg: "rgba(245,158,11,0.12)", text: "#f59e0b", border: "rgba(245,158,11,0.3)" },
-  { bg: "rgba(16,185,129,0.12)", text: "#10b981", border: "rgba(16,185,129,0.3)" },
-  { bg: "rgba(99,102,241,0.12)", text: "#6366f1", border: "rgba(99,102,241,0.3)" },
-  { bg: "rgba(239,68,68,0.12)",  text: "#ef4444", border: "rgba(239,68,68,0.3)"  },
-  { bg: "rgba(14,165,233,0.12)", text: "#0ea5e9", border: "rgba(14,165,233,0.3)" },
+  { bg: "rgba(236,72,153,0.12)",  text: "#ec4899", border: "rgba(236,72,153,0.3)" },
+  { bg: "rgba(245,158,11,0.12)",  text: "#f59e0b", border: "rgba(245,158,11,0.3)" },
+  { bg: "rgba(16,185,129,0.12)",  text: "#10b981", border: "rgba(16,185,129,0.3)" },
+  { bg: "rgba(99,102,241,0.12)",  text: "#6366f1", border: "rgba(99,102,241,0.3)" },
+  { bg: "rgba(239,68,68,0.12)",   text: "#ef4444", border: "rgba(239,68,68,0.3)"  },
+  { bg: "rgba(14,165,233,0.12)",  text: "#0ea5e9", border: "rgba(14,165,233,0.3)" },
 ];
 
 // ─── Select stylisé réutilisable ──────────────────────────────────────────
@@ -132,22 +129,22 @@ const FieldLabel = ({ icon: Icon, children, required }) => (
   </label>
 );
 
-// ─── Formulaire de matière ──────────────────────────────────────────────────
+// ─── Formulaire de matière ────────────────────────────────────────────────
 function MatiereModal({ onClose, onSaved, onSuccess, onError, matiere }) {
   const isEdit = !!matiere;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({
-    code_matiere: matiere?.code_matiere || "",
-    nom_matiere: matiere?.nom_matiere || "",
-    filiere_id: matiere?.filiere_id || "",
-    niveau: matiere?.niveau || "",
-    semestre: matiere?.semestre || "",
-    credit: matiere?.credit || "",
+    code_matiere:   matiere?.code_matiere   || "",
+    nom_matiere:    matiere?.nom_matiere    || "",
+    filiere_id:     matiere?.filiere_id     || "",
+    niveau:         matiere?.niveau         || "",
+    semestre:       matiere?.semestre       || "",
+    credit:         matiere?.credit         || "",
     volume_horaire: matiere?.volume_horaire || "",
-    enseignant_id: matiere?.enseignant_id || "",
+    enseignant_id:  matiere?.enseignant_id  || "",
   });
-  const [filieres, setFilieres] = useState([]);
+  const [filieres, setFilieres]     = useState([]);
   const [enseignants, setEnseignants] = useState([]);
 
   // Semestres disponibles selon le niveau sélectionné
@@ -156,15 +153,14 @@ function MatiereModal({ onClose, onSaved, onSuccess, onError, matiere }) {
     : SEMESTRES_TOUS;
 
   useEffect(() => {
-    api
-      .get("/filieres")
+    api.get("/filieres")
       .then((r) => {
         const data = r.data?.data || r.data || [];
         setFilieres(Array.isArray(data) ? data : []);
       })
       .catch(() => setFilieres([]));
-    api
-      .get("/filieres/enseignants/liste")
+
+    api.get("/filieres/enseignants/liste")
       .then((r) => {
         const data = r.data?.data || r.data || [];
         setEnseignants(Array.isArray(data) ? data : []);
@@ -174,15 +170,11 @@ function MatiereModal({ onClose, onSaved, onSuccess, onError, matiere }) {
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  // ── Quand le niveau change, on réinitialise le semestre au 1er semestre du niveau ──
+  // Quand le niveau change → réinitialise le semestre au 1er du niveau
   const handleNiveauChange = (e) => {
     const newNiveau = e.target.value;
     const sems = SEMESTRES_PAR_NIVEAU[newNiveau] || [];
-    setForm((f) => ({
-      ...f,
-      niveau: newNiveau,
-      semestre: sems[0] || "",
-    }));
+    setForm((f) => ({ ...f, niveau: newNiveau, semestre: sems[0] || "" }));
   };
 
   const isValid =
@@ -196,24 +188,24 @@ function MatiereModal({ onClose, onSaved, onSuccess, onError, matiere }) {
     try {
       const payload = {
         ...form,
-        credit: form.credit ? parseFloat(form.credit) : null,
-        volume_horaire: form.volume_horaire ? parseInt(form.volume_horaire) : null,
-        filiere_id: form.filiere_id || null,
-        enseignant_id: form.enseignant_id || null,
+        credit:         form.credit         ? parseFloat(form.credit)         : null,
+        volume_horaire: form.volume_horaire  ? parseInt(form.volume_horaire)   : null,
+        filiere_id:     form.filiere_id     || null,
+        enseignant_id:  form.enseignant_id  || null,
       };
       if (isEdit) {
         await api.put(`/matieres/${matiere.id}`, payload);
-        onSuccess && onSuccess(`Matière "${form.nom_matiere}" mise à jour avec succès`);
+        onSuccess?.(`Matière "${form.nom_matiere}" mise à jour avec succès`);
       } else {
         await api.post("/matieres", payload);
-        onSuccess && onSuccess(`Matière "${form.nom_matiere}" créée avec succès`);
+        onSuccess?.(`Matière "${form.nom_matiere}" créée avec succès`);
       }
       onClose();
       setTimeout(() => onSaved(), 300);
     } catch (err) {
       const msg = err.response?.data?.message || "Erreur lors de l'enregistrement";
       setError(msg);
-      onError && onError(msg);
+      onError?.(msg);
     } finally {
       setLoading(false);
     }
@@ -233,6 +225,7 @@ function MatiereModal({ onClose, onSaved, onSuccess, onError, matiere }) {
         )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+          {/* ── Section Identification ── */}
           <FormSection title="Identification" icon={BookText}>
             <FormRow>
               <Input
@@ -256,9 +249,10 @@ function MatiereModal({ onClose, onSaved, onSuccess, onError, matiere }) {
             </FormRow>
           </FormSection>
 
+          {/* ── Section Affectation ── */}
           <FormSection title="Affectation" icon={GraduationCap}>
             <FormRow>
-              {/* ── Niveau ── */}
+              {/* Niveau */}
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <FieldLabel icon={Layers} required>Niveau</FieldLabel>
                 <StyledSelect
@@ -275,7 +269,7 @@ function MatiereModal({ onClose, onSaved, onSuccess, onError, matiere }) {
                 </StyledSelect>
               </div>
 
-              {/* ── Semestre (filtré selon le niveau) ── */}
+              {/* Semestre filtré selon le niveau */}
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <FieldLabel icon={BookMarked}>
                   Semestre
@@ -307,35 +301,28 @@ function MatiereModal({ onClose, onSaved, onSuccess, onError, matiere }) {
 
                 {/* Indicateur visuel des semestres du niveau */}
                 {form.niveau && (
-                  <div style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    marginTop: 2,
-                  }}>
-                    {(SEMESTRES_PAR_NIVEAU[form.niveau] || []).map((s) => (
-                      <span
-                        key={s}
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 700,
-                          padding: "2px 8px",
-                          borderRadius: 10,
-                          background: form.semestre === s
-                            ? NIVEAU_COLORS[form.niveau]?.bg
-                            : "var(--surface2)",
-                          color: form.semestre === s
-                            ? NIVEAU_COLORS[form.niveau]?.text
-                            : "var(--text-muted)",
-                          border: `1px solid ${form.semestre === s
-                            ? NIVEAU_COLORS[form.niveau]?.border
-                            : "var(--border)"}`,
-                          transition: "all 0.15s",
-                        }}
-                      >
-                        {s}
-                      </span>
-                    ))}
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                    {(SEMESTRES_PAR_NIVEAU[form.niveau] || []).map((s) => {
+                      const c = NIVEAU_COLORS[form.niveau];
+                      const active = form.semestre === s;
+                      return (
+                        <span
+                          key={s}
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            padding: "2px 8px",
+                            borderRadius: 10,
+                            background: active ? c?.bg : "var(--surface2)",
+                            color:      active ? c?.text : "var(--text-muted)",
+                            border: `1px solid ${active ? c?.border : "var(--border)"}`,
+                            transition: "all 0.15s",
+                          }}
+                        >
+                          {s}
+                        </span>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -365,12 +352,14 @@ function MatiereModal({ onClose, onSaved, onSuccess, onError, matiere }) {
             </FormRow>
           </FormSection>
 
+          {/* ── Section Crédits & Volume ── */}
           <FormSection title="Crédits & Volume" icon={Award}>
             <FormRow>
               <Input
                 label="Crédits (ECTS)"
                 type="number"
                 step="0.5"
+                min="0"
                 value={form.credit}
                 onChange={set("credit")}
                 placeholder="ex: 3"
@@ -380,6 +369,7 @@ function MatiereModal({ onClose, onSaved, onSuccess, onError, matiere }) {
               <Input
                 label="Volume horaire (heures)"
                 type="number"
+                min="0"
                 value={form.volume_horaire}
                 onChange={set("volume_horaire")}
                 placeholder="ex: 40"
@@ -417,7 +407,7 @@ function MatiereModal({ onClose, onSaved, onSuccess, onError, matiere }) {
   );
 }
 
-// ─── Page principale ─────────────────────────────────────────────────────────
+// ─── Page principale ──────────────────────────────────────────────────────
 export default function MatieresPage() {
   const { user } = useAuth();
   const canEdit = ["administrateur", "secretaire"].includes(user?.role);
@@ -428,22 +418,23 @@ export default function MatieresPage() {
     error: showError,
   } = useNotification();
 
-  const [matieres, setMatieres] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [filieres, setFilieres] = useState([]);
-  const [search, setSearch] = useState("");
-  const [filtreNiveau, setFiltreNiveau] = useState("");
+  const [matieres, setMatieres]       = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [filieres, setFilieres]       = useState([]);
+  const [search, setSearch]           = useState("");
+  const [filtreNiveau, setFiltreNiveau]   = useState("");
   const [filtreFiliere, setFiltreFiliere] = useState("");
-  const [showModal, setShowModal] = useState(null);
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting] = useState(false);
+  const [showModal, setShowModal]     = useState(null);
+  const [deleteTarget, setDeleteTarget]   = useState(null);
+  const [deleting, setDeleting]       = useState(false);
 
+  // ── Chargement des matières (côté serveur : niveau + search) ──
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const params = {};
       if (filtreNiveau) params.niveau = filtreNiveau;
-      if (search) params.search = search;
+      if (search)       params.search = search;
       const { data } = await api.get("/matieres", { params });
       setMatieres(data?.data ?? []);
     } catch {
@@ -455,13 +446,14 @@ export default function MatieresPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // ── Chargement des filières pour les cartes et le filtre ──
   useEffect(() => {
-    api
-      .get("/filieres")
+    api.get("/filieres")
       .then((r) => setFilieres(r.data?.data ?? r.data ?? []))
       .catch(() => setFilieres([]));
   }, []);
 
+  // ── Suppression ──
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -477,15 +469,23 @@ export default function MatieresPage() {
     }
   };
 
+  // ── Filtrage côté client (filière uniquement, les autres sont côté serveur) ──
   const filtered = matieres.filter((m) => {
-    const matchNiveau = !filtreNiveau || m.niveau === filtreNiveau;
     const matchFiliere = !filtreFiliere || String(m.filiere_id) === String(filtreFiliere);
-    const matchSearch =
-      !search ||
-      m.nom_matiere?.toLowerCase().includes(search.toLowerCase()) ||
-      m.code_matiere?.toLowerCase().includes(search.toLowerCase());
+    const matchSearch  = !search
+      || m.nom_matiere?.toLowerCase().includes(search.toLowerCase())
+      || m.code_matiere?.toLowerCase().includes(search.toLowerCase());
+    const matchNiveau  = !filtreNiveau || m.niveau === filtreNiveau;
     return matchNiveau && matchFiliere && matchSearch;
   });
+
+  const hasFilters = search || filtreNiveau || filtreFiliere;
+
+  const resetFilters = () => {
+    setSearch("");
+    setFiltreNiveau("");
+    setFiltreFiliere("");
+  };
 
   return (
     <>
@@ -523,15 +523,20 @@ export default function MatieresPage() {
           transform: translateY(-4px);
           box-shadow: 0 10px 28px rgba(0,0,0,0.1);
         }
-        .filiere-card:active {
-          transform: translateY(-1px);
+        .filiere-card:active { transform: translateY(-1px); }
+
+        .filiere-card:focus-visible {
+          outline: 2px solid var(--accent);
+          outline-offset: 2px;
         }
       `}</style>
 
       <div className="fadeUp" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+
+        {/* ── En-tête ── */}
         <PageHeader
           title="Gestion des matières"
-          subtitle={`${filtered.length} matière${filtered.length > 1 ? "s" : ""}${
+          subtitle={`${filtered.length} matière${filtered.length !== 1 ? "s" : ""}${
             filtreNiveau ? ` · Niveau ${filtreNiveau}` : ""
           }${
             filtreFiliere
@@ -556,6 +561,7 @@ export default function MatieresPage() {
               borderRadius: "var(--radius-lg)",
             }}
           >
+            {/* En-tête du bloc filières */}
             <div
               style={{
                 display: "flex",
@@ -607,8 +613,9 @@ export default function MatieresPage() {
                     cursor: "pointer",
                     transition: "all 0.18s",
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = "rgba(239,68,68,0.15)"}
-                  onMouseLeave={(e) => e.currentTarget.style.background = "rgba(239,68,68,0.08)"}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(239,68,68,0.15)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(239,68,68,0.08)")}
+                  aria-label="Effacer le filtre filière"
                 >
                   <X size={12} />
                   Effacer filtre
@@ -616,6 +623,7 @@ export default function MatieresPage() {
               )}
             </div>
 
+            {/* Cartes filières */}
             <div
               style={{
                 display: "grid",
@@ -623,9 +631,14 @@ export default function MatieresPage() {
                 gap: 10,
               }}
             >
+              {/* Carte "Toutes" */}
               <div
                 className="filiere-card"
+                role="button"
+                tabIndex={0}
+                aria-pressed={!filtreFiliere}
                 onClick={() => setFiltreFiliere("")}
+                onKeyDown={(e) => e.key === "Enter" && setFiltreFiliere("")}
                 style={{
                   padding: "14px 16px",
                   borderRadius: 12,
@@ -647,6 +660,7 @@ export default function MatieresPage() {
                 </div>
               </div>
 
+              {/* Cartes par filière */}
               {filieres.map((f, i) => {
                 const c = FILIERE_COLORS[i % FILIERE_COLORS.length];
                 const isActive = String(filtreFiliere) === String(f.id);
@@ -656,7 +670,11 @@ export default function MatieresPage() {
                   <div
                     key={f.id}
                     className="filiere-card"
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={isActive}
                     onClick={() => setFiltreFiliere(isActive ? "" : String(f.id))}
+                    onKeyDown={(e) => e.key === "Enter" && setFiltreFiliere(isActive ? "" : String(f.id))}
                     style={{
                       padding: "14px 16px",
                       borderRadius: 12,
@@ -691,19 +709,30 @@ export default function MatieresPage() {
           </Card>
         )}
 
-        {/* ── Filtres niveau + search ── */}
+        {/* ── Barre de filtres : niveau + recherche ── */}
         <Card style={{ padding: "16px 20px", borderRadius: "var(--radius-lg)" }}>
           <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
+
+            {/* Champ de recherche */}
             <div style={{ flex: "1 1 280px", position: "relative" }}>
               <Search
                 size={15}
-                style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none", zIndex: 1 }}
+                style={{
+                  position: "absolute",
+                  left: 14,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  color: "var(--text-muted)",
+                  pointerEvents: "none",
+                  zIndex: 1,
+                }}
               />
               <input
                 className="search-input"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Rechercher par nom ou code matière…"
+                aria-label="Rechercher une matière"
                 style={{
                   width: "100%",
                   boxSizing: "border-box",
@@ -721,25 +750,42 @@ export default function MatieresPage() {
 
             <div style={{ width: 1, height: 28, background: "var(--border)", flexShrink: 0 }} />
 
+            {/* Filtres par niveau */}
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap", marginRight: 2 }}>
+              <span style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: "var(--text-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                whiteSpace: "nowrap",
+                marginRight: 2,
+              }}>
                 Niveau
               </span>
+
               <button
                 className="lvl-btn"
                 onClick={() => setFiltreNiveau("")}
+                aria-pressed={!filtreNiveau}
                 style={{
-                  padding: "7px 14px", borderRadius: 20, border: "1.5px solid",
+                  padding: "7px 14px",
+                  borderRadius: 20,
+                  border: "1.5px solid",
                   borderColor: !filtreNiveau ? "var(--accent)" : "var(--border)",
-                  fontSize: 12, fontWeight: 700, cursor: "pointer",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
                   fontFamily: "var(--font-body)",
                   background: !filtreNiveau ? "var(--accent)" : "transparent",
                   color: !filtreNiveau ? "#fff" : "var(--text-muted)",
-                  whiteSpace: "nowrap", letterSpacing: "0.02em",
+                  whiteSpace: "nowrap",
+                  letterSpacing: "0.02em",
                 }}
               >
                 Tous
               </button>
+
               {NIVEAUX.map((n) => {
                 const c = NIVEAU_COLORS[n];
                 const active = filtreNiveau === n;
@@ -747,15 +793,20 @@ export default function MatieresPage() {
                   <button
                     key={n}
                     className="lvl-btn"
-                    onClick={() => setFiltreNiveau(n)}
+                    onClick={() => setFiltreNiveau(active ? "" : n)}
+                    aria-pressed={active}
                     style={{
-                      padding: "7px 14px", borderRadius: 20,
+                      padding: "7px 14px",
+                      borderRadius: 20,
                       border: `1.5px solid ${active ? c.border : "var(--border)"}`,
-                      fontSize: 12, fontWeight: 700, cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: "pointer",
                       fontFamily: "var(--font-body)",
                       background: active ? c.bg : "transparent",
                       color: active ? c.text : "var(--text-muted)",
-                      whiteSpace: "nowrap", letterSpacing: "0.02em",
+                      whiteSpace: "nowrap",
+                      letterSpacing: "0.02em",
                     }}
                   >
                     {n}
@@ -764,11 +815,12 @@ export default function MatieresPage() {
               })}
             </div>
 
-            {(search || filtreNiveau || filtreFiliere) && (
+            {/* Bouton réinitialiser */}
+            {hasFilters && (
               <Btn
                 small
                 variant="ghost"
-                onClick={() => { setSearch(""); setFiltreNiveau(""); setFiltreFiliere(""); }}
+                onClick={resetFilters}
                 icon={<RotateCcw size={13} />}
               >
                 Réinitialiser
@@ -777,10 +829,19 @@ export default function MatieresPage() {
           </div>
         </Card>
 
-        {/* ── Liste des matières ── */}
+        {/* ── Tableau des matières ── */}
         <Card style={{ padding: 0, overflow: "hidden", borderRadius: "var(--radius-lg)" }}>
           <Table
-            headers={["Code", "Matière", "Niveau", "Semestre", "Crédits", "Volume H.", "Enseignant", canEdit ? "Actions" : ""]}
+            headers={[
+              "Code",
+              "Matière",
+              "Niveau",
+              "Semestre",
+              "Crédits",
+              "Volume H.",
+              "Enseignant",
+              ...(canEdit ? ["Actions"] : []),
+            ]}
           >
             {loading ? (
               <tr>
@@ -795,12 +856,12 @@ export default function MatieresPage() {
                     icon={BookOpen}
                     title="Aucune matière"
                     description={
-                      search || filtreNiveau || filtreFiliere
+                      hasFilters
                         ? "Aucune matière trouvée pour ces filtres."
                         : "Commencez par créer une nouvelle matière."
                     }
                     action={
-                      canEdit && !search && !filtreNiveau && !filtreFiliere && (
+                      canEdit && !hasFilters && (
                         <Btn onClick={() => setShowModal("create")} icon={<Plus size={15} />}>
                           Nouvelle matière
                         </Btn>
@@ -814,53 +875,138 @@ export default function MatieresPage() {
                 const nc = NIVEAU_COLORS[m.niveau];
                 return (
                   <Tr key={m.id} className="mat-row">
+                    {/* Code */}
                     <Td>
-                      <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 800, color: "var(--accent)", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)", padding: "3px 9px", borderRadius: 6, whiteSpace: "nowrap", letterSpacing: "0.04em" }}>
+                      <span style={{
+                        fontFamily: "monospace",
+                        fontSize: 11,
+                        fontWeight: 800,
+                        color: "var(--accent)",
+                        background: "rgba(99,102,241,0.08)",
+                        border: "1px solid rgba(99,102,241,0.2)",
+                        padding: "3px 9px",
+                        borderRadius: 6,
+                        whiteSpace: "nowrap",
+                        letterSpacing: "0.04em",
+                      }}>
                         {m.code_matiere}
                       </span>
                     </Td>
+
+                    {/* Nom */}
                     <Td>
                       <span style={{ fontWeight: 600, color: "var(--text)", fontSize: 14 }}>
                         {m.nom_matiere}
                       </span>
                     </Td>
+
+                    {/* Niveau */}
                     <Td>
-                      <span className="niveau-pill" style={{ display: "inline-flex", alignItems: "center", padding: "3px 12px", borderRadius: 20, fontSize: 11, fontWeight: 800, letterSpacing: "0.05em", background: nc?.bg || "var(--surface2)", color: nc?.text || "var(--text)", border: `1.5px solid ${nc?.border || "var(--border)"}` }}>
+                      <span
+                        className="niveau-pill"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          padding: "3px 12px",
+                          borderRadius: 20,
+                          fontSize: 11,
+                          fontWeight: 800,
+                          letterSpacing: "0.05em",
+                          background: nc?.bg   || "var(--surface2)",
+                          color:      nc?.text || "var(--text)",
+                          border: `1.5px solid ${nc?.border || "var(--border)"}`,
+                        }}
+                      >
                         {m.niveau || "—"}
                       </span>
                     </Td>
+
+                    {/* Semestre */}
                     <Td>
                       <Badge variant="accent">{m.semestre || "—"}</Badge>
                     </Td>
+
+                    {/* Crédits */}
                     <Td>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontWeight: 700, fontSize: 13, color: m.credit ? "var(--warning)" : "var(--text-muted)" }}>
+                      <span style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 5,
+                        fontWeight: 700,
+                        fontSize: 13,
+                        color: m.credit ? "var(--warning)" : "var(--text-muted)",
+                      }}>
                         <Award size={13} color={m.credit ? "var(--warning)" : "var(--text-muted)"} />
-                        {m.credit || "—"}
+                        {m.credit ?? "—"}
                       </span>
                     </Td>
+
+                    {/* Volume horaire */}
                     <Td>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 13, color: m.volume_horaire ? "var(--text)" : "var(--text-muted)" }}>
+                      <span style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 5,
+                        fontSize: 13,
+                        color: m.volume_horaire ? "var(--text)" : "var(--text-muted)",
+                      }}>
                         <Clock size={13} color="var(--text-muted)" />
                         {m.volume_horaire ? `${m.volume_horaire}h` : "—"}
                       </span>
                     </Td>
+
+                    {/* Enseignant */}
                     <Td>
                       {m.enseignant_nom ? (
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text)" }}>
-                          <span style={{ width: 24, height: 24, borderRadius: "50%", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.2)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "var(--accent)", flexShrink: 0 }}>
-                            {m.enseignant_nom.charAt(0).toUpperCase()}
+                          <span style={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: "50%",
+                            background: "rgba(99,102,241,0.12)",
+                            border: "1px solid rgba(99,102,241,0.2)",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: 10,
+                            fontWeight: 800,
+                            color: "var(--accent)",
+                            flexShrink: 0,
+                            textTransform: "uppercase",
+                          }}>
+                            {m.enseignant_nom.charAt(0)}
                           </span>
                           {m.enseignant_nom}
                         </span>
                       ) : (
-                        <span style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>Non assigné</span>
+                        <span style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>
+                          Non assigné
+                        </span>
                       )}
                     </Td>
+
+                    {/* Actions */}
                     {canEdit && (
                       <Td>
                         <div style={{ display: "flex", gap: 6 }}>
-                          <Btn small variant="ghost" onClick={() => setShowModal(m)} icon={<Edit size={13} />} title="Modifier">Modifier</Btn>
-                          <Btn small variant="danger" onClick={() => setDeleteTarget(m)} icon={<Trash2 size={13} />} title="Supprimer">Supprimer</Btn>
+                          <Btn
+                            small
+                            variant="ghost"
+                            onClick={() => setShowModal(m)}
+                            icon={<Edit size={13} />}
+                            title="Modifier"
+                          >
+                            Modifier
+                          </Btn>
+                          <Btn
+                            small
+                            variant="danger"
+                            onClick={() => setDeleteTarget(m)}
+                            icon={<Trash2 size={13} />}
+                            title="Supprimer"
+                          >
+                            Supprimer
+                          </Btn>
                         </div>
                       </Td>
                     )}
@@ -871,29 +1017,67 @@ export default function MatieresPage() {
           </Table>
         </Card>
 
-        {/* ── Stats en bas ── */}
+        {/* ── Stats par niveau ── */}
         {matieres.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
-                Par niveau
-              </p>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 10 }}>
-                {NIVEAUX.map((n) => {
-                  const count = matieres.filter((m) => m.niveau === n).length;
-                  const c = NIVEAU_COLORS[n];
-                  return (
-                    <div key={n} className="stat-card" style={{ padding: "16px 20px", borderRadius: "var(--radius-lg)", background: "var(--surface)", border: `1.5px solid ${c?.border || "var(--border)"}`, textAlign: "center", position: "relative", overflow: "hidden" }}>
-                      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: c?.text || "var(--accent)", borderRadius: "var(--radius-lg) var(--radius-lg) 0 0" }} />
-                      <div style={{ fontSize: 28, fontWeight: 800, color: c?.text || "var(--text)", lineHeight: 1, marginBottom: 6 }}>{count}</div>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Niveau {n}</div>
+            <p style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: "var(--text-muted)",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginBottom: 10,
+            }}>
+              Par niveau
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 10 }}>
+              {NIVEAUX.map((n) => {
+                const count = matieres.filter((m) => m.niveau === n).length;
+                const c = NIVEAU_COLORS[n];
+                return (
+                  <div
+                    key={n}
+                    className="stat-card"
+                    style={{
+                      padding: "16px 20px",
+                      borderRadius: "var(--radius-lg)",
+                      background: "var(--surface)",
+                      border: `1.5px solid ${c?.border || "var(--border)"}`,
+                      textAlign: "center",
+                      position: "relative",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: c?.text || "var(--accent)", borderRadius: "var(--radius-lg) var(--radius-lg) 0 0" }} />
+                    <div style={{ fontSize: 28, fontWeight: 800, color: c?.text || "var(--text)", lineHeight: 1, marginBottom: 6 }}>
+                      {count}
                     </div>
-                  );
-                })}
-                <div className="stat-card" style={{ padding: "16px 20px", borderRadius: "var(--radius-lg)", background: "rgba(99,102,241,0.06)", border: "1.5px solid rgba(99,102,241,0.25)", textAlign: "center", position: "relative", overflow: "hidden" }}>
-                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: "var(--accent)", borderRadius: "var(--radius-lg) var(--radius-lg) 0 0" }} />
-                  <div style={{ fontSize: 28, fontWeight: 800, color: "var(--accent)", lineHeight: 1, marginBottom: 6 }}>{matieres.length}</div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Total</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                      Niveau {n}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Total */}
+              <div
+                className="stat-card"
+                style={{
+                  padding: "16px 20px",
+                  borderRadius: "var(--radius-lg)",
+                  background: "rgba(99,102,241,0.06)",
+                  border: "1.5px solid rgba(99,102,241,0.25)",
+                  textAlign: "center",
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+              >
+                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: "var(--accent)", borderRadius: "var(--radius-lg) var(--radius-lg) 0 0" }} />
+                <div style={{ fontSize: 28, fontWeight: 800, color: "var(--accent)", lineHeight: 1, marginBottom: 6 }}>
+                  {matieres.length}
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Total
                 </div>
               </div>
             </div>
@@ -901,7 +1085,7 @@ export default function MatieresPage() {
         )}
       </div>
 
-      {/* ── Modales ── */}
+      {/* ── Modale création / édition ── */}
       {showModal && (
         <MatiereModal
           matiere={showModal === "create" ? null : showModal}
@@ -912,6 +1096,7 @@ export default function MatieresPage() {
         />
       )}
 
+      {/* ── Modale confirmation suppression ── */}
       <ConfirmationModal
         open={!!deleteTarget}
         title="Supprimer la matière"
@@ -924,6 +1109,7 @@ export default function MatieresPage() {
         onCancel={() => setDeleteTarget(null)}
       />
 
+      {/* ── Notifications ── */}
       <NotificationDisplay notification={notification} onClose={hideNotification} />
     </>
   );
