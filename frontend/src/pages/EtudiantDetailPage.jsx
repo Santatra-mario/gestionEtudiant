@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, cloneElement, isValidElement } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Phone,
@@ -77,9 +77,35 @@ function moyenneColor(m) {
 
 /* ─── QR Code via api.qrserver.com ──────────────────────────────────────── */
 function QRCodeSVG({ value, size = 80 }) {
+  const [qrError, setQrError] = useState(false);
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(
     value
   )}&size=${size}x${size}&format=svg&bgcolor=ffffff&color=1a1a2e&margin=2`;
+
+  // FIX IHM — Règle 8 "Gestion des erreurs" : si le service externe est
+  // inaccessible, on informe l'utilisateur au lieu d'afficher une image cassée.
+  if (qrError) {
+    return (
+      <div
+        style={{
+          width: size,
+          height: size,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          textAlign: "center",
+          fontSize: 8,
+          color: "#94A3B8",
+          border: "1px dashed #CBD5E1",
+          borderRadius: 4,
+          padding: 4,
+        }}
+      >
+        QR indisponible
+      </div>
+    );
+  }
+
   return (
     <img
       src={qrUrl}
@@ -88,6 +114,7 @@ function QRCodeSVG({ value, size = 80 }) {
       height={size}
       style={{ display: "block", borderRadius: 4 }}
       crossOrigin="anonymous"
+      onError={() => setQrError(true)}
     />
   );
 }
@@ -141,10 +168,18 @@ function CarteField({ icon: Icon, label, value }) {
 }
 
 /* ─── Champ du formulaire d'édition de la carte ──────────────────────────── */
-function CarteFormField({ icon: Icon, label, children }) {
+function CarteFormField({ icon: Icon, label, children, id }) {
+  // FIX IHM — Règle 11 "Accessibilité" : un <label> doit être lié à son champ
+  // via htmlFor/id pour les lecteurs d'écran. On génère un id stable à partir
+  // du label si aucun id explicite n'est fourni, et on l'injecte dans le champ
+  // enfant sans modifier les appels existants de ce composant.
+  const fieldId =
+    id || `carte-${String(label).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-")}`;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <label
+        htmlFor={fieldId}
         style={{
           display: "flex",
           alignItems: "center",
@@ -159,7 +194,7 @@ function CarteFormField({ icon: Icon, label, children }) {
         {Icon && <Icon size={12} color="#1D4ED8" />}
         {label}
       </label>
-      {children}
+      {isValidElement(children) ? cloneElement(children, { id: fieldId }) : children}
     </div>
   );
 }
@@ -167,7 +202,21 @@ function CarteFormField({ icon: Icon, label, children }) {
 /* ─── Modal : Carte d'étudiant imprimable ────────────────────────────────── */
 function CarteEtudiantModal({ etudiant, historique = [], onClose }) {
   const cardRef = useRef(null);
+  const panelRef = useRef(null);
   const [carteImgError, setCarteImgError] = useState(false);
+
+  // FIX IHM — Règle 10 "Liberté" + Règle 11 "Accessibilité" : un modal doit
+  // pouvoir se fermer au clavier (touche Echap), pas uniquement à la souris.
+  // On donne aussi le focus au panneau dès l'ouverture pour les utilisateurs
+  // clavier / lecteurs d'écran.
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    panelRef.current?.focus();
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
 
   const inscriptionRecente = historique?.[0] || null;
 
@@ -212,6 +261,15 @@ function CarteEtudiantModal({ etudiant, historique = [], onClose }) {
     if (!printContent) return;
 
     const printWindow = window.open("", "_blank", "width=900,height=700");
+    // FIX IHM — Règle 8 "Gestion des erreurs" : si le navigateur bloque la
+    // pop-up, window.open renvoie null ; sans ce contrôle, le code plantait
+    // sans aucune explication pour l'utilisateur.
+    if (!printWindow) {
+      alert(
+        "Impossible d'ouvrir la fenêtre d'impression. Vérifiez que les pop-ups ne sont pas bloquées pour ce site, puis réessayez."
+      );
+      return;
+    }
     printWindow.document.write(`
       <!DOCTYPE html>
       <html lang="fr">
@@ -439,6 +497,11 @@ function CarteEtudiantModal({ etudiant, historique = [], onClose }) {
       onClick={onClose}
     >
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="carte-modal-title"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "min(920px, 100%)",
@@ -463,6 +526,7 @@ function CarteEtudiantModal({ etudiant, historique = [], onClose }) {
         >
           <div>
             <h2
+              id="carte-modal-title"
               style={{
                 fontSize: 19,
                 fontWeight: 700,
@@ -505,6 +569,7 @@ function CarteEtudiantModal({ etudiant, historique = [], onClose }) {
             </button>
             <button
               onClick={onClose}
+              aria-label="Fermer la carte d'étudiant"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -603,6 +668,7 @@ function CarteEtudiantModal({ etudiant, historique = [], onClose }) {
                 <input
                   value={form.anneeAcademique}
                   onChange={setField("anneeAcademique")}
+                  placeholder="2025-2026"
                   style={carteInputStyle}
                 />
               </CarteFormField>
@@ -1068,7 +1134,17 @@ export default function EtudiantDetailPage() {
   const [showCarte, setShowCarte] = useState(false);
 
   useEffect(() => {
+    chargerDossier();
+  }, [id]);
+
+  // FIX IHM — Règle 8 "Gestion des erreurs" : "l'internaute doit facilement
+  // pouvoir corriger ses erreurs". Avant, en cas d'échec réseau, l'utilisateur
+  // restait bloqué sur le message d'erreur sans aucune action possible
+  // (obligé de recharger toute la page). On extrait donc le chargement dans
+  // une fonction réutilisable par un bouton "Réessayer".
+  function chargerDossier() {
     setLoading(true);
+    setError("");
     Promise.all([
       api.get(`/etudiants/${id}`),
       api.get(`/inscriptions/historique/${id}`),
@@ -1085,13 +1161,17 @@ export default function EtudiantDetailPage() {
         showError("Erreur lors du chargement du dossier étudiant.");
       })
       .finally(() => setLoading(false));
-  }, [id]);
+  }
 
   const handleViewNotes = (h) => {
     success(
       `Ouverture des notes — ${h.filiere_nom} (${h.annee_universitaire}, ${h.niveau})`
     );
-    setTimeout(() => navigate(`/notes?inscription=${h.id}`), 600);
+    // FIX IHM — Règle 9 "Rapidité" : "l'internaute ne perd pas son temps".
+    // 600ms d'attente avant de naviguer n'apportait rien de fonctionnel ;
+    // 200ms suffit pour laisser apercevoir la notification sans ralentir
+    // perceptiblement l'action de l'utilisateur.
+    setTimeout(() => navigate(`/notes?inscription=${h.id}`), 200);
   };
 
   if (loading)
@@ -1107,7 +1187,17 @@ export default function EtudiantDetailPage() {
         <Spinner text="Chargement du dossier étudiant…" />
       </div>
     );
-  if (error) return <Alert type="danger">{error}</Alert>;
+  if (error)
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, alignItems: "flex-start" }}>
+        <Alert type="danger">{error}</Alert>
+        {/* FIX IHM — Règle 8 "Gestion des erreurs" : donner à l'internaute
+            un moyen direct de corriger l'erreur, au lieu de le laisser bloqué. */}
+        <Btn variant="ghost" onClick={chargerDossier}>
+          Réessayer
+        </Btn>
+      </div>
+    );
   if (!etudiant) return <Alert type="warning">Étudiant introuvable.</Alert>;
 
   const photoSrc =

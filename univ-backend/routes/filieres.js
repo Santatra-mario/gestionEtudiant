@@ -13,21 +13,36 @@ router.use(verifyToken);
 // Liste des enseignants (pour le formulaire d'assignation matière)
 router.get("/enseignants/liste", ctrl.getEnseignants);
 
-// Matières : écriture pour admin et secrétaire
+
+// Matières : écriture pour admin et secrétaire napina role Etudiant
 router.post(
-  "/matieres",
-  authorizeRoles("administrateur", "secretaire"),
-  ctrl.createMatiere,
+  "/",
+  authorizeRoles(
+    "administrateur",
+    "secretaire",
+    "etudiant"
+  ),
+  ctrl.createFiliere
 );
+
 router.put(
-  "/matieres/:id",
-  authorizeRoles("administrateur", "secretaire"),
-  ctrl.updateMatiere,
+  "/:id",
+  authorizeRoles(
+    "administrateur",
+    "secretaire",
+    "etudiant"
+  ),
+  ctrl.updateFiliere
 );
+
 router.delete(
-  "/matieres/:id",
-  authorizeRoles("administrateur", "secretaire"),
-  ctrl.deleteMatiere,
+  "/:id",
+  authorizeRoles(
+    "administrateur",
+    "secretaire",
+    "etudiant"
+  ),
+  ctrl.deleteFiliere
 );
 
 // ── ROUTES AVEC PARAMÈTRE /:id APRÈS ─────────────────────────────────────

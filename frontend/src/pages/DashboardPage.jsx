@@ -89,7 +89,7 @@ function CustomTooltip({ active, payload, label }) {
           color: PALETTE.primary,
         }}
       >
-        {label}
+        <p>{label}</p>
       </p>
       <p style={{ margin: "6px 0 0", color: "var(--text-muted)" }}>
         {payload[0].name} :{" "}
@@ -158,7 +158,7 @@ function StatCard({ label, value, color, icon: Icon, trend, trendValue }) {
             fontWeight: 700,
           }}
         >
-          {label}
+          <p>{label}</p>
         </p>
         <p
           style={{
@@ -188,7 +188,7 @@ function StatCard({ label, value, color, icon: Icon, trend, trendValue }) {
             }}
           >
             {TrendIcon && <TrendIcon size={13} />}
-            <span>{trendValue} ce mois</span>
+            <span>{trendValue} par rapport au mois précédent</span>
           </p>
         )}
       </div>
@@ -204,9 +204,7 @@ function StatCard({ label, value, color, icon: Icon, trend, trendValue }) {
           alignItems: "center",
           justifyContent: "center",
           transition: "all 0.3s ease",
-          transform: isHovered
-            ? "scale(1.12) rotate(5deg)"
-            : "scale(1) rotate(0deg)",
+         transform: isHovered ? "translateY(-2px)" : "translateY(0)",
         }}
       >
         <Icon size={24} style={{ color }} />
@@ -387,7 +385,7 @@ function ChartHeader({ title, subtitle, icon: Icon, color, children }) {
           {subtitle && (
             <p
               style={{
-                fontSize: 11.5,
+                fontSize: 13,
                 color: "var(--text-muted)",
                 margin: "3px 0 0",
               }}
@@ -491,7 +489,7 @@ function ModernChartCard({
                 fontStyle: "italic",
               }}
             >
-              Cliquer pour agrandir
+              Cliquer pour afficher le graphique en grand
             </span>
           )}
           <div
@@ -533,7 +531,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeChart, setActiveChart] = useState("bar");
-
+  const [errorMessage, setErrorMessage] = useState("");
   useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -541,6 +539,9 @@ export default function DashboardPage() {
         setStats(response.data.data);
       } catch (error) {
         console.error("Erreur chargement stats:", error);
+        setErrorMessage(
+          "Impossible de charger les statistiques. Vérifiez votre connexion ou réessayez.",
+        );
       } finally {
         setLoading(false);
       }
@@ -578,7 +579,7 @@ export default function DashboardPage() {
       >
         <div style={{ display: "flex", gap: 10 }}>
           <Badge color="success" dot>
-            Live
+            Données en temps réel
           </Badge>
           <Badge color="info">
             <Calendar size={12} style={{ marginRight: 4 }} />
@@ -885,7 +886,7 @@ export default function DashboardPage() {
                     transition: "all 0.18s ease",
                   }}
                 >
-                  Circulaire
+                  Camembert
                 </button>
               </div>
             </ChartHeader>
@@ -969,7 +970,7 @@ export default function DashboardPage() {
                     }}
                   />
                   <p style={{ color: "var(--text-muted)", fontSize: 13.5 }}>
-                    Aucune donnée disponible
+                    Aucune statistique disponible pour le moment
                   </p>
                 </div>
               )}
@@ -1035,6 +1036,7 @@ export default function DashboardPage() {
                 récente(s)
               </p>
             </div>
+            
           </div>
           <Badge color="accent" size="lg">
             <Sparkles size={12} style={{ marginRight: 4 }} />
@@ -1076,7 +1078,7 @@ export default function DashboardPage() {
                       style={{
                         padding: "13px 18px",
                         textAlign: "left",
-                        fontSize: 11,
+                        fontSize: 13,
                         fontWeight: 700,
                         color: "var(--text-muted)",
                         textTransform: "uppercase",

@@ -88,7 +88,7 @@ function NiveauBadge({ niveau, taille = "medium" }) {
 
   const config = niveauConfig[niveau] || niveauConfig.L1;
   const padding = taille === "small" ? "2px 8px" : "4px 12px";
-  const fontSize = taille === "small" ? 11 : 13;
+  const fontSize = taille === "small" ? 12 : 14;
 
   return (
     <span
@@ -178,6 +178,16 @@ function ModernSelect({
         {Icon && <Icon size={14} />}
         {label} {required && <span style={{ color: "#ef4444" }}>*</span>}
       </label>
+      {required && (
+        <small
+          style={{
+            color: "var(--text-muted)",
+            fontSize: 13,
+          }}
+        >
+          Champ obligatoire
+        </small>
+      )}
       <select
         value={value}
         onChange={onChange}
@@ -375,7 +385,7 @@ function FiliereModal({ onClose, onSaved, initial }) {
           icon={Code}
           value={form.code}
           onChange={set("code")}
-          placeholder="ex: INFO"
+          placeholder="Ex: INFO"
           required
           disabled={!!initial?.id}
         />
@@ -385,7 +395,7 @@ function FiliereModal({ onClose, onSaved, initial }) {
           icon={BookMarked}
           value={form.nom}
           onChange={set("nom")}
-          placeholder="ex: Informatique"
+          placeholder="Ex: Informatique"
           required
         />
 
@@ -624,7 +634,7 @@ function MatiereModal({ filiereId, onClose, onSaved, initial }) {
         />
 
         <span
-          style={{ fontSize: 11, color: "var(--text-muted)", marginTop: -8 }}
+          style={{ fontSize: 13, color: "var(--text-muted)", marginTop: -8 }}
         >
           L'enseignant assigné pourra saisir les notes de cette matière.
         </span>
@@ -659,9 +669,11 @@ export default function FilieresPage() {
     success,
     error: showError,
   } = useNotification();
-
-  const canManageFilieres =
-    user?.role === "administrateur" || user?.role === "secretaire";
+//nisy novana etudiant(role)
+ const canManageFilieres =
+  user?.role === "administrateur" ||
+  user?.role === "secretaire" ||
+  user?.role === "etudiant";
   const isAdmin = user?.role === "administrateur";
 
   const [filieres, setFilieres] = useState([]);
@@ -787,8 +799,16 @@ export default function FilieresPage() {
         />
         <Card>
           <div style={{ textAlign: "center", padding: "32px 0" }}>
-            <p style={{ color: "var(--danger)", marginBottom: 12 }}>
-              Impossible de charger les filières.
+            <p
+              style={{
+                color: "var(--danger)",
+                marginBottom: 12,
+                fontSize: 14,
+                fontWeight: 500,
+              }}
+            >
+              Impossible de charger les filières. Vérifiez votre connexion puis
+              réessayez.
             </p>
             <Btn onClick={load}>Réessayer</Btn>
           </div>
@@ -816,7 +836,31 @@ export default function FilieresPage() {
           )
         }
       />
+<Card>
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-around",
+      textAlign: "center",
+      padding: "16px",
+    }}
+  >
+    <div>
+      <strong>{filieres.length}</strong>
+      <div>Filières</div>
+    </div>
 
+    <div>
+      <strong>
+        {filieres.reduce(
+          (sum, f) => sum + Number(f.nb_matieres || 0),
+          0
+        )}
+      </strong>
+      <div>Matières</div>
+    </div>
+  </div>
+</Card>
       {loading ? (
         <Spinner />
       ) : (
@@ -830,14 +874,22 @@ export default function FilieresPage() {
                   style={{ marginBottom: 16, opacity: 0.5 }}
                 />
                 <p style={{ color: "var(--text-muted)" }}>
-                  Aucune filière active.{" "}
+                 Aucune filière active n'est disponible actuellement.{" "}
                   {canManageFilieres &&
                     "Créez la première filière avec le bouton ci-dessus."}
                 </p>
               </div>
             </Card>
           )}
-
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              marginBottom: 16,
+            }}
+          >
+            
+          </div>
           {filieres.map((f) => (
             <Card
               key={f.id}
@@ -901,7 +953,7 @@ export default function FilieresPage() {
                   </div>
                   <span
                     style={{
-                      fontSize: 12,
+                      fontSize: 13,
                       color: "var(--text-muted)",
                       display: "flex",
                       alignItems: "center",
@@ -914,7 +966,7 @@ export default function FilieresPage() {
                   {f.description && (
                     <span
                       style={{
-                        fontSize: 12,
+                        fontSize: 13,
                         color: "var(--text-muted)",
                         fontStyle: "italic",
                       }}
@@ -945,7 +997,7 @@ export default function FilieresPage() {
                         openConfirm(
                           `Désactiver la filière "${f.nom}" ?`,
                           () => handleDeleteFiliere(f.id, f.nom),
-                          "Désactivation",
+                          "Confirmation de désactivation",
                         );
                       }}
                     >
@@ -953,7 +1005,9 @@ export default function FilieresPage() {
                       Désactiver
                     </Btn>
                   )}
+                  
                   <span
+                  
                     style={{
                       color: "var(--text-muted)",
                       padding: "0 4px",
@@ -1013,7 +1067,7 @@ export default function FilieresPage() {
                         style={{ opacity: 0.5, marginBottom: 12 }}
                       />
                       <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                        Aucune matière pour cette filière.
+                        Aucune matière n'est encore enregistrée pour cette filière.
                       </p>
                     </div>
                   ) : (
@@ -1046,7 +1100,7 @@ export default function FilieresPage() {
                                 style={{
                                   padding: "10px 12px",
                                   textAlign: "left",
-                                  fontSize: 11,
+                                  fontSize: 13,
                                   fontWeight: 700,
                                   color: "var(--text-muted)",
                                   textTransform: "uppercase",
@@ -1086,7 +1140,7 @@ export default function FilieresPage() {
                                 <td style={{ padding: "10px 12px" }}>
                                   <code
                                     style={{
-                                      fontSize: 11,
+                                      fontSize: 13,
                                       color: "var(--accent-light)",
                                       fontWeight: 700,
                                       background: "rgba(99,102,241,0.08)",
@@ -1133,7 +1187,7 @@ export default function FilieresPage() {
                                   {m.enseignant_nom ? (
                                     <span
                                       style={{
-                                        fontSize: 12,
+                                        fontSize: 13,
                                         color: "#10b981",
                                         background: "rgba(16,185,129,0.1)",
                                         borderRadius: 6,
@@ -1149,7 +1203,7 @@ export default function FilieresPage() {
                                   ) : (
                                     <span
                                       style={{
-                                        fontSize: 12,
+                                        fontSize: 13,
                                         color: "var(--text-muted)",
                                         fontStyle: "italic",
                                       }}
@@ -1189,7 +1243,7 @@ export default function FilieresPage() {
                                                 f.id,
                                                 m.nom || m.nom_matiere,
                                               ),
-                                            "Suppression",
+                                            "Confirmation de suppression"
                                           )
                                         }
                                       >

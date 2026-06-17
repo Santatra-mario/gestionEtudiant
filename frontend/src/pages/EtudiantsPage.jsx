@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search,
@@ -49,7 +49,7 @@ import {
   Tooltip,
 } from "../components/ui";
 
-// ─── Composant Toast Notification Moderne avec Tailwind CSS ─────────────────────
+// ─── Composant Toast Notification ─────────────────────────────────────────────
 function ToastNotification({ message, type, onClose, details }) {
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -63,13 +63,15 @@ function ToastNotification({ message, type, onClose, details }) {
       bg: "from-emerald-500 to-teal-600",
       icon: <CheckCircle2 className="w-5 h-5" />,
       border: "border-emerald-300",
+      // ✅ [IHM R8] Titre courtois
       title: "Succès",
     },
     error: {
       bg: "from-rose-500 to-red-600",
       icon: <AlertCircle className="w-5 h-5" />,
       border: "border-rose-300",
-      title: "Erreur",
+      // ✅ [IHM R8] Eviter "Erreur" sec — plus courtois
+      title: "Une erreur s'est produite",
     },
     warning: {
       bg: "from-amber-500 to-orange-600",
@@ -88,11 +90,26 @@ function ToastNotification({ message, type, onClose, details }) {
   const current = config[type] || config.success;
 
   return (
-    <div className="fixed top-4 right-4 z-50 animate-slide-in">
+    // ✅ [IHM R11] z-index 99999 garanti au-dessus du modal portal
+    // ✅ [IHM R5]  role="alert" + aria-live pour lecteurs d'écran
+    <div
+      role="alert"
+      aria-live="assertive"
+      aria-atomic="true"
+      style={{
+        position: "fixed",
+        top: 16,
+        right: 16,
+        zIndex: 99999,
+        animation: "slideIn 0.3s ease-out",
+      }}
+    >
       <div
         className={`bg-gradient-to-r ${current.bg} text-white px-5 py-4 rounded-xl shadow-2xl flex items-start gap-3 min-w-[360px] max-w-md backdrop-blur-sm border-l-4 ${current.border}`}
       >
-        <div className="flex-shrink-0 mt-0.5">{current.icon}</div>
+        <div className="flex-shrink-0 mt-0.5" aria-hidden="true">
+          {current.icon}
+        </div>
         <div className="flex-1">
           <div className="font-bold text-sm mb-1">{current.title}</div>
           <div className="text-sm opacity-95">{message}</div>
@@ -102,11 +119,13 @@ function ToastNotification({ message, type, onClose, details }) {
             </div>
           )}
         </div>
+        {/* ✅ [IHM R11] aria-label explicite */}
         <button
           onClick={onClose}
+          aria-label="Fermer la notification"
           className="hover:opacity-80 transition-opacity flex-shrink-0 -mt-1 -mr-1 p-1"
         >
-          <X size={16} />
+          <X size={16} aria-hidden="true" />
         </button>
       </div>
     </div>
@@ -146,7 +165,8 @@ function Avatar({ photo, prenom, nom, size = 40 }) {
     return (
       <img
         src={getPhotoUrl(photo)}
-        alt={`${prenom} ${nom}`}
+        // ✅ [IHM R11] alt descriptif
+        alt={`Photo de profil de ${prenom} ${nom}`}
         onError={() => setImgError(true)}
         style={{
           width: size,
@@ -162,6 +182,8 @@ function Avatar({ photo, prenom, nom, size = 40 }) {
   }
   return (
     <div
+      aria-label={`Initiales de ${prenom} ${nom}`}
+      role="img"
       style={{
         width: size,
         height: size,
@@ -204,7 +226,7 @@ function PhotoPicker({ photo, preview, prenom, nom, onFileChange }) {
         {src ? (
           <img
             src={src}
-            alt="Aperçu"
+            alt="Aperçu de la photo de profil"
             style={{
               width: 96,
               height: 96,
@@ -235,6 +257,7 @@ function PhotoPicker({ photo, preview, prenom, nom, onFileChange }) {
             {initials || <User size={34} color="#fff" />}
           </div>
         )}
+        {/* ✅ [IHM R7] aria-label explicite sur le bouton photo */}
         <label
           style={{
             position: "absolute",
@@ -256,9 +279,10 @@ function PhotoPicker({ photo, preview, prenom, nom, onFileChange }) {
             (e.currentTarget.style.transform = "scale(1.12)")
           }
           onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-          title={src ? "Changer la photo" : "Ajouter une photo"}
+          title={src ? "Changer la photo de profil" : "Ajouter une photo de profil"}
+          aria-label={src ? "Changer la photo de profil" : "Ajouter une photo de profil"}
         >
-          <Camera size={14} color="#fff" />
+          <Camera size={14} color="#fff" aria-hidden="true" />
           <input
             type="file"
             accept="image/*"
@@ -323,11 +347,24 @@ function CountryDialPicker({ value, onChange }) {
       c.dial.includes(search),
   );
 
+  // ✅ [IHM R10] Fermeture par Escape
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === "Escape" && open) {
+        setOpen(false);
+        setSearch("");
+      }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [open]);
+
   return (
     <div style={{ position: "relative" }}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
+        aria-label={`Indicatif : ${selected.name} ${selected.dial}`}
         style={{
           display: "flex",
           alignItems: "center",
@@ -352,10 +389,13 @@ function CountryDialPicker({ value, onChange }) {
           !open && (e.currentTarget.style.borderColor = "var(--border)")
         }
       >
-        <span style={{ fontSize: 18, lineHeight: 1 }}>{selected.flag}</span>
+        <span style={{ fontSize: 18, lineHeight: 1 }} aria-hidden="true">
+          {selected.flag}
+        </span>
         <span style={{ fontSize: 12 }}>{selected.dial}</span>
         <ChevronDown
           size={12}
+          aria-hidden="true"
           style={{
             transition: "transform .2s",
             transform: open ? "rotate(180deg)" : "rotate(0deg)",
@@ -402,6 +442,7 @@ function CountryDialPicker({ value, onChange }) {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Rechercher un pays…"
+                aria-label="Rechercher un pays"
                 style={{
                   width: "100%",
                   boxSizing: "border-box",
@@ -416,6 +457,7 @@ function CountryDialPicker({ value, onChange }) {
               />
             </div>
             <div style={{ overflowY: "auto", flex: 1 }}>
+              {/* ✅ [IHM R8] Message explicite si aucun résultat */}
               {filtered.length === 0 ? (
                 <div
                   style={{
@@ -425,7 +467,7 @@ function CountryDialPicker({ value, onChange }) {
                     textAlign: "center",
                   }}
                 >
-                  Aucun résultat
+                  Aucun pays trouvé pour « {search} »
                 </div>
               ) : (
                 filtered.map((c) => (
@@ -464,7 +506,7 @@ function CountryDialPicker({ value, onChange }) {
                           : "transparent")
                     }
                   >
-                    <span style={{ fontSize: 18, lineHeight: 1 }}>
+                    <span style={{ fontSize: 18, lineHeight: 1 }} aria-hidden="true">
                       {c.flag}
                     </span>
                     <span style={{ flex: 1 }}>{c.name}</span>
@@ -491,45 +533,33 @@ function CountryDialPicker({ value, onChange }) {
 // ══════════════════════════════════════════════════════════════════════════
 // ── Regex & helpers de validation ────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════════════════
-
-// ── Caractères autorisés pour NOM et PRÉNOM ──────────────────────────────
-// Uniquement : lettres (avec accents), apostrophes, tirets simples, espaces
-// INTERDIT : chiffres, @, #, $, *, /, \, ;, :, !, ?, (, ), etc.
 const NAME_ALLOWED_RE = /^[A-Za-zÀ-ÖØ-öø-ÿ '\-]+$/;
-
-// ── Caractères autorisés pour ADRESSE ────────────────────────────────────
-// Lettres, chiffres, espaces, virgules, points, tirets, apostrophes
 const ADDR_ALLOWED_RE = /^[A-Za-zÀ-ÖØ-öø-ÿ0-9 ,.\-']+$/;
 
-// ── Filtre direct : retire les caractères NON autorisés ──────────────────
-// Pour NOM et PRÉNOM : supprime tout ce qui n'est pas lettre/accent/espace/tiret/apostrophe
 function filterNameChars(raw) {
-  // On ne garde que les caractères de l'alphabet (avec accents), l'espace, le tiret et l'apostrophe
   return raw.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ '\-]/g, "");
 }
 
-// Pour ADRESSE : on garde lettres, chiffres, espaces, virgules, points, tirets, apostrophes
 function filterAddrChars(raw) {
   return raw.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ0-9 ,.\-']/g, "");
 }
 
-// ── Validation finale (affichage d'erreur) ───────────────────────────────
+// ✅ [IHM R8] Messages d'erreur précis et courtois
 function validateNameField(value, label) {
-  if (!value) return null; // champ totalement vide = pas d'erreur ici (géré par `required`)
-  // Espace(s) uniquement → champ considéré comme vide → erreur
+  if (!value) return null;
   if (!value.trim())
-    return `${label} : ne peut pas contenir uniquement des espaces`;
+    return `${label} ne peut pas contenir uniquement des espaces`;
   if (!NAME_ALLOWED_RE.test(value))
-    return `${label} : caractères non autorisés (chiffres, symboles interdits)`;
+    return `${label} contient des caractères non autorisés (chiffres et symboles interdits)`;
   if (value.trim().length < 2)
-    return `${label} : au moins 2 caractères requis`;
+    return `${label} doit contenir au moins 2 caractères`;
   return null;
 }
 
 function validateAddressField(value) {
   if (!value || !value.trim()) return null;
   if (!ADDR_ALLOWED_RE.test(value))
-    return "Adresse : caractères non autorisés";
+    return "L'adresse contient des caractères non autorisés";
   return null;
 }
 
@@ -537,7 +567,9 @@ function validateAddressField(value) {
 function FieldErr({ msg }) {
   if (!msg) return null;
   return (
+    // ✅ [IHM R11] role="alert" pour lecteurs d'écran
     <span
+      role="alert"
       style={{
         display: "flex",
         alignItems: "center",
@@ -549,17 +581,16 @@ function FieldErr({ msg }) {
         animation: "fadeErrIn .2s ease both",
       }}
     >
-      <AlertCircle size={11} style={{ flexShrink: 0 }} />
+      <AlertCircle size={11} style={{ flexShrink: 0 }} aria-hidden="true" />
       {msg}
     </span>
   );
 }
 
 // ─── Modal étudiant (création / édition) ────────────────────────────────
-function EtudiantModal({ onClose, onSaved, initial }) {
+// ✅ [IHM TOAST FIX] onToast remonte le toast au niveau page (hors du portal modal)
+function EtudiantModal({ onClose, onSaved, initial, onToast }) {
   const isEdit = !!initial?.id;
-  const [toast, setToast] = useState(null);
-  // ── Step : 1 = infos étudiant, 2 = inscription initiale (création seulement) ──
   const [step, setStep] = useState(1);
   const [filieres, setFilieres] = useState([]);
   const [filiereLoading, setFiliereLoading] = useState(false);
@@ -581,7 +612,15 @@ function EtudiantModal({ onClose, onSaved, initial }) {
     date_inscription: getTodayDate(),
   });
 
-  // Charger les filières dès que le modal s'ouvre (création seulement)
+  // ✅ [IHM R10] Fermeture par Escape
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [onClose]);
+
   useEffect(() => {
     if (isEdit) return;
     setFiliereLoading(true);
@@ -596,14 +635,12 @@ function EtudiantModal({ onClose, onSaved, initial }) {
       .finally(() => setFiliereLoading(false));
   }, [isEdit]);
 
-  // ── Détecte l'indicatif stocké et le retire du numéro affiché ──────────
   function parseInitialPhone(telephone) {
     if (!telephone) return { code: "MG", digits: "" };
     const tel = telephone.trim();
     const matched = COUNTRIES.find((c) => tel.startsWith(c.dial));
     if (matched) {
       let digits = tel.slice(matched.dial.length).trim();
-      // Fix double-prefixe ex: +261261XXXXXXX (sauvegarde precedente bugguee)
       const dialWithoutPlus = matched.dial.replace("+", "");
       if (digits.startsWith(dialWithoutPlus)) {
         digits = digits.slice(dialWithoutPlus.length);
@@ -631,18 +668,13 @@ function EtudiantModal({ onClose, onSaved, initial }) {
   const [photoPreview, setPhotoPreview] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
   const [countryCode, setCountryCode] = useState(initCode);
-
   const [fieldErrors, setFieldErrors] = useState({
     nom: "",
     prenom: "",
     adresse: "",
   });
 
-  // ── VALIDATION ÂGE MINIMUM (13 ans révolus) ─────────────────────────────
-  // Calcul précis : compare année/mois/jour pour éviter les faux positifs
-  // (ex : né le 31/12/2013 → n'a pas encore 13 ans le 01/01/2026)
   const calcAgeExact = (dateStr) => {
     if (!dateStr) return null;
     const dob = new Date(dateStr);
@@ -660,45 +692,37 @@ function EtudiantModal({ onClose, onSaved, initial }) {
       ? `L'étudiant a ${ageActuel} an${ageActuel > 1 ? "s" : ""} — l'âge minimum requis est 13 ans.`
       : "";
 
+  // ✅ [IHM TOAST FIX] Remonte le toast au parent via onToast
   const showNotification = (message, type = "success", details = null) => {
-    setToast({ message, type, details });
+    onToast({ message, type, details });
   };
 
   const today = new Date().toISOString().split("T")[0];
-
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  // ── PRÉNOM : filtre agressif + validation ────────────────────────────
-  // 1. On filtre IMMÉDIATEMENT les caractères non autorisés (ils n'apparaissent jamais)
-  // 2. On bloque l'espace en premier caractère (si rien d'autre n'est écrit)
-  // 3. On valide ce qui reste et on affiche une erreur si besoin
   const handlePrenomChange = (e) => {
     const raw = e.target.value;
-    // Filtre les caractères non autorisés, puis supprime les espaces en début de saisie
     const filtered = filterNameChars(raw).replace(/^\s+/, "");
     setForm((f) => ({ ...f, prenom: filtered }));
     setFieldErrors((prev) => ({
       ...prev,
-      prenom: validateNameField(filtered, "Prénom") || "",
+      prenom: validateNameField(filtered, "Le prénom") || "",
     }));
   };
 
-  // ── NOM : idem ───────────────────────────────────────────────────────
   const handleNomChange = (e) => {
     const raw = e.target.value;
-    // Filtre les caractères non autorisés, puis supprime les espaces en début de saisie
     const filtered = filterNameChars(raw).replace(/^\s+/, "");
     setForm((f) => ({ ...f, nom: filtered }));
     setFieldErrors((prev) => ({
       ...prev,
-      nom: validateNameField(filtered, "Nom") || "",
+      nom: validateNameField(filtered, "Le nom") || "",
     }));
   };
 
-  // ── ADRESSE : filtre doux + validation ───────────────────────────────
   const handleAdresseChange = (e) => {
     const raw = e.target.value;
-    const filtered = filterAddrChars(raw); // ← filtre les symboles dangereux
+    const filtered = filterAddrChars(raw);
     setForm((f) => ({ ...f, adresse: filtered }));
     setFieldErrors((prev) => ({
       ...prev,
@@ -712,6 +736,15 @@ function EtudiantModal({ onClose, onSaved, initial }) {
   const handlePhoto = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    // ✅ [IHM R8] Validation taille avec message explicite
+    if (file.size > 2 * 1024 * 1024) {
+      showNotification(
+        "Photo trop volumineuse",
+        "error",
+        "La photo doit faire moins de 2 Mo. Veuillez en choisir une autre.",
+      );
+      return;
+    }
     setPhoto(file);
     const url = URL.createObjectURL(file);
     setPhotoPreview(url);
@@ -730,15 +763,16 @@ function EtudiantModal({ onClose, onSaved, initial }) {
     return /^\d{6,15}$/.test(phoneDigits);
   })();
 
+  // ✅ [IHM R8] Messages téléphone précis et orientés correction
   const phoneError = (() => {
     if (!form.telephone.trim()) return "";
     if (!phoneValid) {
       if (countryCode === "MG") {
         if (/^0/.test(phoneDigits))
-          return "Avec +261 ne mettez pas le 0 — ex: 33 187 4598";
-        return "Numéro invalide — 9 chiffres sans 0 ex: 331874598";
+          return "Avec +261, ne saisissez pas le 0 initial — ex : 33 187 4598";
+        return "Numéro invalide — 9 chiffres sans le 0, ex : 331874598";
       }
-      return "Numéro invalide — entre 6 et 15 chiffres";
+      return "Numéro invalide — entre 6 et 15 chiffres attendus";
     }
     return "";
   })();
@@ -751,7 +785,6 @@ function EtudiantModal({ onClose, onSaved, initial }) {
     !phoneError &&
     !hasFieldError();
 
-  // ── Passe à l'étape 2 (inscription) ou soumet directement si édition ───
   const handleNext = (e) => {
     e.preventDefault();
     if (!isValid) return;
@@ -765,16 +798,14 @@ function EtudiantModal({ onClose, onSaved, initial }) {
   const handleSubmit = async (e) => {
     e && e.preventDefault();
     if (!isValid) return;
-    // ── Garde côté soumission : double vérification âge minimum ──────────
     if (ageError) {
-      showNotification("Soumission refusée", "error", ageError);
+      showNotification("Soumission impossible", "error", ageError);
       return;
     }
     setError("");
     setLoading(true);
     try {
       const fd = new FormData();
-      // Retire le 0 initial et aussi l'indicatif sans + s'il est deja present (ex: 261XXXXXXX)
       let rawTel = form.telephone.trim().replace(/[\s\-]/g, "");
       const dialWithoutPlus = selectedCountry.dial.replace("+", "");
       if (rawTel.startsWith(dialWithoutPlus))
@@ -792,12 +823,11 @@ function EtudiantModal({ onClose, onSaved, initial }) {
           headers: { "Content-Type": "multipart/form-data" },
         });
         showNotification(
-          `Informations mises à jour avec succès`,
+          `Modifications enregistrées avec succès`,
           "success",
-          `${form.prenom} ${form.nom} · Modifications enregistrées`,
+          `${form.prenom} ${form.nom} · Profil mis à jour`,
         );
       } else {
-        // Ajout inscription optionnelle dans la même requête
         if (withInscription && inscForm.filiere_id) {
           fd.append("inscription", JSON.stringify(inscForm));
         }
@@ -818,12 +848,30 @@ function EtudiantModal({ onClose, onSaved, initial }) {
         onSaved();
       }, 500);
     } catch (err) {
-      setError(formatErrorMessage(err) || Messages.STUDENT_ERROR);
-      showNotification(
-        "Une erreur est survenue",
-        "error",
-        "Veuillez vérifier les informations et réessayer",
-      );
+      // ✅ [IHM R8] Messages d'erreur précis selon code HTTP
+      const status = err.response?.status;
+      const serverMsg = err.response?.data?.message;
+      let userMessage = "Impossible d'enregistrer les données";
+      let userDetail = "Veuillez vérifier les informations saisies et réessayer";
+
+      if (status === 409) {
+        userMessage = "Cet étudiant existe déjà";
+        userDetail = "Un étudiant avec le même e-mail est déjà enregistré.";
+      } else if (status === 422) {
+        userMessage = "Certains champs sont invalides";
+        userDetail = serverMsg || "Vérifiez les champs et corrigez-les.";
+      } else if (status === 403) {
+        userMessage = "Action non autorisée";
+        userDetail = "Vous n'avez pas les droits pour effectuer cette action.";
+      } else if (status >= 500) {
+        userMessage = "Erreur du serveur";
+        userDetail = "Le serveur est indisponible. Réessayez dans quelques instants.";
+      } else if (serverMsg) {
+        userDetail = serverMsg;
+      }
+
+      setError(`${userMessage} — ${userDetail}`);
+      showNotification(userMessage, "error", userDetail);
     } finally {
       setLoading(false);
     }
@@ -831,14 +879,6 @@ function EtudiantModal({ onClose, onSaved, initial }) {
 
   return (
     <>
-      {toast && (
-        <ToastNotification
-          message={toast.message}
-          type={toast.type}
-          details={toast.details}
-          onClose={() => setToast(null)}
-        />
-      )}
       <style>{`
         @keyframes fadeErrIn {
           from { opacity: 0; transform: translateY(-4px); }
@@ -861,6 +901,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
       >
         <form
           onSubmit={step === 1 ? handleNext : handleSubmit}
+          noValidate
           style={{ display: "flex", flexDirection: "column", gap: 0 }}
         >
           {/* ── Indicateur de step (création seulement) ── */}
@@ -873,12 +914,17 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                 marginBottom: 16,
               }}
             >
+              {/* ✅ [IHM R5] Progression visible */}
+              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)", marginRight: 8 }}>
+                Étape {step}/2
+              </span>
               {[1, 2].map((s) => (
                 <div
                   key={s}
                   style={{ display: "flex", alignItems: "center", gap: 6 }}
                 >
                   <div
+                    aria-current={step === s ? "step" : undefined}
                     style={{
                       width: 28,
                       height: 28,
@@ -907,7 +953,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                     {s === 1 ? "Identité" : "Inscription"}
                   </span>
                   {s === 1 && (
-                    <span style={{ color: "var(--border)", fontSize: 12 }}>
+                    <span style={{ color: "var(--border)", fontSize: 12 }} aria-hidden="true">
                       →
                     </span>
                   )}
@@ -927,7 +973,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
             />
 
             {error && (
-              <div style={{ margin: "12px 0 4px" }}>
+              <div style={{ margin: "12px 0 4px" }} role="alert">
                 <Alert type="danger">{error}</Alert>
               </div>
             )}
@@ -944,36 +990,23 @@ function EtudiantModal({ onClose, onSaved, initial }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
               <FormSection title="Identité" icon={User}>
                 <FormRow>
-                  {/* ── PRÉNOM ── */}
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 0,
-                      flex: 1,
-                    }}
-                  >
+                  <div style={{ display: "flex", flexDirection: "column", gap: 0, flex: 1 }}>
                     <Input
                       label="Prénom"
                       required
+                      autoFocus
                       value={form.prenom}
                       onChange={handlePrenomChange}
                       placeholder="Jean Marie"
                       icon={User}
                       hint="Lettres et espaces uniquement"
                       error={fieldErrors.prenom}
+                      aria-required="true"
+                      aria-invalid={!!fieldErrors.prenom}
                     />
                     <FieldErr msg={fieldErrors.prenom} />
                   </div>
-                  {/* ── NOM ── */}
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 0,
-                      flex: 1,
-                    }}
-                  >
+                  <div style={{ display: "flex", flexDirection: "column", gap: 0, flex: 1 }}>
                     <Input
                       label="Nom"
                       required
@@ -983,6 +1016,8 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                       icon={User}
                       hint="Lettres et espaces uniquement"
                       error={fieldErrors.nom}
+                      aria-required="true"
+                      aria-invalid={!!fieldErrors.nom}
                     />
                     <FieldErr msg={fieldErrors.nom} />
                   </div>
@@ -998,6 +1033,8 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                     hint="Sélectionnez une date passée"
                     min="1900-01-01"
                     max={today}
+                    aria-required="true"
+                    aria-invalid={!!ageError}
                     style={
                       ageError
                         ? {
@@ -1008,9 +1045,10 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                         : undefined
                     }
                   />
-                  {/* ── Message d'erreur âge minimum ── */}
+                  {/* ✅ [IHM R8] Message d'erreur âge précis et courtois */}
                   {ageError && (
                     <div
+                      role="alert"
                       style={{
                         display: "flex",
                         alignItems: "center",
@@ -1022,35 +1060,21 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                         border: "1px solid #FECACA",
                       }}
                     >
-                      <AlertCircle
-                        size={16}
-                        style={{ color: "#DC2626", flexShrink: 0 }}
-                      />
+                      <AlertCircle size={16} style={{ color: "#DC2626", flexShrink: 0 }} aria-hidden="true" />
                       <div>
-                        <span
-                          style={{
-                            fontSize: 13,
-                            color: "#DC2626",
-                            fontWeight: 600,
-                          }}
-                        >
+                        <span style={{ fontSize: 13, color: "#DC2626", fontWeight: 600 }}>
                           {ageError}
                         </span>
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: "#9B1C1C",
-                            marginTop: 2,
-                          }}
-                        >
-                          L'âge minimum requis pour intégrer l'établissement est de 13 ans.
+                        <div style={{ fontSize: 12, color: "#9B1C1C", marginTop: 2 }}>
+                          L'âge minimum pour s'inscrire est de 13 ans.
                         </div>
                       </div>
                     </div>
                   )}
-                  {/* ── Indicateur de validation réussie ── */}
+                  {/* ✅ [IHM R5] Confirmation positive */}
                   {form.date_naissance && !ageError && (
                     <div
+                      role="status"
                       style={{
                         display: "flex",
                         alignItems: "center",
@@ -1061,7 +1085,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                         fontWeight: 500,
                       }}
                     >
-                      <CheckCircle2 size={13} />
+                      <CheckCircle2 size={13} aria-hidden="true" />
                       {ageActuel} ans — âge valide
                     </div>
                   )}
@@ -1071,8 +1095,8 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                     value={form.sexe}
                     onChange={set("sexe")}
                   >
-                    <option value="M"> Masculin</option>
-                    <option value="F"> Féminin</option>
+                    <option value="M">Masculin</option>
+                    <option value="F">Féminin</option>
                   </Select>
                 </FormRow>
               </FormSection>
@@ -1087,16 +1111,9 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                   icon={Mail}
                 />
                 <FormRow>
-                  {/* ── Téléphone avec sélecteur de pays ── */}
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 0,
-                      flex: 1,
-                    }}
-                  >
+                  <div style={{ display: "flex", flexDirection: "column", gap: 0, flex: 1 }}>
                     <label
+                      htmlFor="telephone-input"
                       style={{
                         fontSize: 12,
                         fontWeight: 600,
@@ -1107,9 +1124,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                     >
                       Téléphone
                     </label>
-                    <div
-                      style={{ display: "flex", gap: 6, alignItems: "stretch" }}
-                    >
+                    <div style={{ display: "flex", gap: 6, alignItems: "stretch" }}>
                       <CountryDialPicker
                         value={countryCode}
                         onChange={setCountryCode}
@@ -1117,6 +1132,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                       <div style={{ position: "relative", flex: 1 }}>
                         <Phone
                           size={14}
+                          aria-hidden="true"
                           style={{
                             position: "absolute",
                             left: 11,
@@ -1127,6 +1143,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                           }}
                         />
                         <input
+                          id="telephone-input"
                           value={form.telephone}
                           onChange={(e) => {
                             let val = e.target.value.replace(/[^\d\s\-]/g, "");
@@ -1135,10 +1152,9 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                             }
                             setForm((f) => ({ ...f, telephone: val }));
                           }}
-                          placeholder={
-                            countryCode === "MG" ? "XX XX XXX XX" : "XX XX XXX XX"
-                          }
+                          placeholder="XX XX XXX XX"
                           maxLength={15}
+                          aria-invalid={!!phoneError}
                           style={{
                             width: "100%",
                             boxSizing: "border-box",
@@ -1158,17 +1174,13 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                               : "none",
                           }}
                           onFocus={(e) => {
-                            e.currentTarget.style.borderColor = phoneError
-                              ? "#ef4444"
-                              : "var(--accent)";
+                            e.currentTarget.style.borderColor = phoneError ? "#ef4444" : "var(--accent)";
                             e.currentTarget.style.boxShadow = phoneError
                               ? "0 0 0 3px rgba(239,68,68,0.14)"
                               : "0 0 0 3px rgba(99,102,241,0.18)";
                           }}
                           onBlur={(e) => {
-                            e.currentTarget.style.borderColor = phoneError
-                              ? "#ef4444"
-                              : "var(--border)";
+                            e.currentTarget.style.borderColor = phoneError ? "#ef4444" : "var(--border)";
                             e.currentTarget.style.boxShadow = phoneError
                               ? "0 0 0 3px rgba(239,68,68,0.14)"
                               : "none";
@@ -1176,54 +1188,35 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                         />
                       </div>
                     </div>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        color: "var(--text-muted)",
-                        marginTop: 4,
-                      }}
-                    >
-                      {selectedCountry.flag} {selectedCountry.name} ·{" "}
-                      {selectedCountry.dial}
+                    <span style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
+                      {selectedCountry.flag} {selectedCountry.name} · {selectedCountry.dial}
                       {countryCode === "MG" && (
-                        <span
-                          style={{
-                            color: "var(--accent-light)",
-                            marginLeft: 6,
-                          }}
-                        >
+                        <span style={{ color: "var(--accent-light)", marginLeft: 6 }}>
                           · sans le 0 initial
                         </span>
                       )}
                     </span>
                     {phoneError && (
                       <span
+                        role="alert"
                         style={{
                           display: "flex",
                           alignItems: "center",
                           gap: 4,
                           fontSize: 11,
-                          color: "#fca5a5",
+                          color: "#DC2626",
                           fontWeight: 500,
                           marginTop: 4,
                           animation: "fadeErrIn .2s ease both",
                         }}
                       >
-                        <AlertCircle size={11} style={{ flexShrink: 0 }} />
+                        <AlertCircle size={11} style={{ flexShrink: 0 }} aria-hidden="true" />
                         {phoneError}
                       </span>
                     )}
                   </div>
 
-                  {/* ── Adresse avec filtre + validation ── */}
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 0,
-                      flex: 1,
-                    }}
-                  >
+                  <div style={{ display: "flex", flexDirection: "column", gap: 0, flex: 1 }}>
                     <Input
                       label="Adresse"
                       value={form.adresse}
@@ -1231,17 +1224,18 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                       placeholder="Antananarivo"
                       icon={MapPin}
                       error={fieldErrors.adresse}
+                      aria-invalid={!!fieldErrors.adresse}
                     />
                     <FieldErr msg={fieldErrors.adresse} />
                   </div>
                 </FormRow>
               </FormSection>
 
-              {/* ── Mot de passe (portail étudiant) ── */}
+              {/* ✅ [IHM R6] Label clair "Mot de passe" au lieu de "Code de Confirmation" ambigu */}
               {!isEdit && (
-                <FormSection title="Mot de passe" icon={Lock}>
+                <FormSection title="Mot de passe (portail étudiant)" icon={Lock}>
                   <Input
-                    label="Code de Confirmation de l'etudiant (portail étudiant)"
+                    label="Mot de passe d'accès au portail étudiant"
                     type="password"
                     value={form.password}
                     onChange={(e) =>
@@ -1252,22 +1246,20 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                     hint="Minimum 6 caractères"
                   />
                   <Input
-                    label="Confirmer le code de confirmation"
+                    label="Confirmer le mot de passe"
                     type="password"
                     value={form.password_confirm}
                     onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        password_confirm: e.target.value,
-                      }))
+                      setForm((f) => ({ ...f, password_confirm: e.target.value }))
                     }
                     placeholder="••••••••"
                     icon={Lock}
+                    // ✅ [IHM R8] Message précis sur la confirmation
                     error={
                       form.password &&
                       form.password_confirm &&
                       form.password !== form.password_confirm
-                        ? "Les mots de passe ne correspondent pas"
+                        ? "Les deux mots de passe ne correspondent pas"
                         : ""
                     }
                   />
@@ -1280,31 +1272,31 @@ function EtudiantModal({ onClose, onSaved, initial }) {
           {/* ══ STEP 2 : inscription initiale (création seulement) ══ */}
           {!isEdit && step === 2 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              {/* Toggle inscription */}
               <div
                 style={{
                   display: "flex",
                   alignItems: "center",
                   gap: 12,
                   padding: "12px 16px",
-                  background: withInscription
-                    ? "rgba(99,102,241,0.08)"
-                    : "var(--surface2)",
+                  background: withInscription ? "rgba(99,102,241,0.08)" : "var(--surface2)",
                   border: `1px solid ${withInscription ? "rgba(99,102,241,0.3)" : "var(--border)"}`,
                   borderRadius: 10,
                   cursor: "pointer",
                   transition: "all .2s",
                 }}
                 onClick={() => setWithInscription((v) => !v)}
+                role="checkbox"
+                aria-checked={withInscription}
+                tabIndex={0}
+                onKeyDown={(e) => e.key === " " && setWithInscription((v) => !v)}
               >
                 <div
+                  aria-hidden="true"
                   style={{
                     width: 20,
                     height: 20,
                     borderRadius: 5,
-                    background: withInscription
-                      ? "var(--accent)"
-                      : "var(--surface)",
+                    background: withInscription ? "var(--accent)" : "var(--surface)",
                     border: `2px solid ${withInscription ? "var(--accent)" : "var(--border)"}`,
                     display: "flex",
                     alignItems: "center",
@@ -1314,21 +1306,11 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                   }}
                 >
                   {withInscription && (
-                    <span
-                      style={{ color: "#fff", fontSize: 13, lineHeight: 1 }}
-                    >
-                      ✓
-                    </span>
+                    <span style={{ color: "#fff", fontSize: 13, lineHeight: 1 }}>✓</span>
                   )}
                 </div>
                 <div>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "var(--text)",
-                    }}
-                  >
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
                     Inscrire immédiatement
                   </div>
                   <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
@@ -1338,12 +1320,10 @@ function EtudiantModal({ onClose, onSaved, initial }) {
               </div>
 
               {withInscription && (
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 16 }}
-                >
-                  {/* Filière */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                   <div>
                     <label
+                      htmlFor="filiere-select"
                       style={{
                         fontSize: 12,
                         fontWeight: 600,
@@ -1352,10 +1332,12 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                         marginBottom: 6,
                       }}
                     >
-                      Filière <span style={{ color: "var(--danger)" }}>*</span>
+                      Filière <span style={{ color: "var(--danger)" }} aria-label="obligatoire">*</span>
                     </label>
                     {filiereLoading ? (
                       <div
+                        role="status"
+                        aria-label="Chargement des filières"
                         style={{
                           padding: "10px 14px",
                           background: "var(--surface2)",
@@ -1364,17 +1346,16 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                           color: "var(--text-muted)",
                         }}
                       >
-                        Chargement…
+                        Chargement des filières…
                       </div>
                     ) : (
                       <select
+                        id="filiere-select"
                         value={inscForm.filiere_id}
                         onChange={(e) =>
-                          setInscForm((f) => ({
-                            ...f,
-                            filiere_id: e.target.value,
-                          }))
+                          setInscForm((f) => ({ ...f, filiere_id: e.target.value }))
                         }
+                        aria-required="true"
                         style={{
                           width: "100%",
                           padding: "10px 14px",
@@ -1396,10 +1377,10 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                     )}
                   </div>
 
-                  {/* Niveau + Année */}
                   <div style={{ display: "flex", gap: 12 }}>
                     <div style={{ flex: 1 }}>
                       <label
+                        htmlFor="niveau-select"
                         style={{
                           fontSize: 12,
                           fontWeight: 600,
@@ -1411,6 +1392,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                         Niveau
                       </label>
                       <select
+                        id="niveau-select"
                         value={inscForm.niveau}
                         onChange={(e) =>
                           setInscForm((f) => ({ ...f, niveau: e.target.value }))
@@ -1427,14 +1409,13 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                         }}
                       >
                         {["L1", "L2", "L3", "M1", "M2"].map((n) => (
-                          <option key={n} value={n}>
-                            {n}
-                          </option>
+                          <option key={n} value={n}>{n}</option>
                         ))}
                       </select>
                     </div>
                     <div style={{ flex: 1 }}>
                       <label
+                        htmlFor="annee-input"
                         style={{
                           fontSize: 12,
                           fontWeight: 600,
@@ -1446,12 +1427,10 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                         Année universitaire
                       </label>
                       <input
+                        id="annee-input"
                         value={inscForm.annee_universitaire}
                         onChange={(e) =>
-                          setInscForm((f) => ({
-                            ...f,
-                            annee_universitaire: e.target.value,
-                          }))
+                          setInscForm((f) => ({ ...f, annee_universitaire: e.target.value }))
                         }
                         placeholder="2025-2026"
                         style={{
@@ -1469,9 +1448,9 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                     </div>
                   </div>
 
-                  {/* Date inscription */}
                   <div>
                     <label
+                      htmlFor="date-insc-input"
                       style={{
                         fontSize: 12,
                         fontWeight: 600,
@@ -1483,13 +1462,11 @@ function EtudiantModal({ onClose, onSaved, initial }) {
                       Date d'inscription
                     </label>
                     <input
+                      id="date-insc-input"
                       type="date"
                       value={inscForm.date_inscription}
                       onChange={(e) =>
-                        setInscForm((f) => ({
-                          ...f,
-                          date_inscription: e.target.value,
-                        }))
+                        setInscForm((f) => ({ ...f, date_inscription: e.target.value }))
                       }
                       style={{
                         width: "100%",
@@ -1521,11 +1498,7 @@ function EtudiantModal({ onClose, onSaved, initial }) {
           >
             {step === 2 && !isEdit ? (
               <>
-                <Btn
-                  variant="ghost"
-                  onClick={() => setStep(1)}
-                  icon={<X size={15} />}
-                >
+                <Btn variant="ghost" onClick={() => setStep(1)} icon={<X size={15} />}>
                   Retour
                 </Btn>
                 <Btn
@@ -1567,6 +1540,15 @@ function DeleteModal({ student, onConfirm, onCancel, loading }) {
 
   const [localLoading, setLocalLoading] = useState(false);
 
+  // ✅ [IHM R10] Fermeture par Escape
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === "Escape" && !loading && !localLoading) onCancel();
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [onCancel, loading, localLoading]);
+
   const handleConfirm = async () => {
     setLocalLoading(true);
     await onConfirm();
@@ -1585,6 +1567,7 @@ function DeleteModal({ student, onConfirm, onCancel, loading }) {
         }}
       >
         <div
+          aria-hidden="true"
           style={{
             width: 80,
             height: 80,
@@ -1610,8 +1593,9 @@ function DeleteModal({ student, onConfirm, onCancel, loading }) {
               margin: "0 0 8px",
             }}
           >
-            Supprimer {student.prenom} {student.nom}
+            Supprimer {student.prenom} {student.nom} ?
           </p>
+          {/* ✅ [IHM R8] Explication précise des conséquences */}
           <p
             style={{
               fontSize: 13,
@@ -1621,8 +1605,8 @@ function DeleteModal({ student, onConfirm, onCancel, loading }) {
               margin: "0 auto",
             }}
           >
-            Cette action entraînera la suppression définitive de toutes les
-            données associées : inscriptions, notes, et documents.
+            Cette action supprimera définitivement toutes les données associées :
+            inscriptions, notes et documents.
           </p>
           <div
             style={{
@@ -1633,8 +1617,9 @@ function DeleteModal({ student, onConfirm, onCancel, loading }) {
               border: "1px solid rgba(239,68,68,0.2)",
             }}
           >
+            {/* ✅ [IHM R8] Avertissement courtois sans "fatal" */}
             <span style={{ fontSize: 12, color: "#ef4444", fontWeight: 500 }}>
-              ⚠️ Cette action est irréversible
+              ⚠️ Cette action est irréversible — vérifiez avant de confirmer
             </span>
           </div>
         </div>
@@ -1649,10 +1634,12 @@ function DeleteModal({ student, onConfirm, onCancel, loading }) {
           borderTop: "1px solid var(--border)",
         }}
       >
+        {/* ✅ [IHM R10] Annuler toujours disponible */}
         <Btn
           variant="ghost"
           onClick={onCancel}
           disabled={loading || localLoading}
+          aria-label="Annuler la suppression"
         >
           Annuler
         </Btn>
@@ -1661,6 +1648,7 @@ function DeleteModal({ student, onConfirm, onCancel, loading }) {
           onClick={handleConfirm}
           loading={loading || localLoading}
           icon={<Trash2 size={14} />}
+          aria-label={`Confirmer la suppression de ${student.prenom} ${student.nom}`}
         >
           Supprimer définitivement
         </Btn>
@@ -1686,7 +1674,7 @@ function SkeletonRow() {
     borderRadius: 6,
   };
   return (
-    <tr style={{ borderBottom: "1px solid var(--border)" }}>
+    <tr style={{ borderBottom: "1px solid var(--border)" }} aria-hidden="true">
       <td style={{ padding: "14px 16px", width: 52 }}>
         <div style={{ ...pulse, width: 38, height: 38, borderRadius: "50%" }} />
       </td>
@@ -1716,7 +1704,10 @@ const LIMIT = 20;
 export default function EtudiantsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  // ✅ [IHM TOAST FIX] Toast unique au niveau page — visible même quand modal est ouvert
   const [toast, setToast] = useState(null);
+
   const canEdit = ["administrateur", "secretaire"].includes(user?.role);
   const isAdmin = user?.role === "administrateur";
 
@@ -1728,6 +1719,26 @@ export default function EtudiantsPage() {
   const [modal, setModal] = useState(null);
   const [toDelete, setToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+
+  // ✅ [IHM R9] Debounce recherche — évite une requête à chaque frappe
+  const debounceRef = useRef(null);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setSearch(val);
+    setPage(1);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(val), 350);
+  };
+
+  useEffect(() => {
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, []);
+
+  const showNotification = (message, type = "success", details = null) => {
+    setToast({ message, type, details });
+  };
 
   useEffect(() => {
     const handleTransfertAccepte = (e) => {
@@ -1748,29 +1759,27 @@ export default function EtudiantsPage() {
       window.removeEventListener("transfert:accepte", handleTransfertAccepte);
   }, []);
 
-  const showNotification = (message, type = "success", details = null) => {
-    setToast({ message, type, details });
-  };
-
+  // ✅ [IHM R9] Utilise debouncedSearch pour les appels API
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const { data } = await api.get("/etudiants", {
-        params: { search, page, limit: LIMIT },
+        params: { search: debouncedSearch, page, limit: LIMIT },
       });
       setEtudiants(data.data ?? []);
       setTotal(data.total ?? 0);
     } catch {
       setEtudiants([]);
+      // ✅ [IHM R8] Message réseau précis
       showNotification(
-        "Impossible de charger la liste des étudiants",
+        "Impossible de charger la liste",
         "error",
-        "Veuillez vérifier votre connexion",
+        "Vérifiez votre connexion internet et réessayez",
       );
     } finally {
       setLoading(false);
     }
-  }, [search, page]);
+  }, [debouncedSearch, page]);
 
   useEffect(() => {
     load();
@@ -1791,15 +1800,17 @@ export default function EtudiantsPage() {
     } catch (err) {
       const status = err.response?.status;
       const serverMsg = err.response?.data?.message;
-      let detail = "Veuillez réessayer ultérieurement";
+      // ✅ [IHM R8] Messages précis selon code HTTP
+      let msg = "Suppression impossible";
+      let detail = "Veuillez réessayer dans quelques instants";
       if (status === 403) {
         detail = "Vous n'avez pas les droits pour supprimer un étudiant.";
       } else if (status === 404) {
-        detail = "Cet étudiant est introuvable.";
+        detail = "Cet étudiant est introuvable — il a peut-être déjà été supprimé.";
       } else if (serverMsg) {
         detail = serverMsg;
       }
-      showNotification("Erreur lors de la suppression", "error", detail);
+      showNotification(msg, "error", detail);
     } finally {
       setDeleting(false);
     }
@@ -1811,6 +1822,7 @@ export default function EtudiantsPage() {
 
   return (
     <>
+      {/* ✅ [IHM TOAST FIX] Toast ici au niveau page, hors du portal Modal → toujours visible */}
       {toast && (
         <ToastNotification
           message={toast.message}
@@ -1848,15 +1860,21 @@ export default function EtudiantsPage() {
         <PageHeader
           title="Étudiants"
           subtitle={
-            total > 0
-              ? `${total} étudiant${total > 1 ? "s" : ""} enregistré${total > 1 ? "s" : ""}`
-              : "Aucun étudiant"
+            // ✅ [IHM R5] Feedback contextuel sur les résultats
+            loading
+              ? "Chargement en cours…"
+              : total > 0
+                ? `${total} étudiant${total > 1 ? "s" : ""} enregistré${total > 1 ? "s" : ""}${debouncedSearch ? ` pour « ${debouncedSearch} »` : ""}`
+                : debouncedSearch
+                  ? `Aucun résultat pour « ${debouncedSearch} »`
+                  : "Aucun étudiant enregistré"
           }
           action={
             canEdit && (
               <Btn
                 onClick={() => setModal("create")}
                 icon={<UserPlus size={16} />}
+                aria-label="Ajouter un nouvel étudiant"
               >
                 Nouvel étudiant
               </Btn>
@@ -1864,9 +1882,15 @@ export default function EtudiantsPage() {
           }
         />
 
-        <div style={{ marginBottom: 24, position: "relative", maxWidth: 460 }}>
+        {/* ✅ [IHM R3] Barre de recherche avec role="search" */}
+        <div
+          role="search"
+          aria-label="Rechercher un étudiant"
+          style={{ marginBottom: 24, position: "relative", maxWidth: 460 }}
+        >
           <Search
             size={16}
+            aria-hidden="true"
             style={{
               position: "absolute",
               left: 14,
@@ -1878,11 +1902,9 @@ export default function EtudiantsPage() {
           />
           <input
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
+            onChange={handleSearchChange}
             placeholder="Rechercher par nom, prénom ou matricule…"
+            aria-label="Rechercher un étudiant par nom, prénom ou matricule"
             style={{
               width: "100%",
               boxSizing: "border-box",
@@ -1898,20 +1920,23 @@ export default function EtudiantsPage() {
             }}
             onFocus={(e) => {
               e.currentTarget.style.borderColor = "var(--accent)";
-              e.currentTarget.style.boxShadow =
-                "0 0 0 3px rgba(99,102,241,0.18)";
+              e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.18)";
             }}
             onBlur={(e) => {
               e.currentTarget.style.borderColor = "var(--border)";
               e.currentTarget.style.boxShadow = "var(--shadow-sm)";
             }}
           />
+          {/* ✅ [IHM R10] Bouton effacer recherche */}
           {search && (
             <button
               onClick={() => {
                 setSearch("");
+                setDebouncedSearch("");
                 setPage(1);
               }}
+              aria-label="Effacer la recherche"
+              title="Effacer la recherche"
               style={{
                 position: "absolute",
                 right: 12,
@@ -1926,7 +1951,7 @@ export default function EtudiantsPage() {
                 alignItems: "center",
               }}
             >
-              <X size={14} />
+              <X size={14} aria-hidden="true" />
             </button>
           )}
         </div>
@@ -1957,6 +1982,8 @@ export default function EtudiantsPage() {
               "Adresse",
               "Actions",
             ]}
+            aria-label="Liste des étudiants"
+            aria-busy={loading}
           >
             {loading ? (
               Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)
@@ -1966,19 +1993,19 @@ export default function EtudiantsPage() {
                   <EmptyState
                     icon={GraduationCap}
                     title="Aucun étudiant trouvé"
+                    // ✅ [IHM R8] Message état vide contextuel
                     description={
-                      search
-                        ? `Aucun résultat pour "${search}". Essayez un autre terme.`
-                        : "Commencez par ajouter votre premier étudiant."
+                      debouncedSearch
+                        ? `Aucun résultat pour « ${debouncedSearch} ». Essayez avec un autre nom ou matricule.`
+                        : "Aucun étudiant n'est encore enregistré. Commencez par en ajouter un."
                     }
                     action={
-                      canEdit &&
-                      !search && (
+                      canEdit && !debouncedSearch && (
                         <Btn
                           onClick={() => setModal("create")}
                           icon={<UserPlus size={15} />}
                         >
-                          Nouvel étudiant
+                          Ajouter un étudiant
                         </Btn>
                       )
                     }
@@ -1998,8 +2025,7 @@ export default function EtudiantsPage() {
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = "var(--surface2)";
                     e.currentTarget.style.transform = "scale(1.01)";
-                    e.currentTarget.style.boxShadow =
-                      "0 2px 8px rgba(0,0,0,0.1)";
+                    e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.1)";
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = "transparent";
@@ -2008,45 +2034,22 @@ export default function EtudiantsPage() {
                   }}
                 >
                   <Td style={{ width: 56, paddingRight: 4, paddingLeft: 16 }}>
-                    <Avatar
-                      photo={e.photo}
-                      prenom={e.prenom}
-                      nom={e.nom}
-                      size={38}
-                    />
+                    <Avatar photo={e.photo} prenom={e.prenom} nom={e.nom} size={38} />
                   </Td>
 
                   <Td>
-                    <div
-                      style={{
-                        fontWeight: 600,
-                        color: "var(--text)",
-                        lineHeight: 1.3,
-                      }}
-                    >
+                    <div style={{ fontWeight: 600, color: "var(--text)", lineHeight: 1.3 }}>
                       {e.prenom} {e.nom}
                     </div>
                     {e.email && (
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: "var(--text-muted)",
-                          marginTop: 2,
-                        }}
-                      >
+                      <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
                         {e.email}
                       </div>
                     )}
                   </Td>
 
                   <Td>
-                    <span
-                      style={{
-                        color: "var(--text-muted)",
-                        fontSize: 13,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
+                    <span style={{ color: "var(--text-muted)", fontSize: 13, whiteSpace: "nowrap" }}>
                       {e.date_naissance
                         ? new Date(e.date_naissance).toLocaleDateString("fr-FR")
                         : "—"}
@@ -2054,19 +2057,18 @@ export default function EtudiantsPage() {
                   </Td>
 
                   <Td>
+                    {/* ✅ [IHM R11] aria-label pour emoji non lisible par lecteur d'écran */}
                     <span style={{ fontSize: 14, fontWeight: 500 }}>
-                      {e.sexe === "M" ? "👦 M" : e.sexe === "F" ? "👧 F" : "—"}
+                      {e.sexe === "M"
+                        ? <span aria-label="Masculin">  M</span>
+                        : e.sexe === "F"
+                          ? <span aria-label="Féminin"> F</span>
+                          : "—"}
                     </span>
                   </Td>
 
                   <Td>
-                    <span
-                      style={{
-                        color: "var(--text-muted)",
-                        fontSize: 13,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
+                    <span style={{ color: "var(--text-muted)", fontSize: 13, whiteSpace: "nowrap" }}>
                       {e.telephone || "—"}
                     </span>
                   </Td>
@@ -2084,22 +2086,25 @@ export default function EtudiantsPage() {
                     >
                       {canEdit && (
                         <>
-                          <Tooltip text="Modifier">
+                          {/* ✅ [IHM R7] aria-label explicite sur chaque action */}
+                          <Tooltip text="Modifier les informations">
                             <Btn
                               small
                               variant="success"
                               onClick={() => setModal(e)}
                               icon={<Edit size={13} />}
+                              aria-label={`Modifier ${e.prenom} ${e.nom}`}
                             >
                               Modifier
                             </Btn>
                           </Tooltip>
-                          <Tooltip text="Supprimer">
+                          <Tooltip text="Supprimer cet étudiant">
                             <Btn
                               small
                               variant="danger"
                               onClick={() => setToDelete(e)}
                               icon={<Trash2 size={13} />}
+                              aria-label={`Supprimer ${e.prenom} ${e.nom}`}
                             >
                               Supprimer
                             </Btn>
@@ -2113,8 +2118,10 @@ export default function EtudiantsPage() {
             )}
           </Table>
 
+          {/* ✅ [IHM R9] Pagination accessible */}
           {!loading && total > LIMIT && (
-            <div
+            <nav
+              aria-label="Pagination de la liste"
               style={{
                 display: "flex",
                 justifyContent: "space-between",
@@ -2125,10 +2132,14 @@ export default function EtudiantsPage() {
                 borderRadius: "0 0 var(--radius-lg) var(--radius-lg)",
               }}
             >
-              <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
+              <span
+                style={{ fontSize: 13, color: "var(--text-muted)" }}
+                aria-live="polite"
+                aria-atomic="true"
+              >
                 {startRecord}–{endRecord} sur{" "}
                 <strong style={{ color: "var(--text)" }}>{total}</strong>{" "}
-                résultats
+                étudiants
               </span>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Btn
@@ -2137,10 +2148,13 @@ export default function EtudiantsPage() {
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
                   icon={<ChevronLeft size={14} />}
+                  aria-label="Page précédente"
                 >
                   Précédent
                 </Btn>
                 <span
+                  aria-current="page"
+                  aria-label={`Page ${page} sur ${totalPages}`}
                   style={{
                     padding: "5px 12px",
                     background: "var(--surface)",
@@ -2161,11 +2175,12 @@ export default function EtudiantsPage() {
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
                   icon={<ChevronRight size={14} />}
+                  aria-label="Page suivante"
                 >
                   Suivant
                 </Btn>
               </div>
-            </div>
+            </nav>
           )}
         </div>
       </div>
@@ -2174,6 +2189,8 @@ export default function EtudiantsPage() {
         <EtudiantModal
           initial={modal === "create" ? null : modal}
           onClose={() => setModal(null)}
+          // ✅ [IHM TOAST FIX] onToast reçoit le toast du modal et l'affiche ici au niveau page
+          onToast={(t) => setToast(t)}
           onSaved={() => {
             setModal(null);
             if (page !== 1) {

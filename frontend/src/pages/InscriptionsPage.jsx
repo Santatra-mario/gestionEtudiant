@@ -161,9 +161,13 @@ function StudentSearch({ onSelect, defaultLabel = "", preloadedStudents = [], lo
     }
   };
 
+  const searchInputId = "student-search-input";
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {/* FIX IHM : label lié au champ via htmlFor/id pour l'accessibilité */}
       <label
+        htmlFor={searchInputId}
         style={{
           fontSize: 13,
           fontWeight: 600,
@@ -174,13 +178,17 @@ function StudentSearch({ onSelect, defaultLabel = "", preloadedStudents = [], lo
         }}
       >
         <Users size={14} color="var(--accent)" />
-        Étudiant <span style={{ color: "var(--danger, #ef4444)" }}>*</span>
+        Étudiant <span style={{ color: "var(--danger, #ef4444)" }} aria-hidden="true">*</span>
+        <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 400 }}>
+          (obligatoire)
+        </span>
       </label>
 
-      {/* ── Champ de recherche (inchangé) ── */}
+      {/* ── Champ de recherche ── */}
       <div style={{ position: "relative" }}>
         <Search
           size={15}
+          aria-hidden="true"
           style={{
             position: "absolute",
             left: 12,
@@ -191,10 +199,15 @@ function StudentSearch({ onSelect, defaultLabel = "", preloadedStudents = [], lo
           }}
         />
         <input
+          id={searchInputId}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Tapez le nom, prénom ou matricule…"
           autoComplete="off"
+          aria-label="Rechercher un étudiant par nom, prénom ou matricule"
+          aria-expanded={open}
+          aria-autocomplete="list"
+          role="combobox"
           style={{
             width: "100%",
             boxSizing: "border-box",
@@ -218,8 +231,11 @@ function StudentSearch({ onSelect, defaultLabel = "", preloadedStudents = [], lo
             e.currentTarget.style.boxShadow = "none";
           }}
         />
+        {/* FIX IHM : spinner corrigé — le translateY ne doit pas être dans le keyframe */}
         {fetching && (
           <div
+            aria-label="Recherche en cours…"
+            role="status"
             style={{
               position: "absolute",
               right: 11,
@@ -234,13 +250,15 @@ function StudentSearch({ onSelect, defaultLabel = "", preloadedStudents = [], lo
                 borderRadius: "50%",
                 border: "2px solid var(--border)",
                 borderTopColor: "var(--accent)",
-                animation: "spin 0.7s linear infinite",
+                animation: "spinOnly 0.7s linear infinite",
               }}
             />
           </div>
         )}
         {open && results.length > 0 && (
           <div
+            role="listbox"
+            aria-label="Résultats de recherche"
             style={{
               position: "absolute",
               left: 0,
@@ -258,6 +276,9 @@ function StudentSearch({ onSelect, defaultLabel = "", preloadedStudents = [], lo
             {results.map((e) => (
               <div
                 key={e.id}
+                role="option"
+                aria-selected="false"
+                tabIndex={0}
                 onMouseDown={() => {
                   onSelect({
                     id: e.id,
@@ -267,6 +288,18 @@ function StudentSearch({ onSelect, defaultLabel = "", preloadedStudents = [], lo
                   });
                   setQuery(`${e.prenom} ${e.nom} (${e.matricule})`);
                   setOpen(false);
+                }}
+                onKeyDown={(ev) => {
+                  if (ev.key === "Enter" || ev.key === " ") {
+                    onSelect({
+                      id: e.id,
+                      label: `${e.prenom} ${e.nom} (${e.matricule})`,
+                      prenom: e.prenom,
+                      nom: e.nom,
+                    });
+                    setQuery(`${e.prenom} ${e.nom} (${e.matricule})`);
+                    setOpen(false);
+                  }
                 }}
                 style={{
                   padding: "10px 14px",
@@ -325,14 +358,39 @@ function StudentSearch({ onSelect, defaultLabel = "", preloadedStudents = [], lo
             ))}
           </div>
         )}
+        {/* FIX IHM : message si aucun résultat trouvé (feedback utilisateur) */}
+        {open && results.length === 0 && query.length >= 2 && !fetching && (
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: "calc(100% + 4px)",
+              background: "var(--bg)",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius-sm)",
+              padding: "12px 14px",
+              fontSize: 13,
+              color: "var(--text-muted)",
+              zIndex: 100,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <AlertCircle size={14} />
+            Aucun étudiant trouvé pour « {query} »
+          </div>
+        )}
       </div>
 
       {/* ── Liste déroulante des étudiants avec inscription complète ── */}
       {(preloadedStudents.length > 0 || loadingPreloaded) && (
         <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 4 }}>
-          {/* En-tête cliquable pour ouvrir/fermer */}
           <button
             type="button"
+            aria-expanded={dropdownOpen}
+            aria-controls="preloaded-students-list"
             onClick={() => setDropdownOpen((v) => !v)}
             style={{
               display: "flex",
@@ -372,6 +430,7 @@ function StudentSearch({ onSelect, defaultLabel = "", preloadedStudents = [], lo
             <ChevronDown
               size={15}
               color="var(--accent)"
+              aria-hidden="true"
               style={{
                 transform: dropdownOpen ? "rotate(180deg)" : "rotate(0deg)",
                 transition: "transform 0.2s",
@@ -379,9 +438,9 @@ function StudentSearch({ onSelect, defaultLabel = "", preloadedStudents = [], lo
             />
           </button>
 
-          {/* Corps déroulant — liste native <select> scrollable */}
           {dropdownOpen && !loadingPreloaded && (
             <div
+              id="preloaded-students-list"
               style={{
                 border: "1.5px solid rgba(99,102,241,0.25)",
                 borderTop: "none",
@@ -391,7 +450,12 @@ function StudentSearch({ onSelect, defaultLabel = "", preloadedStudents = [], lo
                 animation: "slideDown 0.15s ease",
               }}
             >
+              {/* FIX IHM : label lié au select via htmlFor/id */}
+              <label htmlFor="preloaded-select" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)" }}>
+                Sélectionner un étudiant dans la liste
+              </label>
               <select
+                id="preloaded-select"
                 size={Math.min(preloadedStudents.length, 6)}
                 onChange={handleSelectFromDropdown}
                 defaultValue=""
@@ -434,7 +498,9 @@ function StudentSearch({ onSelect, defaultLabel = "", preloadedStudents = [], lo
 function StatutPicker({ value, onChange }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <label
+      {/* FIX IHM : role="group" + aria-labelledby pour grouper les boutons radio visuels */}
+      <span
+        id="statut-picker-label"
         style={{
           fontSize: 13,
           fontWeight: 600,
@@ -444,10 +510,15 @@ function StatutPicker({ value, onChange }) {
           gap: 6,
         }}
       >
-        <Tag size={14} color="var(--accent)" />
+        <Tag size={14} color="var(--accent)" aria-hidden="true" />
         Statut d'inscription
-      </label>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+      </span>
+      {/* FIX IHM : grille 3 colonnes pour équilibre visuel (5 boutons → 3+2 au lieu de 2+2+1) */}
+      <div
+        role="group"
+        aria-labelledby="statut-picker-label"
+        style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}
+      >
         {STATUTS.map((s) => {
           const active = value === s;
           const colors = {
@@ -465,6 +536,8 @@ function StatutPicker({ value, onChange }) {
             <button
               key={s}
               type="button"
+              role="radio"
+              aria-checked={active}
               onClick={() => onChange(s)}
               style={{
                 padding: "10px 12px",
@@ -484,7 +557,7 @@ function StatutPicker({ value, onChange }) {
                 boxShadow: active ? `0 0 0 3px ${c.ring}` : "none",
               }}
             >
-              {active && <CheckCircle size={13} />}
+              {active && <CheckCircle size={13} aria-hidden="true" />}
               {STATUT_LABELS[s] || s}
             </button>
           );
@@ -548,7 +621,12 @@ function InscriptionModal({ onClose, onSaved, onSuccess, onError }) {
   }, []);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
-  const isValid = form.etudiant_id && form.filiere_id;
+
+  // FIX IHM : calcul précis des champs manquants pour guider l'utilisateur
+  const missingFields = [];
+  if (!form.etudiant_id) missingFields.push("un étudiant");
+  if (!form.filiere_id) missingFields.push("une filière");
+  const isValid = missingFields.length === 0;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -588,9 +666,10 @@ function InscriptionModal({ onClose, onSaved, onSuccess, onError }) {
       <form
         onSubmit={handleSubmit}
         style={{ display: "flex", flexDirection: "column", gap: 0 }}
+        noValidate
       >
         {error && (
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 16 }} role="alert" aria-live="assertive">
             <Alert type="danger">{error}</Alert>
           </div>
         )}
@@ -608,6 +687,8 @@ function InscriptionModal({ onClose, onSaved, onSuccess, onError }) {
             />
             {selected ? (
               <div
+                role="status"
+                aria-live="polite"
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -628,7 +709,7 @@ function InscriptionModal({ onClose, onSaved, onSuccess, onError }) {
                   <div
                     style={{ display: "flex", alignItems: "center", gap: 6 }}
                   >
-                    <CheckCircle size={14} color="#22c55e" />
+                    <CheckCircle size={14} color="#22c55e" aria-hidden="true" />
                     <span
                       style={{
                         fontSize: 13,
@@ -664,7 +745,7 @@ function InscriptionModal({ onClose, onSaved, onSuccess, onError }) {
                   color: "var(--text-muted)",
                 }}
               >
-                <AlertCircle size={14} color="var(--text-muted)" />
+                <AlertCircle size={14} color="var(--text-muted)" aria-hidden="true" />
                 Recherchez et sélectionnez un étudiant ci-dessus
               </div>
             )}
@@ -672,8 +753,10 @@ function InscriptionModal({ onClose, onSaved, onSuccess, onError }) {
 
           {/* ── Section Cursus ── */}
           <FormSection title="Cursus académique" icon={BookOpen}>
+            {/* FIX IHM : label lié au select filière via htmlFor/id */}
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <label
+                htmlFor="filiere-select"
                 style={{
                   fontSize: 13,
                   fontWeight: 600,
@@ -683,16 +766,20 @@ function InscriptionModal({ onClose, onSaved, onSuccess, onError }) {
                   gap: 6,
                 }}
               >
-                <BookOpen size={14} color="var(--accent)" />
+                <BookOpen size={14} color="var(--accent)" aria-hidden="true" />
                 Filière{" "}
-                <span style={{ color: "var(--danger, #ef4444)" }}>*</span>
+                <span style={{ color: "var(--danger, #ef4444)" }} aria-hidden="true">*</span>
+                <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 400 }}>(obligatoire)</span>
               </label>
               <div style={{ position: "relative" }}>
                 <select
+                  id="filiere-select"
                   value={form.filiere_id}
                   onChange={set("filiere_id")}
                   disabled={filiereLoading}
                   required
+                  aria-required="true"
+                  aria-invalid={!form.filiere_id}
                   style={{
                     width: "100%",
                     boxSizing: "border-box",
@@ -736,6 +823,7 @@ function InscriptionModal({ onClose, onSaved, onSuccess, onError }) {
                 </select>
                 <ChevronDown
                   size={14}
+                  aria-hidden="true"
                   style={{
                     position: "absolute",
                     right: 12,
@@ -773,12 +861,30 @@ function InscriptionModal({ onClose, onSaved, onSuccess, onError }) {
           </FormSection>
         </div>
 
+        {/* FIX IHM : message d'aide sur le bouton désactivé pour guider l'utilisateur */}
+        {!isValid && (
+          <p
+            style={{
+              marginTop: 16,
+              fontSize: 12,
+              color: "var(--text-muted)",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+            role="note"
+          >
+            <AlertCircle size={12} aria-hidden="true" />
+            Pour continuer, veuillez sélectionner {missingFields.join(" et ")}.
+          </p>
+        )}
+
         <div
           style={{
             display: "flex",
             gap: 10,
             justifyContent: "flex-end",
-            marginTop: 28,
+            marginTop: 16,
             paddingTop: 20,
             borderTop: "1px solid var(--border)",
           }}
@@ -790,6 +896,7 @@ function InscriptionModal({ onClose, onSaved, onSuccess, onError }) {
             type="submit"
             loading={loading}
             disabled={!isValid}
+            aria-disabled={!isValid}
             icon={<UserPlus size={15} />}
           >
             Inscrire l'étudiant
@@ -830,6 +937,13 @@ function TransfertModal({ onClose, onSaved, onSuccess, onError }) {
     form.filiere_origine &&
     form.filiere_destination_id;
 
+  // FIX IHM : calcul des champs manquants pour guider l'utilisateur
+  const missingTransfertFields = [];
+  if (!form.etudiant_id) missingTransfertFields.push("un étudiant");
+  if (!form.etablissement_origine) missingTransfertFields.push("le code établissement");
+  if (!form.filiere_origine) missingTransfertFields.push("la filière d'origine");
+  if (!form.filiere_destination_id) missingTransfertFields.push("la filière de destination");
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isValid) return;
@@ -861,9 +975,10 @@ function TransfertModal({ onClose, onSaved, onSuccess, onError }) {
       <form
         onSubmit={handleSubmit}
         style={{ display: "flex", flexDirection: "column", gap: 0 }}
+        noValidate
       >
         {error && (
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 16 }} role="alert" aria-live="assertive">
             <Alert type="danger">{error}</Alert>
           </div>
         )}
@@ -879,6 +994,8 @@ function TransfertModal({ onClose, onSaved, onSuccess, onError }) {
             />
             {selected ? (
               <div
+                role="status"
+                aria-live="polite"
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -898,7 +1015,7 @@ function TransfertModal({ onClose, onSaved, onSuccess, onError }) {
                   <div
                     style={{ display: "flex", alignItems: "center", gap: 6 }}
                   >
-                    <CheckCircle size={14} color="#22c55e" />
+                    <CheckCircle size={14} color="#22c55e" aria-hidden="true" />
                     <span
                       style={{
                         fontSize: 13,
@@ -934,7 +1051,7 @@ function TransfertModal({ onClose, onSaved, onSuccess, onError }) {
                   color: "var(--text-muted)",
                 }}
               >
-                <AlertCircle size={14} color="var(--text-muted)" />
+                <AlertCircle size={14} color="var(--text-muted)" aria-hidden="true" />
                 Recherchez et sélectionnez un étudiant ci-dessus
               </div>
             )}
@@ -964,10 +1081,11 @@ function TransfertModal({ onClose, onSaved, onSuccess, onError }) {
             </FormRow>
           </FormSection>
 
-          {/* ── Destination ── */}
+          {/* ── Destination ── FIX IHM : style harmonisé avec InscriptionModal */}
           <FormSection title="Cursus académique" icon={BookOpen}>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <label
+                htmlFor="filiere-destination-select"
                 style={{
                   fontSize: 13,
                   fontWeight: 600,
@@ -977,39 +1095,71 @@ function TransfertModal({ onClose, onSaved, onSuccess, onError }) {
                   gap: 6,
                 }}
               >
-                <BookOpen size={14} color="var(--accent)" />
+                <BookOpen size={14} color="var(--accent)" aria-hidden="true" />
                 Filière destination{" "}
-                <span style={{ color: "var(--danger, #ef4444)" }}>*</span>
+                <span style={{ color: "var(--danger, #ef4444)" }} aria-hidden="true">*</span>
+                <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 400 }}>(obligatoire)</span>
               </label>
-              <select
-                value={form.filiere_destination_id}
-                onChange={set("filiere_destination_id")}
-                required
-                style={{
-                  width: "100%",
-                  boxSizing: "border-box",
-                  background: "var(--surface2)",
-                  border: "1.5px solid var(--border)",
-                  borderRadius: "var(--radius-sm)",
-                  color: form.filiere_destination_id
-                    ? "var(--text)"
-                    : "var(--text-muted)",
-                  padding: "10px 14px",
-                  fontSize: 14,
-                  outline: "none",
-                }}
-              >
-                <option value="">— Sélectionner une filière —</option>
-                {filieres.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.nom} ({f.code})
-                  </option>
-                ))}
-              </select>
+              {/* FIX IHM : même style que le select filière dans InscriptionModal */}
+              <div style={{ position: "relative" }}>
+                <select
+                  id="filiere-destination-select"
+                  value={form.filiere_destination_id}
+                  onChange={set("filiere_destination_id")}
+                  required
+                  aria-required="true"
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    background: "var(--surface2)",
+                    border: "1.5px solid var(--border)",
+                    borderRadius: "var(--radius-sm)",
+                    color: form.filiere_destination_id
+                      ? "var(--text)"
+                      : "var(--text-muted)",
+                    padding: "10px 36px 10px 14px",
+                    fontSize: 14,
+                    outline: "none",
+                    cursor: "pointer",
+                    transition: "border-color 0.2s, box-shadow 0.2s",
+                    appearance: "none",
+                    colorScheme: "dark",
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = "var(--accent)";
+                    e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.18)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "var(--border)";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                >
+                  <option value="">— Sélectionner une filière —</option>
+                  {filieres.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.nom} ({f.code})
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={14}
+                  aria-hidden="true"
+                  style={{
+                    position: "absolute",
+                    right: 12,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    pointerEvents: "none",
+                    color: "var(--text-muted)",
+                  }}
+                />
+              </div>
             </div>
             <FormRow>
+              {/* FIX IHM : label lié au select niveau + style harmonisé */}
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <label
+                  htmlFor="niveau-transfert-select"
                   style={{
                     fontSize: 13,
                     fontWeight: 600,
@@ -1018,23 +1168,52 @@ function TransfertModal({ onClose, onSaved, onSuccess, onError }) {
                 >
                   Niveau *
                 </label>
-                <select
-                  value={form.niveau}
-                  onChange={set("niveau")}
-                  style={{
-                    background: "var(--surface2)",
-                    border: "1.5px solid var(--border)",
-                    borderRadius: "var(--radius-sm)",
-                    color: "var(--text)",
-                    padding: "10px 14px",
-                    fontSize: 14,
-                    outline: "none",
-                  }}
-                >
-                  {NIVEAUX.map((n) => (
-                    <option key={n}>{n}</option>
-                  ))}
-                </select>
+                <div style={{ position: "relative" }}>
+                  <select
+                    id="niveau-transfert-select"
+                    value={form.niveau}
+                    onChange={set("niveau")}
+                    style={{
+                      width: "100%",
+                      boxSizing: "border-box",
+                      background: "var(--surface2)",
+                      border: "1.5px solid var(--border)",
+                      borderRadius: "var(--radius-sm)",
+                      color: "var(--text)",
+                      padding: "10px 36px 10px 14px",
+                      fontSize: 14,
+                      outline: "none",
+                      cursor: "pointer",
+                      transition: "border-color 0.2s, box-shadow 0.2s",
+                      appearance: "none",
+                      colorScheme: "dark",
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = "var(--accent)";
+                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.18)";
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = "var(--border)";
+                      e.currentTarget.style.boxShadow = "none";
+                    }}
+                  >
+                    {NIVEAUX.map((n) => (
+                      <option key={n}>{n}</option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    size={14}
+                    aria-hidden="true"
+                    style={{
+                      position: "absolute",
+                      right: 12,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      pointerEvents: "none",
+                      color: "var(--text-muted)",
+                    }}
+                  />
+                </div>
               </div>
               <Input
                 label="Année universitaire *"
@@ -1047,7 +1226,21 @@ function TransfertModal({ onClose, onSaved, onSuccess, onError }) {
 
           {/* ── Motif ── */}
           <FormSection title="Motif du transfert" icon={Tag}>
+            {/* FIX IHM : label lié au textarea */}
+            <label
+              htmlFor="motif-textarea"
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: "var(--text-soft)",
+                marginBottom: 4,
+                display: "block",
+              }}
+            >
+              Motif (optionnel)
+            </label>
             <textarea
+              id="motif-textarea"
               value={form.motif}
               onChange={set("motif")}
               placeholder="Raison du transfert (optionnel)"
@@ -1062,17 +1255,46 @@ function TransfertModal({ onClose, onSaved, onSuccess, onError }) {
                 fontSize: 14,
                 resize: "vertical",
                 boxSizing: "border-box",
+                fontFamily: "inherit",
+                outline: "none",
+                transition: "border-color 0.2s, box-shadow 0.2s",
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = "var(--accent)";
+                e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.18)";
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = "var(--border)";
+                e.currentTarget.style.boxShadow = "none";
               }}
             />
           </FormSection>
         </div>
+
+        {/* FIX IHM : message d'aide sur les champs manquants */}
+        {!isValid && missingTransfertFields.length > 0 && (
+          <p
+            style={{
+              marginTop: 16,
+              fontSize: 12,
+              color: "var(--text-muted)",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+            role="note"
+          >
+            <AlertCircle size={12} aria-hidden="true" />
+            Pour continuer, veuillez renseigner : {missingTransfertFields.join(", ")}.
+          </p>
+        )}
 
         <div
           style={{
             display: "flex",
             gap: 10,
             justifyContent: "flex-end",
-            marginTop: 28,
+            marginTop: 16,
             paddingTop: 20,
             borderTop: "1px solid var(--border)",
           }}
@@ -1084,6 +1306,7 @@ function TransfertModal({ onClose, onSaved, onSuccess, onError }) {
             type="submit"
             loading={loading}
             disabled={!isValid}
+            aria-disabled={!isValid}
             icon={<ArrowLeftRight size={15} />}
           >
             Créer la demande
@@ -1132,7 +1355,7 @@ function StatutModal({ inscription, onClose, onSaved, onSuccess, onError }) {
         style={{ display: "flex", flexDirection: "column", gap: 0 }}
       >
         {error && (
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 16 }} role="alert" aria-live="assertive">
             <Alert type="danger">{error}</Alert>
           </div>
         )}
@@ -1179,6 +1402,7 @@ function StatutModal({ inscription, onClose, onSaved, onSuccess, onError }) {
             type="submit"
             loading={loading}
             disabled={statut === inscription.statut}
+            aria-disabled={statut === inscription.statut}
             icon={<Save size={15} />}
           >
             Enregistrer
@@ -1199,7 +1423,7 @@ function SkeletonRow() {
     borderRadius: 6,
   };
   return (
-    <tr style={{ borderBottom: "1px solid var(--border)" }}>
+    <tr style={{ borderBottom: "1px solid var(--border)" }} aria-hidden="true">
       {[80, 130, 90, 36, 75, 64, 80].map((w, i) => (
         <td key={i} style={{ padding: "14px 12px" }}>
           <div
@@ -1260,10 +1484,19 @@ export default function InscriptionsPage() {
 
   return (
     <>
+      {/* FIX IHM : @keyframes corrigés
+          - shimmer : inchangé, correct
+          - spinOnly : UNIQUEMENT la rotation, sans translateY (qui est géré par le parent)
+          - slideDown : inchangé, correct
+          - Filtre statut responsive : sur petit écran passage à 2 colonnes
+      */}
       <style>{`
         @keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }
-        @keyframes spin { to { transform: translateY(-50%) rotate(360deg) } }
+        @keyframes spinOnly { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-6px) } to { opacity: 1; transform: translateY(0) } }
+        @media (max-width: 640px) {
+          .statut-filter-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
       `}</style>
 
       <div
@@ -1286,12 +1519,14 @@ export default function InscriptionsPage() {
                   onClick={() => setShowTransfertModal(true)}
                   icon={<ArrowLeftRight size={16} />}
                   variant="ghost"
+                  aria-label="Créer une demande de transfert"
                 >
                   Transfert
                 </Btn>
                 <Btn
                   onClick={() => setShowModal(true)}
                   icon={<UserPlus size={16} />}
+                  aria-label="Créer une nouvelle inscription"
                 >
                   Nouvelle inscription
                 </Btn>
@@ -1328,6 +1563,7 @@ export default function InscriptionsPage() {
                 display: "grid",
                 placeItems: "center",
               }}
+              aria-hidden="true"
             >
               <Layers size={26} color="#2563eb" />
             </div>
@@ -1340,7 +1576,7 @@ export default function InscriptionsPage() {
                   marginBottom: 6,
                 }}
               >
-                <Sparkles size={16} color="#60a5fa" />
+                <Sparkles size={16} color="#60a5fa" aria-hidden="true" />
                 <span
                   style={{
                     fontSize: 12,
@@ -1379,7 +1615,7 @@ export default function InscriptionsPage() {
                 border: "1px solid rgba(59,130,246,0.18)",
               }}
             >
-              <Calendar size={13} color="var(--accent)" /> Année :{" "}
+              <Calendar size={13} color="var(--accent)" aria-hidden="true" /> Année :{" "}
               {getCurrentAcademicYear()}
             </span>
             <span
@@ -1395,7 +1631,7 @@ export default function InscriptionsPage() {
                 border: "1px solid rgba(59,130,246,0.18)",
               }}
             >
-              <Users size={13} color="var(--accent)" /> Étudiants inscrits :{" "}
+              <Users size={13} color="var(--accent)" aria-hidden="true" /> Étudiants inscrits :{" "}
               {inscriptions.length}
             </span>
           </div>
@@ -1415,10 +1651,13 @@ export default function InscriptionsPage() {
             variant={showFilters ? "outline" : "ghost"}
             onClick={() => setShowFilters((v) => !v)}
             icon={<Filter size={14} />}
+            aria-expanded={showFilters}
+            aria-controls="filters-panel"
           >
             Filtres
             {filterCount > 0 && (
               <span
+                aria-label={`${filterCount} filtre${filterCount > 1 ? "s" : ""} actif${filterCount > 1 ? "s" : ""}`}
                 style={{
                   marginLeft: 4,
                   background: "var(--accent)",
@@ -1441,6 +1680,7 @@ export default function InscriptionsPage() {
               variant="ghost"
               onClick={clearFilters}
               icon={<RotateCcw size={13} />}
+              aria-label="Réinitialiser tous les filtres"
             >
               Réinitialiser
             </Btn>
@@ -1461,9 +1701,11 @@ export default function InscriptionsPage() {
                 fontWeight: 500,
               }}
             >
-              <Calendar size={12} /> {filters.annee}
+              <Calendar size={12} aria-hidden="true" /> {filters.annee}
+              {/* FIX IHM : aria-label sur le bouton X pour indiquer son action */}
               <button
                 onClick={() => setFilters((f) => ({ ...f, annee: "" }))}
+                aria-label={`Supprimer le filtre année ${filters.annee}`}
                 style={{
                   background: "none",
                   border: "none",
@@ -1493,8 +1735,10 @@ export default function InscriptionsPage() {
               }}
             >
               {STATUT_LABELS[filters.statut] || filters.statut}
+              {/* FIX IHM : aria-label sur le bouton X */}
               <button
                 onClick={() => setFilters((f) => ({ ...f, statut: "" }))}
+                aria-label={`Supprimer le filtre statut ${STATUT_LABELS[filters.statut] || filters.statut}`}
                 style={{
                   background: "none",
                   border: "none",
@@ -1512,6 +1756,7 @@ export default function InscriptionsPage() {
 
         {showFilters && (
           <div
+            id="filters-panel"
             style={{
               display: "flex",
               flexDirection: "column",
@@ -1536,7 +1781,8 @@ export default function InscriptionsPage() {
             />
 
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label
+              <span
+                id="statut-filter-label"
                 style={{
                   fontSize: 13,
                   fontWeight: 600,
@@ -1546,13 +1792,17 @@ export default function InscriptionsPage() {
                   gap: 6,
                 }}
               >
-                <Tag size={14} color="var(--accent)" />
+                <Tag size={14} color="var(--accent)" aria-hidden="true" />
                 Filtrer par statut
-              </label>
+              </span>
+              {/* FIX IHM : grille responsive avec classe CSS pour breakpoint mobile */}
               <div
+                className="statut-filter-grid"
+                role="group"
+                aria-labelledby="statut-filter-label"
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(5, 1fr)",
+                  gridTemplateColumns: "repeat(6, 1fr)",
                   gap: 8,
                 }}
               >
@@ -1574,6 +1824,8 @@ export default function InscriptionsPage() {
                     <button
                       key={key}
                       type="button"
+                      role="radio"
+                      aria-checked={active}
                       onClick={() => setFilters((f) => ({ ...f, statut: key }))}
                       style={{
                         padding: "9px 10px",
@@ -1594,7 +1846,7 @@ export default function InscriptionsPage() {
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {active && <CheckCircle size={12} />}
+                      {active && <CheckCircle size={12} aria-hidden="true" />}
                       {label}
                     </button>
                   );
@@ -1613,6 +1865,10 @@ export default function InscriptionsPage() {
             boxShadow: "var(--shadow-sm)",
           }}
         >
+          {/* FIX IHM : aria-live sur le tableau pour annoncer les changements de données */}
+          <div role="status" aria-live="polite" aria-atomic="false" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)" }}>
+            {loading ? "Chargement des inscriptions…" : `${inscriptions.length} inscription${inscriptions.length !== 1 ? "s" : ""} affichée${inscriptions.length !== 1 ? "s" : ""}`}
+          </div>
           <Table
             headers={[
               "Matricule",
@@ -1709,6 +1965,7 @@ export default function InscriptionsPage() {
                         variant="ghost"
                         onClick={() => setStatutModal(i)}
                         icon={<Edit size={13} />}
+                        aria-label={`Modifier le statut de ${i.etudiant_nom}`}
                       >
                         Statut
                       </Btn>

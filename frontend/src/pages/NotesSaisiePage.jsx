@@ -739,6 +739,7 @@ export default function NotesSaisiePage() {
                         }}
                       >
                         <input
+                        
                           type="number"
                           min="0"
                           max="20"
