@@ -3,7 +3,24 @@ import { useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { useNotification, NotificationDisplay } from "../hooks/useNotification";
-import { Trash2, Save, Download, TrendingUp, Hash, Sigma, Award } from "lucide-react";
+import {
+  Trash2,
+  Save,
+  Download,
+  TrendingUp,
+  Hash,
+  Sigma,
+  Award,
+} from "lucide-react";
+
+// ── Mapping niveau → semestres ────────────────────────────────────────────────
+const NIVEAU_SEMESTRES = {
+  L1: ["S1", "S2"],
+  L2: ["S3", "S4"],
+  L3: ["S5", "S6"],
+  M1: ["S7", "S8"],
+  M2: ["S9", "S10"],
+};
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import {
@@ -258,6 +275,13 @@ export default function NotesSaisiePage() {
           try {
             const mRes = await api.get(`/filieres/${insc.filiere_id}/matieres`);
             matList = extractArray(mRes.data);
+            // Filtrer les matières selon le niveau de l'étudiant
+            const semestresAutorises = NIVEAU_SEMESTRES[insc?.niveau];
+            if (semestresAutorises) {
+              matList = matList.filter((m) =>
+                semestresAutorises.includes(m.semestre),
+              );
+            }
           } catch (e) {
             console.warn("Impossible de charger les matières:", e);
             setMsg({
@@ -739,7 +763,6 @@ export default function NotesSaisiePage() {
                         }}
                       >
                         <input
-                        
                           type="number"
                           min="0"
                           max="20"
@@ -1327,7 +1350,13 @@ export default function NotesSaisiePage() {
                         borderBottom: "1px solid var(--border)",
                       }}
                     >
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                        }}
+                      >
                         <div
                           style={{
                             width: 36,
@@ -1353,7 +1382,9 @@ export default function NotesSaisiePage() {
                           >
                             Résumé général
                           </div>
-                          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                          <div
+                            style={{ fontSize: 12, color: "var(--text-muted)" }}
+                          >
                             Synthèse sur {semesterRangeLabel}
                           </div>
                         </div>
@@ -1369,7 +1400,8 @@ export default function NotesSaisiePage() {
                     <div
                       style={{
                         display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                        gridTemplateColumns:
+                          "repeat(auto-fit, minmax(180px, 1fr))",
                         gap: 12,
                       }}
                     >
@@ -1387,7 +1419,13 @@ export default function NotesSaisiePage() {
                           }}
                         >
                           {/* Icône + label */}
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 8,
+                            }}
+                          >
                             <div
                               style={{
                                 width: 30,
@@ -1415,7 +1453,13 @@ export default function NotesSaisiePage() {
                           </div>
 
                           {/* Valeur + badge optionnel */}
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                            }}
+                          >
                             <span
                               style={{
                                 fontSize: 22,
