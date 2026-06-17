@@ -1003,6 +1003,7 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
                       error={fieldErrors.prenom}
                       aria-required="true"
                       aria-invalid={!!fieldErrors.prenom}
+                      
                     />
                     <FieldErr msg={fieldErrors.prenom} />
                   </div>
@@ -1105,6 +1106,7 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
                 <Input
                   label="Adresse e-mail"
                   type="email"
+                  required
                   value={form.email}
                   onChange={set("email")}
                   placeholder="jean.rakoto@email.com"
@@ -1120,6 +1122,7 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
                         color: "var(--text-muted)",
                         marginBottom: 6,
                         display: "block",
+                        
                       }}
                     >
                       Téléphone
@@ -1144,6 +1147,7 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
                         />
                         <input
                           id="telephone-input"
+                          required
                           value={form.telephone}
                           onChange={(e) => {
                             let val = e.target.value.replace(/[^\d\s\-]/g, "");
@@ -1223,6 +1227,7 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
                       onChange={handleAdresseChange}
                       placeholder="Antananarivo"
                       icon={MapPin}
+                      required
                       error={fieldErrors.adresse}
                       aria-invalid={!!fieldErrors.adresse}
                     />
