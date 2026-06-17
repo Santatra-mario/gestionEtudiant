@@ -680,6 +680,7 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
     nom: "",
     prenom: "",
     adresse: "",
+    email: "",
   });
 
   const calcAgeExact = (dateStr) => {
@@ -737,8 +738,28 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
     }));
   };
 
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const handleEmailChange = (e) => {
+    const val = e.target.value;
+    setForm((f) => ({ ...f, email: val }));
+    if (val.trim() && !EMAIL_REGEX.test(val.trim())) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        email: "Format d'email invalide (ex: jean@email.com)",
+      }));
+    } else {
+      setFieldErrors((prev) => ({ ...prev, email: "" }));
+    }
+  };
+
   const hasFieldError = () =>
-    !!(fieldErrors.nom || fieldErrors.prenom || fieldErrors.adresse);
+    !!(
+      fieldErrors.nom ||
+      fieldErrors.prenom ||
+      fieldErrors.adresse ||
+      fieldErrors.email
+    );
 
   const handlePhoto = (e) => {
     const file = e.target.files[0];
@@ -784,11 +805,14 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
     return "";
   })();
 
+  const emailValid = !form.email.trim() || EMAIL_REGEX.test(form.email.trim());
+
   const isValid =
     form.nom.trim() &&
     form.prenom.trim() &&
     form.date_naissance &&
     form.email.trim() &&
+    emailValid &&
     form.telephone.trim() &&
     form.adresse.trim() &&
     !ageError &&
@@ -1162,9 +1186,10 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
                   type="email"
                   required
                   value={form.email}
-                  onChange={set("email")}
+                  onChange={handleEmailChange}
                   placeholder="jean.rakoto@email.com"
                   icon={Mail}
+                  error={fieldErrors.email}
                 />
                 <FormRow>
                   <div
