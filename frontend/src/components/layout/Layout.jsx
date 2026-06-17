@@ -61,7 +61,7 @@ const NAV = [
     hint: "Gestion des étudiants",
     roles: ["administrateur", "secretaire"], // ← enseignant exclu
   },
-  
+
   {
     to: "/matieres",
     label: "Matières",
@@ -306,7 +306,7 @@ function LogoutDialog({ user, onConfirm, onCancel }) {
 }
 
 /* ─── Élément de navigation amélioré ────────────────────────────────────── */
-function NavItem({ item, collapsed }) {
+function NavItem({ item, collapsed, onNavClick }) {
   const { to, label, icon: Icon, hint, exact } = item;
   const [hovered, setHovered] = useState(false);
   const [tooltipPos, setTooltipPos] = useState(0);
@@ -355,6 +355,7 @@ function NavItem({ item, collapsed }) {
       })}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={() => setHovered(false)}
+      onClick={onNavClick}
       title={collapsed ? label : undefined}
     >
       {/* Indicateur actif — barre gauche */}
