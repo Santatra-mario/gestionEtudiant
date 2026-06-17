@@ -669,7 +669,7 @@ export default function NotesSaisiePage() {
                 "Code",
                 "Coeff.",
                 "Note /20",
-                "Pondérée",
+                "Note * Coeff",
                 ...(canDelete ? ["Action"] : []),
               ].map((h) => (
                 <th
