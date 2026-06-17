@@ -1,10 +1,11 @@
 // ════════════════════════════════════════════════════════════════
 //  App.jsx — IHM corrigée
 //  Corrections :
-//    1. Redirection selon rôle après login (Admin → /admin, Secrétaire → /)
+//    1. Redirection selon rôle après login (Admin → /, Secrétaire → /)
 //    2. Spinner de chargement centré avec message
 //    3. Route 404 propre
 //    4. Route /mon-profil réservée au rôle etudiant
+//    5. Ajout des flags React Router future pour v7 (suppression warnings)
 // ════════════════════════════════════════════════════════════════
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -252,7 +253,13 @@ function AppRoutes() {
 /* ─── Racine ─────────────────────────────────────────────────── */
 export default function App() {
   return (
-    <BrowserRouter>
+    // ✅ Ajout des flags future pour React Router v7 (supprime les warnings)
+    <BrowserRouter
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
       <ThemeProvider>
         <NotificationProvider>
           <AuthProvider>

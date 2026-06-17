@@ -59,22 +59,21 @@ const NAV = [
     label: "Étudiants",
     icon: GraduationCap,
     hint: "Gestion des étudiants",
-    roles: ["administrateur", "secretaire"], // ← enseignant exclu
+    roles: ["administrateur", "secretaire"],
   },
-
   {
     to: "/matieres",
     label: "Matières",
     icon: Book,
     hint: "Gestion des matières",
-    roles: ["administrateur", "secretaire"], // ← admin seulement
+    roles: ["administrateur", "secretaire"],
   },
   {
     to: "/inscriptions",
     label: "Inscriptions",
     icon: ClipboardList,
     hint: "Gestion des inscriptions",
-    roles: ["administrateur", "secretaire"], // ← enseignant exclu
+    roles: ["administrateur", "secretaire"],
   },
   {
     to: "/notes/saisie",
@@ -82,7 +81,7 @@ const NAV = [
     icon: PenLine,
     hint: "Saisir les notes",
     exact: true,
-    // pas de "roles" → visible par tous (admin, secrétaire, enseignant)
+    // visible par tous
   },
   {
     to: "/notes",
@@ -104,14 +103,14 @@ const NAV = [
     label: "Transferts",
     icon: ArrowLeftRight,
     hint: "Gestion des transferts",
-    roles: ["administrateur", "secretaire"], // ← enseignant exclu
+    roles: ["administrateur", "secretaire"],
   },
   {
     to: "/utilisateurs",
     label: "Utilisateurs",
     icon: Users,
     hint: "Gestion des comptes",
-    roles: ["administrateur"], // ← admin seulement
+    roles: ["administrateur"],
   },
 ];
 
@@ -305,6 +304,7 @@ function LogoutDialog({ user, onConfirm, onCancel }) {
   );
 }
 
+
 /* ─── Élément de navigation amélioré ────────────────────────────────────── */
 function NavItem({ item, collapsed, onNavClick }) {
   const { to, label, icon: Icon, hint, exact } = item;
@@ -358,9 +358,6 @@ function NavItem({ item, collapsed, onNavClick }) {
       onClick={onNavClick}
       title={collapsed ? label : undefined}
     >
-      {/* Indicateur actif — barre gauche */}
-      <NavLink to={to} end={exact} style={{ display: "none" }} />
-
       <Icon
         size={16}
         style={{
@@ -491,7 +488,6 @@ function AppLogo({ collapsed, onToggleCollapse }) {
           "linear-gradient(180deg, var(--surface2) 0%, var(--surface) 100%)",
       }}
     >
-      {/* Partie gauche: Icône + Texte */}
       <div
         style={{
           display: "flex",
@@ -501,7 +497,6 @@ function AppLogo({ collapsed, onToggleCollapse }) {
           overflow: "hidden",
         }}
       >
-        {/* Icône avec halo */}
         <div style={{ position: "relative", flexShrink: 0 }}>
           <div
             style={{
@@ -529,7 +524,6 @@ function AppLogo({ collapsed, onToggleCollapse }) {
           </div>
         </div>
 
-        {/* Texte — visible seulement en mode étendu */}
         {!collapsed && (
           <div style={{ overflow: "hidden", lineHeight: 1, flex: 1 }}>
             <div
@@ -564,7 +558,6 @@ function AppLogo({ collapsed, onToggleCollapse }) {
         )}
       </div>
 
-      {/* Bouton Réduire/Agrandir */}
       <button
         onClick={onToggleCollapse}
         title={collapsed ? "Agrandir le menu" : "Réduire le menu"}
@@ -609,7 +602,6 @@ function AppLogo({ collapsed, onToggleCollapse }) {
 }
 
 /* ─── Bandeau info rôle (mode étendu) ───────────────────────────────────── */
-/* Affiché sous le logo pour rappeler visuellement les droits du rôle connecté */
 function RoleBanner({ user, collapsed }) {
   const rc = ROLE_CONFIG[user?.role] || {
     color: "var(--accent)",
@@ -710,7 +702,6 @@ function Topbar({ location, rc, user }) {
         boxShadow: "0 1px 0 var(--border), 0 4px 16px rgba(0,0,0,0.06)",
       }}
     >
-      {/* Fil d'ariane enrichi */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         {currentPage?.icon && (
           <div
@@ -751,9 +742,7 @@ function Topbar({ location, rc, user }) {
         </div>
       </div>
 
-      {/* Droite : date + badge rôle */}
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        {/* Date */}
         <div
           style={{
             display: "flex",
@@ -772,7 +761,6 @@ function Topbar({ location, rc, user }) {
           <span style={{ textTransform: "capitalize" }}>{dateStr}</span>
         </div>
 
-        {/* Indicateur rôle */}
         <div
           style={{
             display: "flex",
@@ -812,8 +800,6 @@ export default function Layout() {
   const [collapsed, setCollapsed] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
 
-  // Filtre les items de nav en fonction du rôle de l'utilisateur connecté
-  // Un item sans "roles" est visible par tous les rôles
   const visibleNav = NAV.filter(
     (n) => !n.roles || n.roles.includes(user?.role),
   );
@@ -825,10 +811,6 @@ export default function Layout() {
     gradient: "linear-gradient(135deg, var(--accent), var(--accent-dark))",
   };
 
-  /* Groupes de nav :
-   * - mainNav  : tout sauf Utilisateurs
-   * - adminNav : uniquement Utilisateurs (admin seulement, déjà filtré ci-dessus)
-   */
   const mainNav = visibleNav.filter((n) => n.to !== "/utilisateurs");
   const adminNav = visibleNav.filter((n) => n.to === "/utilisateurs");
 
@@ -848,7 +830,6 @@ export default function Layout() {
         />
       )}
 
-      {/* ══════════════════════ SIDEBAR ══════════════════════ */}
       <aside
         style={{
           width: collapsed ? 60 : 256,
@@ -866,16 +847,13 @@ export default function Layout() {
           zIndex: 100,
         }}
       >
-        {/* ── Logo avec bouton réduire ── */}
         <AppLogo
           collapsed={collapsed}
           onToggleCollapse={() => setCollapsed(!collapsed)}
         />
 
-        {/* ── Bandeau rôle ── */}
         <RoleBanner user={user} collapsed={collapsed} />
 
-        {/* ── Navigation principale ── */}
         <nav
           style={{
             flex: 1,
@@ -904,7 +882,6 @@ export default function Layout() {
           )}
         </nav>
 
-        {/* ── Zone utilisateur & actions bas ── */}
         <div
           style={{
             padding: "8px 6px 10px",
@@ -914,7 +891,6 @@ export default function Layout() {
               "linear-gradient(0deg, var(--surface2) 0%, var(--surface) 100%)",
           }}
         >
-          {/* Carte utilisateur — mode étendu */}
           {!collapsed && (
             <div
               style={{
@@ -936,7 +912,6 @@ export default function Layout() {
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                {/* Avatar initiales */}
                 <div
                   style={{
                     width: 34,
@@ -986,7 +961,6 @@ export default function Layout() {
             </div>
           )}
 
-          {/* Avatar seul — mode collapsed */}
           {collapsed && (
             <div
               style={{
@@ -1018,14 +992,12 @@ export default function Layout() {
             </div>
           )}
 
-          {/* ── Toggle Dark / Light ── */}
           <ThemeToggleButton
             collapsed={collapsed}
             theme={theme}
             onToggle={toggleTheme}
           />
 
-          {/* ── Bouton déconnexion ── */}
           <button
             onClick={() => setShowLogout(true)}
             title={collapsed ? "Déconnexion" : undefined}
@@ -1059,7 +1031,6 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* ══════════════════════ CONTENU ══════════════════════ */}
       <main
         style={{
           flex: 1,
@@ -1069,10 +1040,8 @@ export default function Layout() {
           flexDirection: "column",
         }}
       >
-        {/* Topbar enrichie */}
         <Topbar location={location} rc={rc} user={user} />
 
-        {/* Zone de page */}
         <div
           style={{
             padding: "32px 36px",

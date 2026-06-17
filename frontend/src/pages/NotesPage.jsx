@@ -511,7 +511,7 @@ export default function NotesPage() {
       <table style="width:100%;border:none;border-collapse:collapse;background-color:#ffffff;">
         <tr>
           <td style="width:50%;border:none;padding:4px 0;background-color:#ffffff;font-size:11px;color:#6b7280;">
-            Fait \u00e0 Antananarivo, le ${dateStr}
+            Fait \u00e0 Fianarantsoa, le ${dateStr}
           </td>
           <td style="width:50%;border:none;padding:4px 0;background-color:#ffffff;text-align:right;font-size:11px;color:#6b7280;">
             Cachet et signature de l'\u00e9tablissement

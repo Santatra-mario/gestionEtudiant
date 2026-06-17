@@ -64,7 +64,7 @@ const CHART_COLORS = [
   PALETTE.purple,
 ];
 
-/* ── Tooltip personnalisé moderne ─────────────────────────────────────────── */
+/* ── Tooltip personnalisé moderne (CORRIGÉ) ─────────────────────────────── */
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
@@ -81,7 +81,8 @@ function CustomTooltip({ active, payload, label }) {
         backdropFilter: "blur(10px)",
       }}
     >
-      <p
+      {/* ✅ Correction : utiliser un <div> pour le conteneur du label, pas un <p> */}
+      <div
         style={{
           margin: 0,
           fontWeight: 700,
@@ -89,19 +90,19 @@ function CustomTooltip({ active, payload, label }) {
           color: PALETTE.primary,
         }}
       >
-        <p>{label}</p>
-      </p>
-      <p style={{ margin: "6px 0 0", color: "var(--text-muted)" }}>
+        {label}
+      </div>
+      <div style={{ margin: "6px 0 0", color: "var(--text-muted)" }}>
         {payload[0].name} :{" "}
         <strong style={{ color: payload[0].color, fontSize: 16 }}>
           {payload[0].value}
         </strong>
-      </p>
+      </div>
     </div>
   );
 }
 
-/* ── Carte statistique améliorée avec effet glassmorphism ─────────────────── */
+/* ── Carte statistique améliorée (CORRIGÉE : plus de <p> imbriqués) ────── */
 function StatCard({ label, value, color, icon: Icon, trend, trendValue }) {
   const [isHovered, setIsHovered] = useState(false);
   const TrendIcon =
@@ -131,7 +132,6 @@ function StatCard({ label, value, color, icon: Icon, trend, trendValue }) {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Fond décoratif subtil */}
       <div
         style={{
           position: "absolute",
@@ -148,7 +148,8 @@ function StatCard({ label, value, color, icon: Icon, trend, trendValue }) {
       />
 
       <div style={{ flex: 1 }}>
-        <p
+        {/* ✅ Correction : utiliser un <div> pour le label, pas un <p> */} 
+        <div
           style={{
             fontSize: 11.5,
             color: "var(--text-muted)",
@@ -158,9 +159,9 @@ function StatCard({ label, value, color, icon: Icon, trend, trendValue }) {
             fontWeight: 700,
           }}
         >
-          <p>{label}</p>
-        </p>
-        <p
+          {label}
+        </div>
+        <div
           style={{
             fontSize: 34,
             fontWeight: 800,
@@ -174,9 +175,9 @@ function StatCard({ label, value, color, icon: Icon, trend, trendValue }) {
           }}
         >
           {value}
-        </p>
+        </div>
         {trend && trendValue && (
-          <p
+          <div
             style={{
               fontSize: 12,
               color: trend === "up" ? PALETTE.success : PALETTE.danger,
@@ -189,7 +190,7 @@ function StatCard({ label, value, color, icon: Icon, trend, trendValue }) {
           >
             {TrendIcon && <TrendIcon size={13} />}
             <span>{trendValue} par rapport au mois précédent</span>
-          </p>
+          </div>
         )}
       </div>
       <div
@@ -204,7 +205,7 @@ function StatCard({ label, value, color, icon: Icon, trend, trendValue }) {
           alignItems: "center",
           justifyContent: "center",
           transition: "all 0.3s ease",
-         transform: isHovered ? "translateY(-2px)" : "translateY(0)",
+          transform: isHovered ? "translateY(-2px)" : "translateY(0)",
         }}
       >
         <Icon size={24} style={{ color }} />
@@ -343,7 +344,7 @@ function DecisionBadge({ decision }) {
   );
 }
 
-/* ─── En-tête de carte graphique ─────────────────────────────────────────── */
+/* ─── En-tête de carte graphique (CORRIGÉ) ───────────────────────────────── */
 function ChartHeader({ title, subtitle, icon: Icon, color, children }) {
   return (
     <div
@@ -383,7 +384,7 @@ function ChartHeader({ title, subtitle, icon: Icon, color, children }) {
             {title}
           </h4>
           {subtitle && (
-            <p
+            <div
               style={{
                 fontSize: 13,
                 color: "var(--text-muted)",
@@ -391,7 +392,7 @@ function ChartHeader({ title, subtitle, icon: Icon, color, children }) {
               }}
             >
               {subtitle}
-            </p>
+            </div>
           )}
         </div>
       </div>
@@ -400,7 +401,7 @@ function ChartHeader({ title, subtitle, icon: Icon, color, children }) {
   );
 }
 
-/* ─── Section graphique moderne avec layout amélioré ────────────────────────── */
+/* ─── Section graphique moderne ───────────────────────────────────────────── */
 function ModernChartCard({
   title,
   icon: Icon,
@@ -462,7 +463,7 @@ function ModernChartCard({
               {title}
             </h2>
             {subtitle && (
-              <p
+              <div
                 style={{
                   fontSize: 12,
                   color: "var(--text-muted)",
@@ -470,7 +471,7 @@ function ModernChartCard({
                 }}
               >
                 {subtitle}
-              </p>
+              </div>
             )}
           </div>
         </div>

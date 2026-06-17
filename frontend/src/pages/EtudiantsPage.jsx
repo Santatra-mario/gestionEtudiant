@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+
 import { useNavigate } from "react-router-dom";
 import {
   Search,
@@ -671,6 +672,7 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
     telephone: initDigits,
     email: initial?.email || "",
   });
+  
   const [photo, setPhoto] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [error, setError] = useState("");
