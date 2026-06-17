@@ -474,7 +474,7 @@ exports.annuler = async (req, res) => {
       // Archiver l'inscription destination créée lors de l'acceptation
       await conn.query(
         `UPDATE inscriptions
-                 SET statut = 'abandonne'
+                 SET statut = 'transferé'
                  WHERE etudiant_id = ? AND filiere_id = ? AND niveau = ?
                    AND annee_universitaire = ? AND statut = 'actif'`,
         [

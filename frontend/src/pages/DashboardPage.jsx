@@ -148,7 +148,7 @@ function StatCard({ label, value, color, icon: Icon, trend, trendValue }) {
       />
 
       <div style={{ flex: 1 }}>
-        {/* ✅ Correction : utiliser un <div> pour le label, pas un <p> */} 
+        {/* ✅ Correction : utiliser un <div> pour le label, pas un <p> */}
         <div
           style={{
             fontSize: 11.5,
@@ -215,7 +215,10 @@ function StatCard({ label, value, color, icon: Icon, trend, trendValue }) {
 }
 
 /* ─── Badge de statut étudiant amélioré ───────────────────────────────────── */
-function StatutBadge({ statut }) {
+function StatutBadge({ statut, matricule }) {
+  // Transformer 'abandonne' en 'transfere' si le matricule contient 'H-' (étudiant transféré)
+  const statutAffiche =
+    statut === "abandonne" && matricule?.includes("H-") ? "transfere" : statut;
   const config = {
     actif: {
       bg: "rgba(16,185,129,0.12)",
@@ -248,7 +251,7 @@ function StatutBadge({ statut }) {
       label: "Transféré",
     },
   };
-  const c = config[statut] || {
+  const c = config[statutAffiche] || {
     bg: "var(--surface2)",
     color: "var(--text-muted)",
     icon: null,
@@ -1037,7 +1040,6 @@ export default function DashboardPage() {
                 récente(s)
               </p>
             </div>
-            
           </div>
           <Badge color="accent" size="lg">
             <Sparkles size={12} style={{ marginRight: 4 }} />
@@ -1150,7 +1152,7 @@ export default function DashboardPage() {
                       </span>
                     </td>
                     <td style={{ padding: "13px 18px" }}>
-                      <StatutBadge statut={r.statut} />
+                      <StatutBadge statut={r.statut} matricule={r.matricule} />
                     </td>
                     <td
                       style={{
