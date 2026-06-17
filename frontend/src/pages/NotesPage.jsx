@@ -233,13 +233,17 @@ export default function NotesPage() {
         nbNotes = 0;
       const bulletinObj = bulletin.bulletin || {};
       for (const data of Object.values(bulletinObj)) {
-        for (const n of data.notes || []) {
-          const coeff = parseFloat(n.coefficient || n.credit || 0);
-          const note = parseFloat(n.note || 0);
-          totalPond += note * coeff;
-          totalCoeff += coeff;
-          totalNotes += note;
-          nbNotes++;
+        for (const sessionKey of ["session_normale", "session_rattrapage"]) {
+          const sessionData = data[sessionKey];
+          if (!sessionData?.notes) continue;
+          for (const n of sessionData.notes) {
+            const coeff = parseFloat(n.coefficient || n.credit || 0);
+            const note = parseFloat(n.note || 0);
+            totalPond += note * coeff;
+            totalCoeff += coeff;
+            totalNotes += note;
+            nbNotes++;
+          }
         }
       }
       const moyenneGenerale =
@@ -350,57 +354,77 @@ export default function NotesPage() {
       let semIndex = 0;
       for (const [semestre, data] of Object.entries(bulletinObj)) {
         semIndex++;
-        // Section title
-        pdfContent.innerHTML += `
-        <table style="width:100%;border-collapse:collapse;background-color:#ffffff;margin-bottom:8px;">
-          <tr>
-            <td style="width:4px;background-color:#1e40af;padding:0;border:none;border-radius:2px;"></td>
-            <td style="border:none;padding:4px 8px;background-color:#ffffff;font-size:14px;font-weight:700;color:#1e40af;">Semestre ${semestre}</td>
-          </tr>
-        </table>
-      `;
 
-        // Notes table
-        const table = document.createElement("table");
-        table.style.cssText =
-          "width:100%;border-collapse:collapse;margin-bottom:10px;background-color:#ffffff;color:#111827;";
+        // Parcourir les sessions (normale et rattrapage)
+        const SESSION_KEYS = [
+          ["session_normale", "Session Normale"],
+          ["session_rattrapage", "Session Rattrapage"],
+        ];
 
-        const notes = data.notes || [];
-        let semPond = 0,
-          semCoeff = 0;
+        for (const [sessionKey, sessionLabel] of SESSION_KEYS) {
+          const sessionData = data[sessionKey];
+          if (!sessionData?.notes?.length) continue;
 
-        table.innerHTML = `
-        <thead>
-          <tr style="background-color:#1e40af;">
-            <th style="width:36px;border:1px solid #1e40af;padding:8px 6px;text-align:center;color:#ffffff;background-color:#1e40af;font-weight:600;font-size:11px;">N\u00b0</th>
-            <th style="border:1px solid #1e40af;padding:8px 12px;text-align:left;color:#ffffff;background-color:#1e40af;font-weight:600;font-size:11px;">Mati\u00e8re</th>
-            <th style="width:50px;border:1px solid #1e40af;padding:8px 6px;text-align:center;color:#ffffff;background-color:#1e40af;font-weight:600;font-size:11px;">Coeff.</th>
-            <th style="width:70px;border:1px solid #1e40af;padding:8px 6px;text-align:center;color:#ffffff;background-color:#1e40af;font-weight:600;font-size:11px;">Note /20</th>
-            <th style="width:65px;border:1px solid #1e40af;padding:8px 6px;text-align:center;color:#ffffff;background-color:#1e40af;font-weight:600;font-size:11px;">Pond.</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${notes
-            .map((n, idx) => {
-              const coeff = parseFloat(n.coefficient || n.credit || 0);
-              const note = parseFloat(n.note || 0);
-              const pond = (note * coeff).toFixed(2);
-              semPond += note * coeff;
-              semCoeff += coeff;
-              const bgColor = idx % 2 === 0 ? "#ffffff" : "#f8fafc";
-              return `
-          <tr style="background-color:${bgColor};">
-            <td style="border:1px solid #e2e8f0;padding:7px 6px;text-align:center;color:#6b7280;background-color:${bgColor};font-size:12px;">${idx + 1}</td>
-            <td style="border:1px solid #e2e8f0;padding:7px 12px;color:#111827;background-color:${bgColor};font-size:12px;">${n.matiere}</td>
-            <td style="border:1px solid #e2e8f0;padding:7px 6px;text-align:center;color:#111827;background-color:${bgColor};font-size:12px;">${coeff}</td>
-            <td style="border:1px solid #e2e8f0;padding:7px 6px;text-align:center;color:#111827;background-color:${bgColor};font-size:12px;font-weight:600;">${note.toFixed(2)}</td>
-            <td style="border:1px solid #e2e8f0;padding:7px 6px;text-align:center;color:#111827;background-color:${bgColor};font-size:12px;">${pond}</td>
-          </tr>`;
-            })
-            .join("")}
-        </tbody>
-      `;
-        pdfContent.appendChild(table);
+          // Section title
+          pdfContent.innerHTML += `
+          <table style="width:100%;border-collapse:collapse;background-color:#ffffff;margin-bottom:6px;">
+            <tr>
+              <td style="width:4px;background-color:#1e40af;padding:0;border:none;border-radius:2px;"></td>
+              <td style="border:none;padding:4px 8px;background-color:#ffffff;font-size:13px;font-weight:700;color:#1e40af;">Semestre ${semestre} — ${sessionLabel}</td>
+            </tr>
+          </table>
+        `;
+
+          // Notes table
+          const table = document.createElement("table");
+          table.style.cssText =
+            "width:100%;border-collapse:collapse;margin-bottom:10px;background-color:#ffffff;color:#111827;";
+
+          const notes = sessionData.notes || [];
+          let semPond = 0,
+            semCoeff = 0;
+
+          table.innerHTML = `
+          <thead>
+            <tr style="background-color:#1e40af;">
+              <th style="width:36px;border:1px solid #1e40af;padding:8px 6px;text-align:center;color:#ffffff;background-color:#1e40af;font-weight:600;font-size:11px;">N\u00b0</th>
+              <th style="border:1px solid #1e40af;padding:8px 12px;text-align:left;color:#ffffff;background-color:#1e40af;font-weight:600;font-size:11px;">Mati\u00e8re</th>
+              <th style="width:50px;border:1px solid #1e40af;padding:8px 6px;text-align:center;color:#ffffff;background-color:#1e40af;font-weight:600;font-size:11px;">Coeff.</th>
+              <th style="width:70px;border:1px solid #1e40af;padding:8px 6px;text-align:center;color:#ffffff;background-color:#1e40af;font-weight:600;font-size:11px;">Note /20</th>
+              <th style="width:65px;border:1px solid #1e40af;padding:8px 6px;text-align:center;color:#ffffff;background-color:#1e40af;font-weight:600;font-size:11px;">Pond.</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${notes
+              .map((n, idx) => {
+                const coeff = parseFloat(n.coefficient || n.credit || 0);
+                const note = parseFloat(n.note || 0);
+                const pond = (note * coeff).toFixed(2);
+                semPond += note * coeff;
+                semCoeff += coeff;
+                const bgColor = idx % 2 === 0 ? "#ffffff" : "#f8fafc";
+                return `
+            <tr style="background-color:${bgColor};">
+              <td style="border:1px solid #e2e8f0;padding:7px 6px;text-align:center;color:#6b7280;background-color:${bgColor};font-size:12px;">${idx + 1}</td>
+              <td style="border:1px solid #e2e8f0;padding:7px 12px;color:#111827;background-color:${bgColor};font-size:12px;">${n.matiere}</td>
+              <td style="border:1px solid #e2e8f0;padding:7px 6px;text-align:center;color:#111827;background-color:${bgColor};font-size:12px;">${coeff}</td>
+              <td style="border:1px solid #e2e8f0;padding:7px 6px;text-align:center;color:#111827;background-color:${bgColor};font-size:12px;font-weight:600;">${note.toFixed(2)}</td>
+              <td style="border:1px solid #e2e8f0;padding:7px 6px;text-align:center;color:#111827;background-color:${bgColor};font-size:12px;">${pond}</td>
+            </tr>`;
+              })
+              .join("")}
+          </tbody>
+        `;
+          pdfContent.appendChild(table);
+
+          // Summary line for this session
+          const moy = semCoeff > 0 ? (semPond / semCoeff).toFixed(2) : "—";
+          pdfContent.innerHTML += `
+          <div style="margin-bottom:16px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#374151;">
+            <span><strong>${sessionLabel}</strong> — Moyenne : <strong>${moy}/20</strong></span>
+          </div>
+        `;
+        } // end for sessions
 
         // Semester summary
         const semMoy =
@@ -554,179 +578,214 @@ export default function NotesPage() {
   const canDelete = false;
   const canEdit = false;
 
-  // ── Rendu d'un semestre ────────────────────────────────────────────────────
-  const renderSemestre = (semestre, data) => (
-    <Card
-      key={semestre}
-      style={{
-        border: "2px solid var(--border)",
-        transition: "all 0.3s ease",
-        cursor: "pointer",
-        transform: "scale(1)",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = "scale(1.01)";
-        e.currentTarget.style.boxShadow = "var(--shadow-lg)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "scale(1)";
-        e.currentTarget.style.boxShadow = "var(--shadow)";
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 20,
-        }}
-      >
-        <h3
+  // ── Rendu d'une session d'un semestre ─────────────────────────────────────
+  const renderSessionTable = (semestre, sessionKey, sessionData) => {
+    const sessionLabel =
+      sessionKey === "session_rattrapage" ? "Rattrapage" : "Normal";
+    return (
+      <div key={`${semestre}-${sessionKey}`} style={{ marginBottom: 24 }}>
+        <div
           style={{
-            fontFamily: "var(--font-display)",
-            fontSize: 20,
-            color: "var(--text)",
-            margin: 0,
-            fontWeight: 700,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 12,
           }}
         >
-          Semestre {semestre}
-        </h3>
-        <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-          <span style={{ fontSize: 14, color: "var(--text-muted)" }}>
-            Moyenne :{" "}
-            <strong
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <h4
               style={{
-                color:
-                  parseFloat(data.moyenne) >= 10
-                    ? "var(--success)"
-                    : "var(--danger)",
-                fontSize: 18,
-                fontWeight: 700,
+                fontFamily: "var(--font-display)",
+                fontSize: 16,
+                color: "var(--text)",
+                margin: 0,
+                fontWeight: 600,
               }}
             >
-              {data.moyenne}/20
-            </strong>
-          </span>
-          <Badge
-            color={mentionColor[data.mention] || "muted"}
+              Semestre {semestre}
+            </h4>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                padding: "2px 8px",
+                borderRadius: 4,
+                background:
+                  sessionKey === "session_rattrapage"
+                    ? "rgba(245,158,11,0.15)"
+                    : "rgba(99,102,241,0.12)",
+                color:
+                  sessionKey === "session_rattrapage"
+                    ? "var(--warning)"
+                    : "var(--accent)",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+              }}
+            >
+              Session {sessionLabel}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
+              Moyenne :{" "}
+              <strong
+                style={{
+                  color:
+                    parseFloat(sessionData.moyenne) >= 10
+                      ? "var(--success)"
+                      : "var(--danger)",
+                  fontSize: 16,
+                  fontWeight: 700,
+                }}
+              >
+                {sessionData.moyenne}/20
+              </strong>
+            </span>
+            <Badge
+              color={mentionColor[sessionData.mention] || "muted"}
+              style={{
+                padding: "4px 10px",
+                fontSize: 12,
+                fontWeight: 600,
+              }}
+            >
+              {sessionData.mention}
+            </Badge>
+          </div>
+        </div>
+        <div
+          style={{
+            overflowX: "auto",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-lg)",
+          }}
+        >
+          <table
             style={{
-              padding: "6px 12px",
+              width: "100%",
+              borderCollapse: "collapse",
               fontSize: 13,
-              fontWeight: 600,
             }}
           >
-            {data.mention}
-          </Badge>
-        </div>
-      </div>
-      <div
-        style={{
-          overflowX: "auto",
-          border: "2px solid var(--border)",
-          borderRadius: "var(--radius-lg)",
-        }}
-      >
-        <table
-          style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}
-        >
-          <thead>
-            <tr style={{ background: "var(--surface2)" }}>
-              {["Matière", "Coefficient", "Note /20", "Pondérée"].map((h) => (
-                <th
-                  key={h}
-                  style={{
-                    padding: "14px 16px",
-                    textAlign: "left",
-                    color: "var(--text-muted)",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    borderBottom: "2px solid var(--border)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
-                  }}
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {(data.notes || []).map((n, idx) => {
-              const key =
-                n.matiere_id !== undefined && n.matiere_id !== null
-                  ? String(n.matiere_id)
-                  : `idx-${idx}`;
-              const noteValue = parseFloat(n.note || 0);
-              return (
-                <tr
-                  key={key}
-                  style={{
-                    borderBottom: "1px solid var(--border)",
-                    transition: "background 0.2s ease",
-                    cursor: "pointer",
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.background = "var(--surface2)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.background = "transparent")
-                  }
-                >
-                  <td
+            <thead>
+              <tr style={{ background: "var(--surface2)" }}>
+                {["Matière", "Coefficient", "Note /20", "Pondérée"].map((h) => (
+                  <th
+                    key={h}
                     style={{
-                      padding: "14px 16px",
-                      color: "var(--text)",
-                      fontWeight: 500,
-                    }}
-                  >
-                    {n.matiere}
-                  </td>
-                  <td
-                    style={{
-                      padding: "14px 16px",
+                      padding: "10px 14px",
+                      textAlign: "left",
                       color: "var(--text-muted)",
-                      fontWeight: 600,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      borderBottom: "2px solid var(--border)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
                     }}
                   >
-                    {n.coefficient}
-                  </td>
-                  <td style={{ padding: "14px 16px" }}>
-                    <span
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {(sessionData.notes || []).map((n, idx) => {
+                const key =
+                  n.matiere_id !== undefined && n.matiere_id !== null
+                    ? String(n.matiere_id)
+                    : `idx-${idx}`;
+                const noteValue = parseFloat(n.note || 0);
+                return (
+                  <tr
+                    key={key}
+                    style={{
+                      borderBottom: "1px solid var(--border)",
+                      transition: "background 0.2s ease",
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background = "var(--surface2)")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background = "transparent")
+                    }
+                  >
+                    <td
                       style={{
-                        fontWeight: 700,
-                        color:
-                          noteValue >= 10 ? "var(--success)" : "var(--danger)",
-                        fontSize: 15,
-                        background:
-                          noteValue >= 10
-                            ? "rgba(76, 175, 125, 0.1)"
-                            : "rgba(229, 115, 115, 0.1)",
-                        padding: "4px 8px",
-                        borderRadius: "6px",
-                        border: `1px solid ${noteValue >= 10 ? "rgba(76, 175, 125, 0.3)" : "rgba(229, 115, 115, 0.3)"}`,
+                        padding: "10px 14px",
+                        color: "var(--text)",
+                        fontWeight: 500,
                       }}
                     >
-                      {noteValue.toFixed(2)}
-                    </span>
-                  </td>
-                  <td
-                    style={{
-                      padding: "14px 16px",
-                      color: "var(--text-muted)",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {(noteValue * parseFloat(n.coefficient || 0)).toFixed(2)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                      {n.matiere}
+                    </td>
+                    <td
+                      style={{
+                        padding: "10px 14px",
+                        color: "var(--text-muted)",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {n.coefficient}
+                    </td>
+                    <td style={{ padding: "10px 14px" }}>
+                      <span
+                        style={{
+                          fontWeight: 700,
+                          color:
+                            noteValue >= 10
+                              ? "var(--success)"
+                              : "var(--danger)",
+                          fontSize: 14,
+                          background:
+                            noteValue >= 10
+                              ? "rgba(76, 175, 125, 0.1)"
+                              : "rgba(229, 115, 115, 0.1)",
+                          padding: "3px 7px",
+                          borderRadius: "6px",
+                          border: `1px solid ${noteValue >= 10 ? "rgba(76, 175, 125, 0.3)" : "rgba(229, 115, 115, 0.3)"}`,
+                        }}
+                      >
+                        {noteValue.toFixed(2)}
+                      </span>
+                    </td>
+                    <td
+                      style={{
+                        padding: "10px 14px",
+                        color: "var(--text-muted)",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {(noteValue * parseFloat(n.coefficient || 0)).toFixed(2)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </Card>
-  );
+    );
+  };
+
+  // ── Rendu d'un semestre (avec ses sessions) ────────────────────────────────
+  const renderSemestre = (semestre, data) => {
+    const sessions = [];
+    if (data.session_normale?.notes?.length) {
+      sessions.push(["session_normale", data.session_normale]);
+    }
+    if (data.session_rattrapage?.notes?.length) {
+      sessions.push(["session_rattrapage", data.session_rattrapage]);
+    }
+    if (sessions.length === 0) return null;
+
+    return (
+      <Card key={semestre} style={{ marginBottom: 20 }}>
+        {sessions.map(([sessionKey, sessionData]) =>
+          renderSessionTable(semestre, sessionKey, sessionData),
+        )}
+      </Card>
+    );
+  };
 
   const hasNotes = bulletin && Object.keys(bulletin.bulletin || {}).length > 0;
 

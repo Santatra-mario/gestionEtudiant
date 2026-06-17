@@ -175,6 +175,7 @@ export default function NotesSaisiePage() {
   const [matieres, setMatieres] = useState([]);
   const [bulletin, setBulletin] = useState(null);
   const [editNotes, setEditNotes] = useState({});
+  const [session, setSession] = useState("normale");
 
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState({ text: "", type: "" });
@@ -252,6 +253,13 @@ export default function NotesSaisiePage() {
     setFilteredInscriptions(f);
   }, [searchTerm, filterFiliere, filterNiveau, inscriptions]);
 
+  // ── Recharger les notes quand la session change ────────────────────────────
+  useEffect(() => {
+    if (selectedInscription) {
+      loadData(selectedInscription);
+    }
+  }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Chargement matières + bulletin ──────────────────────────────────────────
   const loadData = useCallback(
     async (inscriptionId) => {
@@ -311,12 +319,17 @@ export default function NotesSaisiePage() {
           init[String(m.id)] = "";
         });
 
+        // Charger les notes de la session active
         Object.values(bData?.bulletin ?? {}).forEach((sem) => {
-          (sem.notes ?? []).forEach((n) => {
-            if (n.matiere_id != null) {
-              init[String(n.matiere_id)] = String(parseFloat(n.note));
-            }
-          });
+          const sessionKey = `session_${session}`;
+          const sessionData = sem[sessionKey];
+          if (sessionData?.notes) {
+            sessionData.notes.forEach((n) => {
+              if (n.matiere_id != null) {
+                init[String(n.matiere_id)] = String(parseFloat(n.note));
+              }
+            });
+          }
         });
 
         setEditNotes(init);
@@ -371,7 +384,11 @@ export default function NotesSaisiePage() {
       }
 
       const inscId = parseInt(selectedInscription, 10);
-      await api.post("/notes/batch", { inscription_id: inscId, notes });
+      await api.post("/notes/batch", {
+        inscription_id: inscId,
+        notes,
+        session,
+      });
       setMsg({
         text: `✓ ${notes.length} note(s) enregistrée(s) avec succès.`,
         type: "success",
@@ -385,10 +402,14 @@ export default function NotesSaisiePage() {
         updated[String(m.id)] = "";
       });
       Object.values(r.data?.bulletin ?? {}).forEach((sem) => {
-        (sem.notes ?? []).forEach((n) => {
-          if (n.matiere_id != null)
-            updated[String(n.matiere_id)] = String(parseFloat(n.note));
-        });
+        const sessionKey = `session_${session}`;
+        const sessionData = sem[sessionKey];
+        if (sessionData?.notes) {
+          sessionData.notes.forEach((n) => {
+            if (n.matiere_id != null)
+              updated[String(n.matiere_id)] = String(parseFloat(n.note));
+          });
+        }
       });
       setEditNotes(updated);
     } catch (err) {
@@ -449,39 +470,50 @@ export default function NotesSaisiePage() {
           <div><strong>Option :</strong> ${bulletin.inscription?.option || "—"}</div>
         </div>
       `;
+      const SESSION_LABELS = {
+        session_normale: "Session Normale",
+        session_rattrapage: "Session Rattrapage",
+      };
       for (const [semestre, data] of Object.entries(bulletin.bulletin || {})) {
-        const table = document.createElement("table");
-        table.style.cssText =
-          "width:100%;border-collapse:collapse;margin-bottom:20px;";
-        table.innerHTML = `
-          <thead><tr style="background:#f0f0f0;">
-            <th style="border:1px solid #ddd;padding:8px;text-align:left;">Matière</th>
-            <th style="border:1px solid #ddd;padding:8px;text-align:center;">Coeff.</th>
-            <th style="border:1px solid #ddd;padding:8px;text-align:center;">Note /20</th>
-            <th style="border:1px solid #ddd;padding:8px;text-align:center;">Pondérée</th>
-          </tr></thead>
-          <tbody>${(data.notes || [])
-            .map(
-              (n) => `
-            <tr>
-              <td style="border:1px solid #ddd;padding:8px;">${n.matiere}</td>
-              <td style="border:1px solid #ddd;padding:8px;text-align:center;">${n.coefficient}</td>
-              <td style="border:1px solid #ddd;padding:8px;text-align:center;">${n.note}</td>
-              <td style="border:1px solid #ddd;padding:8px;text-align:center;">${(parseFloat(n.note) * parseFloat(n.coefficient)).toFixed(2)}</td>
-            </tr>`,
-            )
-            .join("")}
-          </tbody>
-        `;
-        pdfContent.appendChild(table);
-        const summary = document.createElement("div");
-        summary.style.cssText =
-          "margin-bottom:24px;padding:18px 20px;border:1px solid #e5e7eb;border-radius:14px;background:#f8fafc;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:13px;color:#374151;";
-        summary.innerHTML = `
-          <div style="font-weight:700;color:#111827;">Semestre ${semestre}</div>
-          <div>Moyenne : <strong>${data.moyenne}/20</strong> | Mention : <strong>${data.mention}</strong></div>
-        `;
-        pdfContent.appendChild(summary);
+        for (const [sessionKey, sessionData] of Object.entries(data)) {
+          if (!sessionData?.notes?.length) continue;
+          const sessionLabel = SESSION_LABELS[sessionKey] || sessionKey;
+          const table = document.createElement("table");
+          table.style.cssText =
+            "width:100%;border-collapse:collapse;margin-bottom:8px;";
+          table.innerHTML = `
+            <caption style="font-size:13px;font-weight:700;text-align:left;padding:6px 4px;color:#4338ca;">
+              ${sessionLabel}
+            </caption>
+            <thead><tr style="background:#f0f0f0;">
+              <th style="border:1px solid #ddd;padding:8px;text-align:left;">Matière</th>
+              <th style="border:1px solid #ddd;padding:8px;text-align:center;">Coeff.</th>
+              <th style="border:1px solid #ddd;padding:8px;text-align:center;">Note /20</th>
+              <th style="border:1px solid #ddd;padding:8px;text-align:center;">Pondérée</th>
+            </tr></thead>
+            <tbody>${(sessionData.notes || [])
+              .map(
+                (n) => `
+              <tr>
+                <td style="border:1px solid #ddd;padding:8px;">${n.matiere}</td>
+                <td style="border:1px solid #ddd;padding:8px;text-align:center;">${n.coefficient}</td>
+                <td style="border:1px solid #ddd;padding:8px;text-align:center;">${n.note}</td>
+                <td style="border:1px solid #ddd;padding:8px;text-align:center;">${(parseFloat(n.note) * parseFloat(n.coefficient)).toFixed(2)}</td>
+              </tr>`,
+              )
+              .join("")}
+            </tbody>
+          `;
+          pdfContent.appendChild(table);
+          const summary = document.createElement("div");
+          summary.style.cssText =
+            "margin-bottom:20px;padding:12px 16px;border:1px solid #e5e7eb;border-radius:10px;background:#f8fafc;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:13px;color:#374151;";
+          summary.innerHTML = `
+            <div style="font-weight:700;color:#111827;">Semestre ${semestre} — ${sessionLabel}</div>
+            <div>Moyenne : <strong>${sessionData.moyenne}/20</strong> | Mention : <strong>${sessionData.mention}</strong></div>
+          `;
+          pdfContent.appendChild(summary);
+        }
       }
       const footer = document.createElement("div");
       footer.style.cssText =
@@ -530,11 +562,15 @@ export default function NotesSaisiePage() {
 
   const getNoteExistante = (matiereId) => {
     if (!bulletin) return null;
+    const sessionKey = `session_${session}`;
     for (const sem of Object.values(bulletin.bulletin || {})) {
-      const found = (sem.notes || []).find(
-        (n) => String(n.matiere_id) === String(matiereId),
-      );
-      if (found) return found;
+      const sessionData = sem[sessionKey];
+      if (sessionData?.notes) {
+        const found = sessionData.notes.find(
+          (n) => String(n.matiere_id) === String(matiereId),
+        );
+        if (found) return found;
+      }
     }
     return null;
   };
@@ -628,16 +664,36 @@ export default function NotesSaisiePage() {
             marginBottom: 16,
           }}
         >
-          <h3
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: 17,
-              color: "var(--text)",
-              margin: 0,
-            }}
-          >
-            Semestre {sem}
-          </h3>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <h3
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: 17,
+                color: "var(--text)",
+                margin: 0,
+              }}
+            >
+              Semestre {sem}
+            </h3>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                padding: "2px 8px",
+                borderRadius: 4,
+                background:
+                  session === "rattrapage"
+                    ? "rgba(245,158,11,0.15)"
+                    : "rgba(99,102,241,0.12)",
+                color:
+                  session === "rattrapage" ? "var(--warning)" : "var(--accent)",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+              }}
+            >
+              {session === "rattrapage" ? "Rattrapage" : "Normal"}
+            </span>
+          </div>
           {moyenneTemp && (
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
@@ -1188,6 +1244,91 @@ export default function NotesSaisiePage() {
               {msg.text}
             </Alert>
           )}
+
+          {/* ── Sélecteur de session (Normale / Rattrapage) ── */}
+          <Card>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 16,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "var(--text-muted)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                }}
+              >
+                Session :
+              </span>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setSession("normale")}
+                  style={{
+                    padding: "8px 20px",
+                    borderRadius: 8,
+                    border: `2px solid ${
+                      session === "normale" ? "var(--accent)" : "var(--border)"
+                    }`,
+                    background:
+                      session === "normale"
+                        ? "var(--accent)"
+                        : "var(--surface2)",
+                    color: session === "normale" ? "#fff" : "var(--text)",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    fontFamily: "var(--font-body)",
+                  }}
+                >
+                  📝 Normale
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSession("rattrapage")}
+                  style={{
+                    padding: "8px 20px",
+                    borderRadius: 8,
+                    border: `2px solid ${
+                      session === "rattrapage"
+                        ? "var(--warning)"
+                        : "var(--border)"
+                    }`,
+                    background:
+                      session === "rattrapage"
+                        ? "var(--warning)"
+                        : "var(--surface2)",
+                    color: session === "rattrapage" ? "#fff" : "var(--text)",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    fontFamily: "var(--font-body)",
+                  }}
+                >
+                  🔄 Rattrapage
+                </button>
+              </div>
+              <span
+                style={{
+                  marginLeft: "auto",
+                  fontSize: 12,
+                  color: "var(--text-muted)",
+                  fontStyle: "italic",
+                }}
+              >
+                {session === "normale"
+                  ? "Saisie des notes de la session normale"
+                  : "Saisie des notes de la session de rattrapage"}
+              </span>
+            </div>
+          </Card>
 
           {/* Tableaux de saisie par semestre */}
           {matieres.length === 0 ? (
