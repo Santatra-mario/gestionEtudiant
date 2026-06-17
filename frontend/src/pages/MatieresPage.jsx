@@ -330,7 +330,7 @@ function MatiereModal({ onClose, onSaved, onSuccess, onError, matiere }) {
 
             <FormRow>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <FieldLabel icon={GraduationCap}>Filière (optionnelle)</FieldLabel>
+                <FieldLabel icon={GraduationCap}>Filière </FieldLabel>
                 <StyledSelect value={form.filiere_id} onChange={set("filiere_id")}>
                   <option value="">-- Aucune filière --</option>
                   {filieres.map((f) => (
@@ -339,7 +339,7 @@ function MatiereModal({ onClose, onSaved, onSuccess, onError, matiere }) {
                 </StyledSelect>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <FieldLabel icon={User}>Enseignant (optionnel)</FieldLabel>
+                <FieldLabel icon={User}>Enseignant </FieldLabel>
                 <StyledSelect value={form.enseignant_id} onChange={set("enseignant_id")}>
                   <option value="">-- Non assigné --</option>
                   {enseignants.map((e) => (
@@ -356,7 +356,7 @@ function MatiereModal({ onClose, onSaved, onSuccess, onError, matiere }) {
           <FormSection title="Crédits & Volume" icon={Award}>
             <FormRow>
               <Input
-                label="Crédits (ECTS)"
+                label="Coeff"
                 type="number"
                 step="0.5"
                 min="0"
