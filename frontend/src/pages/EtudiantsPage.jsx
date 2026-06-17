@@ -279,8 +279,12 @@ function PhotoPicker({ photo, preview, prenom, nom, onFileChange }) {
             (e.currentTarget.style.transform = "scale(1.12)")
           }
           onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-          title={src ? "Changer la photo de profil" : "Ajouter une photo de profil"}
-          aria-label={src ? "Changer la photo de profil" : "Ajouter une photo de profil"}
+          title={
+            src ? "Changer la photo de profil" : "Ajouter une photo de profil"
+          }
+          aria-label={
+            src ? "Changer la photo de profil" : "Ajouter une photo de profil"
+          }
         >
           <Camera size={14} color="#fff" aria-hidden="true" />
           <input
@@ -506,7 +510,10 @@ function CountryDialPicker({ value, onChange }) {
                           : "transparent")
                     }
                   >
-                    <span style={{ fontSize: 18, lineHeight: 1 }} aria-hidden="true">
+                    <span
+                      style={{ fontSize: 18, lineHeight: 1 }}
+                      aria-hidden="true"
+                    >
                       {c.flag}
                     </span>
                     <span style={{ flex: 1 }}>{c.name}</span>
@@ -781,9 +788,15 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
     form.nom.trim() &&
     form.prenom.trim() &&
     form.date_naissance &&
+    form.email.trim() &&
+    form.telephone.trim() &&
+    form.adresse.trim() &&
     !ageError &&
     !phoneError &&
-    !hasFieldError();
+    !hasFieldError() &&
+    (!isEdit
+      ? form.password.length >= 6 && form.password === form.password_confirm
+      : true);
 
   const handleNext = (e) => {
     e.preventDefault();
@@ -852,7 +865,8 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
       const status = err.response?.status;
       const serverMsg = err.response?.data?.message;
       let userMessage = "Impossible d'enregistrer les données";
-      let userDetail = "Veuillez vérifier les informations saisies et réessayer";
+      let userDetail =
+        "Veuillez vérifier les informations saisies et réessayer";
 
       if (status === 409) {
         userMessage = "Cet étudiant existe déjà";
@@ -865,7 +879,8 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
         userDetail = "Vous n'avez pas les droits pour effectuer cette action.";
       } else if (status >= 500) {
         userMessage = "Erreur du serveur";
-        userDetail = "Le serveur est indisponible. Réessayez dans quelques instants.";
+        userDetail =
+          "Le serveur est indisponible. Réessayez dans quelques instants.";
       } else if (serverMsg) {
         userDetail = serverMsg;
       }
@@ -915,7 +930,14 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
               }}
             >
               {/* ✅ [IHM R5] Progression visible */}
-              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)", marginRight: 8 }}>
+              <span
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "var(--accent)",
+                  marginRight: 8,
+                }}
+              >
                 Étape {step}/2
               </span>
               {[1, 2].map((s) => (
@@ -953,7 +975,10 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
                     {s === 1 ? "Identité" : "Inscription"}
                   </span>
                   {s === 1 && (
-                    <span style={{ color: "var(--border)", fontSize: 12 }} aria-hidden="true">
+                    <span
+                      style={{ color: "var(--border)", fontSize: 12 }}
+                      aria-hidden="true"
+                    >
                       →
                     </span>
                   )}
@@ -990,7 +1015,14 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
               <FormSection title="Identité" icon={User}>
                 <FormRow>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 0, flex: 1 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 0,
+                      flex: 1,
+                    }}
+                  >
                     <Input
                       label="Prénom"
                       required
@@ -1003,11 +1035,17 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
                       error={fieldErrors.prenom}
                       aria-required="true"
                       aria-invalid={!!fieldErrors.prenom}
-                      
                     />
                     <FieldErr msg={fieldErrors.prenom} />
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 0, flex: 1 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 0,
+                      flex: 1,
+                    }}
+                  >
                     <Input
                       label="Nom"
                       required
@@ -1061,12 +1099,28 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
                         border: "1px solid #FECACA",
                       }}
                     >
-                      <AlertCircle size={16} style={{ color: "#DC2626", flexShrink: 0 }} aria-hidden="true" />
+                      <AlertCircle
+                        size={16}
+                        style={{ color: "#DC2626", flexShrink: 0 }}
+                        aria-hidden="true"
+                      />
                       <div>
-                        <span style={{ fontSize: 13, color: "#DC2626", fontWeight: 600 }}>
+                        <span
+                          style={{
+                            fontSize: 13,
+                            color: "#DC2626",
+                            fontWeight: 600,
+                          }}
+                        >
                           {ageError}
                         </span>
-                        <div style={{ fontSize: 12, color: "#9B1C1C", marginTop: 2 }}>
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: "#9B1C1C",
+                            marginTop: 2,
+                          }}
+                        >
                           L'âge minimum pour s'inscrire est de 13 ans.
                         </div>
                       </div>
@@ -1113,7 +1167,14 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
                   icon={Mail}
                 />
                 <FormRow>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 0, flex: 1 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 0,
+                      flex: 1,
+                    }}
+                  >
                     <label
                       htmlFor="telephone-input"
                       style={{
@@ -1122,12 +1183,13 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
                         color: "var(--text-muted)",
                         marginBottom: 6,
                         display: "block",
-                        
                       }}
                     >
                       Téléphone
                     </label>
-                    <div style={{ display: "flex", gap: 6, alignItems: "stretch" }}>
+                    <div
+                      style={{ display: "flex", gap: 6, alignItems: "stretch" }}
+                    >
                       <CountryDialPicker
                         value={countryCode}
                         onChange={setCountryCode}
@@ -1178,13 +1240,17 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
                               : "none",
                           }}
                           onFocus={(e) => {
-                            e.currentTarget.style.borderColor = phoneError ? "#ef4444" : "var(--accent)";
+                            e.currentTarget.style.borderColor = phoneError
+                              ? "#ef4444"
+                              : "var(--accent)";
                             e.currentTarget.style.boxShadow = phoneError
                               ? "0 0 0 3px rgba(239,68,68,0.14)"
                               : "0 0 0 3px rgba(99,102,241,0.18)";
                           }}
                           onBlur={(e) => {
-                            e.currentTarget.style.borderColor = phoneError ? "#ef4444" : "var(--border)";
+                            e.currentTarget.style.borderColor = phoneError
+                              ? "#ef4444"
+                              : "var(--border)";
                             e.currentTarget.style.boxShadow = phoneError
                               ? "0 0 0 3px rgba(239,68,68,0.14)"
                               : "none";
@@ -1192,10 +1258,22 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
                         />
                       </div>
                     </div>
-                    <span style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
-                      {selectedCountry.flag} {selectedCountry.name} · {selectedCountry.dial}
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: "var(--text-muted)",
+                        marginTop: 4,
+                      }}
+                    >
+                      {selectedCountry.flag} {selectedCountry.name} ·{" "}
+                      {selectedCountry.dial}
                       {countryCode === "MG" && (
-                        <span style={{ color: "var(--accent-light)", marginLeft: 6 }}>
+                        <span
+                          style={{
+                            color: "var(--accent-light)",
+                            marginLeft: 6,
+                          }}
+                        >
                           · sans le 0 initial
                         </span>
                       )}
@@ -1214,13 +1292,24 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
                           animation: "fadeErrIn .2s ease both",
                         }}
                       >
-                        <AlertCircle size={11} style={{ flexShrink: 0 }} aria-hidden="true" />
+                        <AlertCircle
+                          size={11}
+                          style={{ flexShrink: 0 }}
+                          aria-hidden="true"
+                        />
                         {phoneError}
                       </span>
                     )}
                   </div>
 
-                  <div style={{ display: "flex", flexDirection: "column", gap: 0, flex: 1 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 0,
+                      flex: 1,
+                    }}
+                  >
                     <Input
                       label="Adresse"
                       value={form.adresse}
@@ -1238,7 +1327,10 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
 
               {/* ✅ [IHM R6] Label clair "Mot de passe" au lieu de "Code de Confirmation" ambigu */}
               {!isEdit && (
-                <FormSection title="Mot de passe (portail étudiant)" icon={Lock}>
+                <FormSection
+                  title="Mot de passe (portail étudiant)"
+                  icon={Lock}
+                >
                   <Input
                     label="Mot de passe d'accès au portail étudiant"
                     type="password"
@@ -1255,7 +1347,10 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
                     type="password"
                     value={form.password_confirm}
                     onChange={(e) =>
-                      setForm((f) => ({ ...f, password_confirm: e.target.value }))
+                      setForm((f) => ({
+                        ...f,
+                        password_confirm: e.target.value,
+                      }))
                     }
                     placeholder="••••••••"
                     icon={Lock}
@@ -1283,7 +1378,9 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
                   alignItems: "center",
                   gap: 12,
                   padding: "12px 16px",
-                  background: withInscription ? "rgba(99,102,241,0.08)" : "var(--surface2)",
+                  background: withInscription
+                    ? "rgba(99,102,241,0.08)"
+                    : "var(--surface2)",
                   border: `1px solid ${withInscription ? "rgba(99,102,241,0.3)" : "var(--border)"}`,
                   borderRadius: 10,
                   cursor: "pointer",
@@ -1293,7 +1390,9 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
                 role="checkbox"
                 aria-checked={withInscription}
                 tabIndex={0}
-                onKeyDown={(e) => e.key === " " && setWithInscription((v) => !v)}
+                onKeyDown={(e) =>
+                  e.key === " " && setWithInscription((v) => !v)
+                }
               >
                 <div
                   aria-hidden="true"
@@ -1301,7 +1400,9 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
                     width: 20,
                     height: 20,
                     borderRadius: 5,
-                    background: withInscription ? "var(--accent)" : "var(--surface)",
+                    background: withInscription
+                      ? "var(--accent)"
+                      : "var(--surface)",
                     border: `2px solid ${withInscription ? "var(--accent)" : "var(--border)"}`,
                     display: "flex",
                     alignItems: "center",
@@ -1311,11 +1412,21 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
                   }}
                 >
                   {withInscription && (
-                    <span style={{ color: "#fff", fontSize: 13, lineHeight: 1 }}>✓</span>
+                    <span
+                      style={{ color: "#fff", fontSize: 13, lineHeight: 1 }}
+                    >
+                      ✓
+                    </span>
                   )}
                 </div>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "var(--text)",
+                    }}
+                  >
                     Inscrire immédiatement
                   </div>
                   <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
@@ -1325,7 +1436,9 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
               </div>
 
               {withInscription && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 16 }}
+                >
                   <div>
                     <label
                       htmlFor="filiere-select"
@@ -1337,7 +1450,13 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
                         marginBottom: 6,
                       }}
                     >
-                      Filière <span style={{ color: "var(--danger)" }} aria-label="obligatoire">*</span>
+                      Filière{" "}
+                      <span
+                        style={{ color: "var(--danger)" }}
+                        aria-label="obligatoire"
+                      >
+                        *
+                      </span>
                     </label>
                     {filiereLoading ? (
                       <div
@@ -1358,7 +1477,10 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
                         id="filiere-select"
                         value={inscForm.filiere_id}
                         onChange={(e) =>
-                          setInscForm((f) => ({ ...f, filiere_id: e.target.value }))
+                          setInscForm((f) => ({
+                            ...f,
+                            filiere_id: e.target.value,
+                          }))
                         }
                         aria-required="true"
                         style={{
@@ -1414,7 +1536,9 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
                         }}
                       >
                         {["L1", "L2", "L3", "M1", "M2"].map((n) => (
-                          <option key={n} value={n}>{n}</option>
+                          <option key={n} value={n}>
+                            {n}
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -1435,7 +1559,10 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
                         id="annee-input"
                         value={inscForm.annee_universitaire}
                         onChange={(e) =>
-                          setInscForm((f) => ({ ...f, annee_universitaire: e.target.value }))
+                          setInscForm((f) => ({
+                            ...f,
+                            annee_universitaire: e.target.value,
+                          }))
                         }
                         placeholder="2025-2026"
                         style={{
@@ -1471,7 +1598,10 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
                       type="date"
                       value={inscForm.date_inscription}
                       onChange={(e) =>
-                        setInscForm((f) => ({ ...f, date_inscription: e.target.value }))
+                        setInscForm((f) => ({
+                          ...f,
+                          date_inscription: e.target.value,
+                        }))
                       }
                       style={{
                         width: "100%",
@@ -1503,7 +1633,11 @@ function EtudiantModal({ onClose, onSaved, initial, onToast }) {
           >
             {step === 2 && !isEdit ? (
               <>
-                <Btn variant="ghost" onClick={() => setStep(1)} icon={<X size={15} />}>
+                <Btn
+                  variant="ghost"
+                  onClick={() => setStep(1)}
+                  icon={<X size={15} />}
+                >
                   Retour
                 </Btn>
                 <Btn
@@ -1610,8 +1744,8 @@ function DeleteModal({ student, onConfirm, onCancel, loading }) {
               margin: "0 auto",
             }}
           >
-            Cette action supprimera définitivement toutes les données associées :
-            inscriptions, notes et documents.
+            Cette action supprimera définitivement toutes les données associées
+            : inscriptions, notes et documents.
           </p>
           <div
             style={{
@@ -1738,7 +1872,9 @@ export default function EtudiantsPage() {
   };
 
   useEffect(() => {
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
   }, []);
 
   const showNotification = (message, type = "success", details = null) => {
@@ -1811,7 +1947,8 @@ export default function EtudiantsPage() {
       if (status === 403) {
         detail = "Vous n'avez pas les droits pour supprimer un étudiant.";
       } else if (status === 404) {
-        detail = "Cet étudiant est introuvable — il a peut-être déjà été supprimé.";
+        detail =
+          "Cet étudiant est introuvable — il a peut-être déjà été supprimé.";
       } else if (serverMsg) {
         detail = serverMsg;
       }
@@ -1925,7 +2062,8 @@ export default function EtudiantsPage() {
             }}
             onFocus={(e) => {
               e.currentTarget.style.borderColor = "var(--accent)";
-              e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.18)";
+              e.currentTarget.style.boxShadow =
+                "0 0 0 3px rgba(99,102,241,0.18)";
             }}
             onBlur={(e) => {
               e.currentTarget.style.borderColor = "var(--border)";
@@ -2005,7 +2143,8 @@ export default function EtudiantsPage() {
                         : "Aucun étudiant n'est encore enregistré. Commencez par en ajouter un."
                     }
                     action={
-                      canEdit && !debouncedSearch && (
+                      canEdit &&
+                      !debouncedSearch && (
                         <Btn
                           onClick={() => setModal("create")}
                           icon={<UserPlus size={15} />}
@@ -2030,7 +2169,8 @@ export default function EtudiantsPage() {
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = "var(--surface2)";
                     e.currentTarget.style.transform = "scale(1.01)";
-                    e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.1)";
+                    e.currentTarget.style.boxShadow =
+                      "0 2px 8px rgba(0,0,0,0.1)";
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = "transparent";
@@ -2039,22 +2179,45 @@ export default function EtudiantsPage() {
                   }}
                 >
                   <Td style={{ width: 56, paddingRight: 4, paddingLeft: 16 }}>
-                    <Avatar photo={e.photo} prenom={e.prenom} nom={e.nom} size={38} />
+                    <Avatar
+                      photo={e.photo}
+                      prenom={e.prenom}
+                      nom={e.nom}
+                      size={38}
+                    />
                   </Td>
 
                   <Td>
-                    <div style={{ fontWeight: 600, color: "var(--text)", lineHeight: 1.3 }}>
+                    <div
+                      style={{
+                        fontWeight: 600,
+                        color: "var(--text)",
+                        lineHeight: 1.3,
+                      }}
+                    >
                       {e.prenom} {e.nom}
                     </div>
                     {e.email && (
-                      <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: "var(--text-muted)",
+                          marginTop: 2,
+                        }}
+                      >
                         {e.email}
                       </div>
                     )}
                   </Td>
 
                   <Td>
-                    <span style={{ color: "var(--text-muted)", fontSize: 13, whiteSpace: "nowrap" }}>
+                    <span
+                      style={{
+                        color: "var(--text-muted)",
+                        fontSize: 13,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
                       {e.date_naissance
                         ? new Date(e.date_naissance).toLocaleDateString("fr-FR")
                         : "—"}
@@ -2064,16 +2227,24 @@ export default function EtudiantsPage() {
                   <Td>
                     {/* ✅ [IHM R11] aria-label pour emoji non lisible par lecteur d'écran */}
                     <span style={{ fontSize: 14, fontWeight: 500 }}>
-                      {e.sexe === "M"
-                        ? <span aria-label="Masculin">  M</span>
-                        : e.sexe === "F"
-                          ? <span aria-label="Féminin"> F</span>
-                          : "—"}
+                      {e.sexe === "M" ? (
+                        <span aria-label="Masculin"> M</span>
+                      ) : e.sexe === "F" ? (
+                        <span aria-label="Féminin"> F</span>
+                      ) : (
+                        "—"
+                      )}
                     </span>
                   </Td>
 
                   <Td>
-                    <span style={{ color: "var(--text-muted)", fontSize: 13, whiteSpace: "nowrap" }}>
+                    <span
+                      style={{
+                        color: "var(--text-muted)",
+                        fontSize: 13,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
                       {e.telephone || "—"}
                     </span>
                   </Td>
