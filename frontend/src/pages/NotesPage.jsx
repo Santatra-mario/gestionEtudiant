@@ -96,14 +96,11 @@ export default function NotesPage() {
   };
 
   // ── Chargement des inscriptions ──────────────────────────────────────────────
-  // FIX : Le backend retourne { success: true, data: [...] }
-  // On extrait correctement avec data?.data ?? data (fallback si tableau direct)
   useEffect(() => {
     setInscLoading(true);
     api
       .get("/inscriptions")
       .then((r) => {
-        // Support { success, data: [] } ET réponse tableau direct
         const raw = r.data;
         const list = Array.isArray(raw)
           ? raw
@@ -113,7 +110,6 @@ export default function NotesPage() {
 
         setInscriptions(list);
 
-        // Pré-sélection depuis l'URL ?inscription=...
         const paramId = searchParams.get("inscription");
         if (paramId && list.some((i) => String(i.id) === String(paramId))) {
           setSelectedInscription(paramId);
@@ -139,7 +135,6 @@ export default function NotesPage() {
       setMsg({ text: "", type: "" });
 
       try {
-        // FIX : on cherche l'inscription dans la liste courante
         const inscInfo = inscriptions.find(
           (i) => String(i.id) === String(inscriptionId),
         );
@@ -164,7 +159,6 @@ export default function NotesPage() {
         const bData = bRes.data;
         setBulletin(bData);
 
-        // FIX : support { data: [] } ET { matieres: [] } ET tableau direct
         const matRaw = mRes.data;
         const matList = Array.isArray(matRaw)
           ? matRaw
@@ -185,8 +179,6 @@ export default function NotesPage() {
     [inscriptions],
   );
 
-  // FIX : on déclenche loadBulletin quand selectedInscription change
-  // ET quand loadBulletin est reconstruit (après chargement de inscriptions)
   useEffect(() => {
     if (!selectedInscription) {
       setBulletin(null);
@@ -195,8 +187,6 @@ export default function NotesPage() {
     }
     loadBulletin(selectedInscription);
   }, [selectedInscription, loadBulletin]);
-
-  // ── Consultation uniquement : pas d'enregistrement de notes sur cette page.
 
   // ── Suppression d'une note ───────────────────────────────────────────────────
   const performDeleteNote = async (noteId) => {
@@ -217,35 +207,31 @@ export default function NotesPage() {
   };
 
   // ── Génération PDF ───────────────────────────────────────────────────────────
+  // La structure du bulletin est { "S1": { notes: [...], moyenne: ..., mention: ... } }
   const generatePDF = async () => {
     if (!bulletin) return;
     setPdfGenerating(true);
     try {
-      // ── Main container ────────────────────────────────────────────────────────
       const pdfContent = document.createElement("div");
       pdfContent.style.cssText =
         "width:800px;padding:40px 45px;background-color:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#111827;line-height:1.4;";
 
-      // ── Calculate overall stats ───────────────────────────────────────────────
+      // ── Calcul des stats globales ─────────────────────────────────────────────
       let totalPond = 0,
         totalCoeff = 0,
-        totalNotes = 0,
         nbNotes = 0;
       const bulletinObj = bulletin.bulletin || {};
-      for (const data of Object.values(bulletinObj)) {
-        for (const sessionKey of ["session_normale", "session_rattrapage"]) {
-          const sessionData = data[sessionKey];
-          if (!sessionData?.notes) continue;
-          for (const n of sessionData.notes) {
-            const coeff = parseFloat(n.coefficient || n.credit || 0);
-            const note = parseFloat(n.note || 0);
-            totalPond += note * coeff;
-            totalCoeff += coeff;
-            totalNotes += note;
-            nbNotes++;
-          }
+
+      for (const semestreData of Object.values(bulletinObj)) {
+        for (const n of semestreData.notes || []) {
+          const coeff = parseFloat(n.coefficient || n.credit || 0);
+          const note = parseFloat(n.note || 0);
+          totalPond += note * coeff;
+          totalCoeff += coeff;
+          nbNotes++;
         }
       }
+
       const moyenneGenerale =
         totalCoeff > 0 ? (totalPond / totalCoeff).toFixed(2) : "\u2014";
       const moyenneNum = parseFloat(moyenneGenerale);
@@ -289,7 +275,6 @@ export default function NotesPage() {
           "R\u00e9sultats insuffisants. Un travail plus soutenu est n\u00e9cessaire pour progresser.";
       }
 
-      // ── Build today's date ───────────────────────────────────────────────────
       const today = new Date();
       const dateStr = today.toLocaleDateString("fr-FR", {
         day: "numeric",
@@ -297,8 +282,7 @@ export default function NotesPage() {
         year: "numeric",
       });
 
-      // ── Build HTML content ──────────────────────────────────────────────────
-      // University header
+      // En-tête université
       pdfContent.innerHTML = `
       <table style="width:100%;border:none;border-collapse:collapse;background-color:#ffffff;margin-bottom:18px;">
         <tr>
@@ -318,7 +302,7 @@ export default function NotesPage() {
       <hr style="border:none;border-top:1px solid #93c5fd;margin:0 0 20px 0;">
     `;
 
-      // Student info
+      // Infos étudiant
       pdfContent.innerHTML += `
       <table style="width:100%;border-collapse:collapse;background-color:#ffffff;margin-bottom:22px;">
         <tr>
@@ -350,48 +334,43 @@ export default function NotesPage() {
       </table>
     `;
 
-      // ── Per-semester tables ─────────────────────────────────────────────────
-      let semIndex = 0;
-      for (const [semestre, data] of Object.entries(bulletinObj)) {
-        semIndex++;
+      // ── FIX: Tableaux par semestre → par session ─────────────────────────────
+      for (const [semestre, semestreData] of Object.entries(bulletinObj)) {
+        const notes = semestreData.notes || [];
+        if (notes.length === 0) continue;
 
-        // Parcourir les sessions (normale et rattrapage)
-        const SESSION_KEYS = [
-          ["session_normale", "Session Normale"],
-          ["session_rattrapage", "Session Rattrapage"],
-        ];
+        let semPond = 0,
+          semCoeff = 0;
 
-        for (const [sessionKey, sessionLabel] of SESSION_KEYS) {
-          const sessionData = data[sessionKey];
-          if (!sessionData?.notes?.length) continue;
+        // Couleur du semestre
+        const sessionColor = "#1e40af";
+        const sessionBg = "#eff6ff";
 
-          // Section title
-          pdfContent.innerHTML += `
+        // Titre semestre
+        pdfContent.innerHTML += `
           <table style="width:100%;border-collapse:collapse;background-color:#ffffff;margin-bottom:6px;">
             <tr>
-              <td style="width:4px;background-color:#1e40af;padding:0;border:none;border-radius:2px;"></td>
-              <td style="border:none;padding:4px 8px;background-color:#ffffff;font-size:13px;font-weight:700;color:#1e40af;">Semestre ${semestre} — ${sessionLabel}</td>
+              <td style="width:4px;background-color:${sessionColor};padding:0;border:none;"></td>
+              <td style="border:none;padding:4px 8px;background-color:${sessionBg};font-size:13px;font-weight:700;color:${sessionColor};">
+                Semestre ${semestre}
+              </td>
             </tr>
           </table>
         `;
 
-          // Notes table
-          const table = document.createElement("table");
-          table.style.cssText =
-            "width:100%;border-collapse:collapse;margin-bottom:10px;background-color:#ffffff;color:#111827;";
+        // Tableau des notes
+        const table = document.createElement("table");
+        table.style.cssText =
+          "width:100%;border-collapse:collapse;margin-bottom:10px;background-color:#ffffff;color:#111827;";
 
-          const notes = sessionData.notes || [];
-          let semPond = 0,
-            semCoeff = 0;
-
-          table.innerHTML = `
+        table.innerHTML = `
           <thead>
-            <tr style="background-color:#1e40af;">
-              <th style="width:36px;border:1px solid #1e40af;padding:8px 6px;text-align:center;color:#ffffff;background-color:#1e40af;font-weight:600;font-size:11px;">N\u00b0</th>
-              <th style="border:1px solid #1e40af;padding:8px 12px;text-align:left;color:#ffffff;background-color:#1e40af;font-weight:600;font-size:11px;">Mati\u00e8re</th>
-              <th style="width:50px;border:1px solid #1e40af;padding:8px 6px;text-align:center;color:#ffffff;background-color:#1e40af;font-weight:600;font-size:11px;">Coeff.</th>
-              <th style="width:70px;border:1px solid #1e40af;padding:8px 6px;text-align:center;color:#ffffff;background-color:#1e40af;font-weight:600;font-size:11px;">Note /20</th>
-              <th style="width:65px;border:1px solid #1e40af;padding:8px 6px;text-align:center;color:#ffffff;background-color:#1e40af;font-weight:600;font-size:11px;">Pond.</th>
+            <tr style="background-color:${sessionColor};">
+              <th style="width:36px;border:1px solid ${sessionColor};padding:8px 6px;text-align:center;color:#ffffff;font-weight:600;font-size:11px;">N\u00b0</th>
+              <th style="border:1px solid ${sessionColor};padding:8px 12px;text-align:left;color:#ffffff;font-weight:600;font-size:11px;">Mati\u00e8re</th>
+              <th style="width:50px;border:1px solid ${sessionColor};padding:8px 6px;text-align:center;color:#ffffff;font-weight:600;font-size:11px;">Coeff.</th>
+              <th style="width:70px;border:1px solid ${sessionColor};padding:8px 6px;text-align:center;color:#ffffff;font-weight:600;font-size:11px;">Note /20</th>
+              <th style="width:65px;border:1px solid ${sessionColor};padding:8px 6px;text-align:center;color:#ffffff;font-weight:600;font-size:11px;">Pond.</th>
             </tr>
           </thead>
           <tbody>
@@ -415,34 +394,26 @@ export default function NotesPage() {
               .join("")}
           </tbody>
         `;
-          pdfContent.appendChild(table);
+        pdfContent.appendChild(table);
 
-          // Summary line for this session
-          const moy = semCoeff > 0 ? (semPond / semCoeff).toFixed(2) : "—";
-          pdfContent.innerHTML += `
-          <div style="margin-bottom:16px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#374151;">
-            <span><strong>${sessionLabel}</strong> — Moyenne : <strong>${moy}/20</strong></span>
-          </div>
-        `;
-        } // end for sessions
-
-        // Semester summary
+        // Résumé du semestre
         const semMoy =
           semCoeff > 0 ? (semPond / semCoeff).toFixed(2) : "\u2014";
+        const mention = semestreData.mention || "\u2014";
         const mentionC =
-          data.mention === "Admis"
+          mention === "Admis"
             ? "#16a34a"
-            : data.mention === "Rattrapage"
+            : mention === "Rattrapage"
               ? "#ca8a04"
-              : data.mention === "Ajourn\u00e9"
+              : mention === "Ajourn\u00e9"
                 ? "#dc2626"
                 : "#6b7280";
         const mentionBg =
-          data.mention === "Admis"
+          mention === "Admis"
             ? "#f0fdf4"
-            : data.mention === "Rattrapage"
+            : mention === "Rattrapage"
               ? "#fefce8"
-              : data.mention === "Ajourn\u00e9"
+              : mention === "Ajourn\u00e9"
                 ? "#fef2f2"
                 : "#f3f4f6";
 
@@ -450,25 +421,25 @@ export default function NotesPage() {
         sumDiv.style.cssText =
           "margin-bottom:22px;padding:10px 14px;border:1px solid #e2e8f0;border-radius:4px;background-color:#f8fafc;color:#111827;";
         sumDiv.innerHTML = `
-        <table style="width:100%;border:none;border-collapse:collapse;background-color:#f8fafc;">
-          <tr>
-            <td style="border:none;padding:2px 0;background-color:#f8fafc;font-size:12px;color:#374151;">
-              <strong style="color:#111827;">Total coefficient :</strong> ${semCoeff}
-              &nbsp;&nbsp;|&nbsp;&nbsp;
-              <strong style="color:#111827;">Moyenne :</strong> <span style="font-weight:700;color:#111827;">${semMoy}/20</span>
-            </td>
-            <td style="border:none;padding:2px 0;background-color:#f8fafc;text-align:right;">
-              <span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;background-color:${mentionBg};color:${mentionC};border:1px solid ${mentionC}40;">
-                ${data.mention || "\u2014"}
-              </span>
-            </td>
-          </tr>
-        </table>
-      `;
+          <table style="width:100%;border:none;border-collapse:collapse;background-color:#f8fafc;">
+            <tr>
+              <td style="border:none;padding:2px 0;background-color:#f8fafc;font-size:12px;color:#374151;">
+                <strong style="color:#111827;">Total coefficient :</strong> ${semCoeff}
+                &nbsp;&nbsp;|&nbsp;&nbsp;
+                <strong style="color:#111827;">Moyenne :</strong> <span style="font-weight:700;color:#111827;">${semMoy}/20</span>
+              </td>
+              <td style="border:none;padding:2px 0;background-color:#f8fafc;text-align:right;">
+                <span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;background-color:${mentionBg};color:${mentionC};border:1px solid ${mentionC}40;">
+                  ${mention}
+                </span>
+              </td>
+            </tr>
+          </table>
+        `;
         pdfContent.appendChild(sumDiv);
       }
 
-      // ── Overall result section ─────────────────────────────────────────────
+      // ── Résultat général ───────────────────────────────────────────────────────
       const mentionGlobale =
         moyenneNum >= 10
           ? "Admis"
@@ -529,7 +500,7 @@ export default function NotesPage() {
       </div>
     `;
 
-      // ── Validation section ──────────────────────────────────────────────────
+      // ── Validation ─────────────────────────────────────────────────────────────
       pdfContent.innerHTML += `
       <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0 16px 0;">
       <table style="width:100%;border:none;border-collapse:collapse;background-color:#ffffff;">
@@ -547,7 +518,7 @@ export default function NotesPage() {
       </div>
     `;
 
-      // ── Render with html2canvas ───────────────────────────────────────────────
+      // ── Rendu html2canvas → jsPDF ──────────────────────────────────────────────
       document.body.appendChild(pdfContent);
       const canvas = await html2canvas(pdfContent, {
         scale: 2,
@@ -574,14 +545,12 @@ export default function NotesPage() {
     }
   };
 
-  // ── Consultation uniquement : désactiver toutes les actions d'édition
   const canDelete = false;
   const canEdit = false;
 
   // ── Rendu d'une session d'un semestre ─────────────────────────────────────
   const renderSessionTable = (semestre, sessionKey, sessionData) => {
-    const sessionLabel =
-      sessionKey === "session_rattrapage" ? "Rattrapage" : "Normal";
+    const sessionLabel = "Normal";
     return (
       <div key={`${semestre}-${sessionKey}`} style={{ marginBottom: 24 }}>
         <div
@@ -770,11 +739,8 @@ export default function NotesPage() {
   // ── Rendu d'un semestre (avec ses sessions) ────────────────────────────────
   const renderSemestre = (semestre, data) => {
     const sessions = [];
-    if (data.session_normale?.notes?.length) {
-      sessions.push(["session_normale", data.session_normale]);
-    }
-    if (data.session_rattrapage?.notes?.length) {
-      sessions.push(["session_rattrapage", data.session_rattrapage]);
+    if (data.notes?.length) {
+      sessions.push(["notes", data]);
     }
     if (sessions.length === 0) return null;
 
@@ -789,9 +755,6 @@ export default function NotesPage() {
 
   const hasNotes = bulletin && Object.keys(bulletin.bulletin || {}).length > 0;
 
-  // ── Helper : label d'une inscription dans le select ────────────────────────
-  // FIX : le backend fait CONCAT(nom, ' ', prenom) donc etudiant_nom = "RAKOTO Jean"
-  // On affiche : "RAKOTO Jean (MAT001) — Filière L1 2024-2025"
   const inscriptionLabel = (i) => {
     const nom = i.etudiant_nom || `Étudiant #${i.etudiant_id}`;
     const mat = i.matricule ? ` (${i.matricule})` : "";
@@ -819,7 +782,6 @@ export default function NotesPage() {
           </div>
         ) : (
           <>
-            {/* Label */}
             <label
               style={{
                 display: "block",
@@ -838,7 +800,6 @@ export default function NotesPage() {
               )}
             </label>
 
-            {/* Select natif — fiable avec des données async */}
             <div style={{ position: "relative" }}>
               <select
                 value={selectedInscription}
@@ -884,7 +845,6 @@ export default function NotesPage() {
                 ))}
               </select>
 
-              {/* Flèche custom */}
               <div
                 style={{
                   position: "absolute",
@@ -907,7 +867,6 @@ export default function NotesPage() {
               </div>
             </div>
 
-            {/* Message si liste vide */}
             {inscriptions.length === 0 && (
               <p style={{ fontSize: 13, color: "var(--danger)", marginTop: 8 }}>
                 ⚠ Aucune inscription trouvée. Vérifiez que des étudiants sont

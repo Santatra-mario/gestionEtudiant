@@ -8,15 +8,15 @@ const db = require("../config/db");
 const getNotesByInscription = async (req, res) => {
   try {
     const [rows] = await db.query(
-      `SELECT n.*, n.session,
-                      m.nom_matiere  AS matiere_nom,
-                      m.credit       AS coefficient,
-                      m.semestre,
-                      (n.note * m.credit) AS note_ponderee
-               FROM notes n
-               JOIN matieres m ON n.matiere_id = m.id
-               WHERE n.inscription_id = ?
-               ORDER BY m.semestre, n.session, m.nom_matiere`,
+      `SELECT n.*,
+                            m.nom_matiere  AS matiere_nom,
+                            m.credit       AS coefficient,
+                            m.semestre,
+                            (n.note * m.credit) AS note_ponderee
+                     FROM notes n
+                     JOIN matieres m ON n.matiere_id = m.id
+                     WHERE n.inscription_id = ?
+                     ORDER BY m.semestre, m.nom_matiere`,
       [req.params.inscriptionId],
     );
     return res.json({ success: true, data: rows });
@@ -46,57 +46,41 @@ const getBulletin = async (req, res) => {
 
     // ✅ nom_matiere AS matiere, credit AS coefficient
     const [notes] = await db.query(
-      `SELECT n.note, n.id AS note_id, n.session,
-                            m.id          AS matiere_id,
-                            m.nom_matiere AS matiere,
-                            m.credit      AS coefficient,
-                            m.semestre,
-                            (n.note * m.credit) AS ponderee
-                     FROM notes n
-                     JOIN matieres m ON n.matiere_id = m.id
-                     WHERE n.inscription_id = ?
-                     ORDER BY m.semestre, n.session, m.nom_matiere`,
+      `SELECT n.note, n.id AS note_id,
+                                  m.id          AS matiere_id,
+                                  m.nom_matiere AS matiere,
+                                  m.credit      AS coefficient,
+                                  m.semestre,
+                                  (n.note * m.credit) AS ponderee
+                           FROM notes n
+                           JOIN matieres m ON n.matiere_id = m.id
+                           WHERE n.inscription_id = ?
+                           ORDER BY m.semestre, m.nom_matiere`,
       [req.params.inscriptionId],
     );
 
-    // Séparer les notes par (semestre, session)
-    const semestres = {};
+    // Grouper les notes par semestre
+    const resultat = {};
     notes.forEach((n) => {
-      const key = `${n.semestre}_${n.session || "normale"}`;
-      if (!semestres[key]) {
-        semestres[key] = {
-          semestre: n.semestre,
-          session: n.session || "normale",
-          notes: [],
-          totalPonderee: 0,
-          totalCoeff: 0,
-        };
+      const sem = n.semestre;
+      if (!resultat[sem]) {
+        resultat[sem] = { notes: [], totalPonderee: 0, totalCoeff: 0 };
       }
-      semestres[key].notes.push(n);
-      semestres[key].totalPonderee += parseFloat(n.ponderee);
-      semestres[key].totalCoeff += parseFloat(n.coefficient);
+      resultat[sem].notes.push(n);
+      resultat[sem].totalPonderee += parseFloat(n.ponderee);
+      resultat[sem].totalCoeff += parseFloat(n.coefficient);
     });
 
-    // Grouper par semestre, chaque semestre contenant session_normale et session_rattrapage
-    const resultat = {};
-    Object.values(semestres).forEach((s) => {
-      if (!resultat[s.semestre]) {
-        resultat[s.semestre] = {
-          session_normale: null,
-          session_rattrapage: null,
-        };
-      }
-      const moy = s.totalCoeff > 0 ? s.totalPonderee / s.totalCoeff : 0;
-      const entry = {
-        notes: s.notes,
-        moyenne: Math.round(moy * 100) / 100,
-        mention: moy >= 10 ? "Admis" : moy >= 8 ? "Rattrapage" : "Ajourné",
-      };
-      if (s.session === "rattrapage") {
-        resultat[s.semestre].session_rattrapage = entry;
-      } else {
-        resultat[s.semestre].session_normale = entry;
-      }
+    // Calculer moyenne et mention pour chaque semestre
+    Object.values(resultat).forEach((s) => {
+      s.moyenne =
+        s.totalCoeff > 0 ? (s.totalPonderee / s.totalCoeff).toFixed(2) : "—";
+      s.mention =
+        parseFloat(s.moyenne) >= 10
+          ? "Admis"
+          : parseFloat(s.moyenne) >= 8
+            ? "Rattrapage"
+            : "Ajourné";
     });
 
     return res.json({
@@ -112,8 +96,7 @@ const getBulletin = async (req, res) => {
 
 // ── POST /notes  (créer ou mettre à jour une note) ────────────────────────────
 const upsertNote = async (req, res) => {
-  const { inscription_id, matiere_id, note, session } = req.body;
-  const sessionVal = session === "rattrapage" ? "rattrapage" : "normale";
+  const { inscription_id, matiere_id, note } = req.body;
 
   if (
     inscription_id === undefined ||
@@ -147,10 +130,10 @@ const upsertNote = async (req, res) => {
     }
 
     await db.query(
-      `INSERT INTO notes (inscription_id, matiere_id, note, session)
-             VALUES (?, ?, ?, ?)
+      `INSERT INTO notes (inscription_id, matiere_id, note)
+             VALUES (?, ?, ?)
              ON DUPLICATE KEY UPDATE note = VALUES(note)`,
-      [inscription_id, matiere_id, noteNum, sessionVal],
+      [inscription_id, matiere_id, noteNum],
     );
 
     return res.json({ success: true, message: "Note enregistrée." });
@@ -164,8 +147,7 @@ const upsertNote = async (req, res) => {
 
 // ── POST /notes/batch  (saisie multiple) ─────────────────────────────────────
 const batchUpsertNotes = async (req, res) => {
-  const { inscription_id, notes, session } = req.body;
-  const sessionVal = session === "rattrapage" ? "rattrapage" : "normale";
+  const { inscription_id, notes } = req.body;
 
   const inscId = parseInt(inscription_id, 10);
   if (!inscId || inscId <= 0) {
@@ -223,10 +205,10 @@ const batchUpsertNotes = async (req, res) => {
       await conn.beginTransaction();
       for (const { matiere_id, note } of notesValidees) {
         await conn.query(
-          `INSERT INTO notes (inscription_id, matiere_id, note, session)
-                     VALUES (?, ?, ?, ?)
+          `INSERT INTO notes (inscription_id, matiere_id, note)
+                     VALUES (?, ?, ?)
                      ON DUPLICATE KEY UPDATE note = VALUES(note)`,
-          [inscId, matiere_id, note, sessionVal],
+          [inscId, matiere_id, note],
         );
       }
       await conn.commit();

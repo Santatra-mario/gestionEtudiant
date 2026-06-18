@@ -6,11 +6,15 @@ import { useNotification, NotificationDisplay } from "../hooks/useNotification";
 import {
   Trash2,
   Save,
+  Lightbulb,
+  ClipboardList,
   Download,
   TrendingUp,
   Hash,
   Sigma,
   Award,
+  ClipboardCheck,
+  RotateCcw,
 } from "lucide-react";
 
 // ── Mapping niveau → semestres ────────────────────────────────────────────────
@@ -1221,8 +1225,18 @@ export default function NotesSaisiePage() {
               }}
             >
               <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                💡 Consultez et gérez la présence de cet étudiant
+                <Lightbulb
+                  size={14}
+                  style={{
+                    display: "inline",
+                    marginRight: 6,
+                    verticalAlign: "middle",
+                    color: "var(--warning)",
+                  }}
+                />
+                Consultez et gérez la présence de cet étudiant
               </div>
+
               <Btn
                 variant="secondary"
                 size="small"
@@ -1233,7 +1247,15 @@ export default function NotesSaisiePage() {
                   )
                 }
               >
-                📋 Voir la présence
+                <ClipboardList
+                  size={14}
+                  style={{
+                    display: "inline",
+                    marginRight: 6,
+                    verticalAlign: "middle",
+                  }}
+                />
+                Voir la présence
               </Btn>
             </div>
           </Card>
@@ -1270,6 +1292,9 @@ export default function NotesSaisiePage() {
                   type="button"
                   onClick={() => setSession("normale")}
                   style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 7,
                     padding: "8px 20px",
                     borderRadius: 8,
                     border: `2px solid ${
@@ -1287,12 +1312,16 @@ export default function NotesSaisiePage() {
                     fontFamily: "var(--font-body)",
                   }}
                 >
-                  📝 Normale
+                  <ClipboardCheck size={15} />
+                  Normale
                 </button>
                 <button
                   type="button"
                   onClick={() => setSession("rattrapage")}
                   style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 7,
                     padding: "8px 20px",
                     borderRadius: 8,
                     border: `2px solid ${
@@ -1312,7 +1341,8 @@ export default function NotesSaisiePage() {
                     fontFamily: "var(--font-body)",
                   }}
                 >
-                  🔄 Rattrapage
+                  <RotateCcw size={15} />
+                  Rattrapage
                 </button>
               </div>
               <span

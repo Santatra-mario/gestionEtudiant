@@ -9,6 +9,17 @@
  *     pour éviter les doubles clics et les conflits multi-admin
  *  4. CORRECTION BUG MATRICULE : Plus d'accumulation comme "2007 H-2006 H-TOL"
  *     → Extraction correcte de l'année depuis le matricule original
+ *
+ * CORRECTIONS v2 :
+ *  5. WORKFLOW NOTIFICATION : La notification admin n'est plus émise à la création
+ *     de la demande (POST /transferts) mais uniquement à la décision finale
+ *     (PUT /transferts/{id}/accepter ou PUT /transferts/{id}/refuser).
+ *     Le polling ne déclenche plus d'événement "nouvelle_demande" côté admin ;
+ *     seuls les événements "accepte" et "refuse" sont conservés pour la secrétaire.
+ *  6. BADGE ROUGE : Le badge (cercle rouge avec chiffre) disparaît dès que
+ *     l'utilisateur ouvre le panneau de notifications (hasUnread → false).
+ *     Il réapparaît seulement quand de nouvelles notifs non lues arrivent.
+ *     L'icône de cloche reste toujours visible.
  */
 
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -64,7 +75,6 @@ function IconFichierTransfert({ size = 16, color = "#22c55e" }) {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      {/* Page du document */}
       <path
         d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
         fill={color + "22"}
@@ -81,7 +91,6 @@ function IconFichierTransfert({ size = 16, color = "#22c55e" }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {/* Flèche transfert à l'intérieur */}
       <line
         x1="8"
         y1="13"
@@ -131,7 +140,6 @@ function IconFichierRefuse({ size = 16, color = "#ef4444" }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {/* Croix refus */}
       <line
         x1="9"
         y1="11"
@@ -156,12 +164,24 @@ function IconFichierRefuse({ size = 16, color = "#ef4444" }) {
 
 /* ══════════════════════════════════════════════════════════════════════════
    COMPOSANT — Cloche de notification transfert (header fixe haut-droite)
-   N'altère aucun code existant — s'insère juste avant la page
+
+   CORRECTION v2 #5 : Suppression du type "nouvelle_demande" — l'admin n'est
+   plus notifié à la création mais uniquement après décision.
+
+   CORRECTION v2 #6 : Le badge rouge (hasUnread) disparaît dès l'ouverture
+   du panneau. Il réapparaît uniquement si de nouvelles notifs non lues arrivent.
+   L'icône de cloche reste toujours affichée.
    ══════════════════════════════════════════════════════════════════════════ */
 function NotificationCloche() {
   const [notifs, setNotifs] = useState([]);
   const [open, setOpen] = useState(false);
   const [animBell, setAnimBell] = useState(false);
+
+  // CORRECTION v2 #6 : état booléen dédié pour contrôler le badge rouge.
+  // hasUnread passe à false dès que l'utilisateur ouvre le panneau,
+  // et repasse à true uniquement quand une nouvelle notif non lue arrive.
+  const [hasUnread, setHasUnread] = useState(false);
+
   const panelRef = useRef(null);
 
   // Fermer le panneau si clic dehors
@@ -174,38 +194,13 @@ function NotificationCloche() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Écoute les 3 événements : nouvelle_demande (Admin), accepte et refuse (Secrétaire)
+  // CORRECTION v2 #5 : On n'écoute plus "transfert:nouvelle_demande".
+  // Seuls les événements de décision finale sont écoutés :
+  //   - transfert:accepte  → Secrétaire reçoit quand Admin accepte
+  //   - transfert:refuse   → Secrétaire reçoit quand Admin refuse
+  // L'admin reçoit ses notifications directement dans handleAccepter /
+  // handleAfterRefus (voir plus bas), pas via ce composant.
   useEffect(() => {
-    // ── Nouvel événement : ADMINISTRATEUR reçoit quand Secrétaire crée une demande ──
-    const onNouvelleDemande = (e) => {
-      const {
-        etudiantPrenom = "",
-        etudiantNom = "",
-        filiere = "",
-        niveau = "",
-      } = e.detail || {};
-      setNotifs((prev) =>
-        [
-          {
-            id: Date.now(),
-            type: "nouvelle_demande",
-            tag: "NOUVELLE DEMANDE",
-            titre: `${etudiantPrenom} ${etudiantNom}`,
-            message: `Le secrétaire a soumis une demande de transfert pour rejoindre ${filiere}${niveau ? ` (${niveau})` : ""}. Veuillez examiner et traiter cette demande.`,
-            heure: new Date().toLocaleTimeString("fr-FR", {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            date: new Date().toLocaleDateString("fr-FR"),
-            lu: false,
-          },
-          ...prev,
-        ].slice(0, 20),
-      );
-      setAnimBell(true);
-      setTimeout(() => setAnimBell(false), 900);
-    };
-
     // ── Secrétaire reçoit : transfert accepté par l'Admin ──
     const onAccepte = (e) => {
       const { etudiantPrenom = "", etudiantNom = "" } = e.detail || {};
@@ -228,6 +223,8 @@ function NotificationCloche() {
           ...prev,
         ].slice(0, 20),
       );
+      // Nouvelle notif non lue → badge rouge visible
+      setHasUnread(true);
       setAnimBell(true);
       setTimeout(() => setAnimBell(false), 900);
     };
@@ -254,23 +251,25 @@ function NotificationCloche() {
           ...prev,
         ].slice(0, 20),
       );
+      // Nouvelle notif non lue → badge rouge visible
+      setHasUnread(true);
       setAnimBell(true);
       setTimeout(() => setAnimBell(false), 900);
     };
 
-    window.addEventListener("transfert:nouvelle_demande", onNouvelleDemande);
+    // CORRECTION v2 #5 : "transfert:nouvelle_demande" retiré intentionnellement.
+    // L'admin reçoit la notification directement via notify.success/notify.error
+    // dans handleAccepter et handleAfterRefus, au moment de la décision.
     window.addEventListener("transfert:accepte", onAccepte);
     window.addEventListener("transfert:refuse", onRefuse);
     return () => {
-      window.removeEventListener(
-        "transfert:nouvelle_demande",
-        onNouvelleDemande,
-      );
       window.removeEventListener("transfert:accepte", onAccepte);
       window.removeEventListener("transfert:refuse", onRefuse);
     };
   }, []);
 
+  // CORRECTION v2 #6 : nonLues reste calculé pour l'affichage du compteur
+  // dans le panneau, mais l'affichage du badge rouge dépend uniquement de hasUnread.
   const nonLues = notifs.filter((n) => !n.lu).length;
 
   const marquerToutesLues = () =>
@@ -279,7 +278,21 @@ function NotificationCloche() {
   const supprimerNotif = (id) =>
     setNotifs((prev) => prev.filter((n) => n.id !== id));
 
-  const viderTout = () => setNotifs([]);
+  const viderTout = () => {
+    setNotifs([]);
+    setHasUnread(false);
+  };
+
+  // CORRECTION v2 #6 : à l'ouverture du panneau, le badge rouge disparaît.
+  const handleToggleOpen = () => {
+    const willOpen = !open;
+    setOpen(willOpen);
+    if (willOpen) {
+      // L'utilisateur consulte → badge rouge masqué
+      setHasUnread(false);
+      marquerToutesLues();
+    }
+  };
 
   return (
     <>
@@ -315,26 +328,18 @@ function NotificationCloche() {
         .nc-badge-pulse { animation: nc-pulse 1.4s infinite; }
       `}</style>
 
-      {/*
-        ── Position : décalée vers la gauche pour ne PAS chevaucher
-           le badge rôle "Secrétaire / Administrateur" en haut à droite.
-           right: 220px place la cloche juste avant ce badge.
-      */}
       <div
         ref={panelRef}
         style={{
           position: "fixed",
           top: 13,
-          right: 280 /* ← décalé à gauche pour ne pas chevaucher le badge rôle */,
+          right: 280,
           zIndex: 1000,
         }}
       >
         {/* ── Bouton cloche ── */}
         <button
-          onClick={() => {
-            setOpen((v) => !v);
-            if (!open) marquerToutesLues();
-          }}
+          onClick={handleToggleOpen}
           className={animBell ? "nc-bell-ring" : ""}
           title="Notifications de transferts"
           style={{
@@ -355,7 +360,7 @@ function NotificationCloche() {
             outline: "none",
           }}
         >
-          {/* Cloche avec icône fichier superposé en petit */}
+          {/* Cloche avec indicateur de type en bas à gauche */}
           <div
             style={{
               position: "relative",
@@ -364,15 +369,17 @@ function NotificationCloche() {
               justifyContent: "center",
             }}
           >
+            {/* CORRECTION v2 #6 : La cloche utilise hasUnread (pas nonLues)
+                pour sa couleur de remplissage, afin d'être cohérente avec le badge. */}
             <Bell
               size={18}
               style={{
                 color: open
                   ? "var(--accent)"
-                  : nonLues > 0
+                  : hasUnread
                     ? "#a78bfa"
                     : "var(--text-muted)",
-                fill: nonLues > 0 ? "rgba(167,139,250,0.15)" : "none",
+                fill: hasUnread ? "rgba(167,139,250,0.15)" : "none",
                 transition: "color 0.2s",
               }}
             />
@@ -383,9 +390,7 @@ function NotificationCloche() {
                 const badgeBg =
                   lastType === "accepte"
                     ? "rgba(34,197,94,0.9)"
-                    : lastType === "refuse"
-                      ? "rgba(239,68,68,0.9)"
-                      : "rgba(99,102,241,0.9)"; // nouvelle_demande → indigo
+                    : "rgba(239,68,68,0.9)"; // refuse
                 return (
                   <div
                     style={{
@@ -436,28 +441,19 @@ function NotificationCloche() {
                         />
                       </svg>
                     )}
-                    {lastType === "nouvelle_demande" && (
-                      /* Point d'exclamation pour nouvelle demande */
-                      <svg width="7" height="7" viewBox="0 0 10 10">
-                        <line
-                          x1="5"
-                          y1="2"
-                          x2="5"
-                          y2="6.5"
-                          stroke="#fff"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                        />
-                        <circle cx="5" cy="8.5" r="0.9" fill="#fff" />
-                      </svg>
-                    )}
                   </div>
                 );
               })()}
           </div>
 
-          {/* Badge compteur non-lues */}
-          {nonLues > 0 && (
+          {/*
+            CORRECTION v2 #6 — Badge rouge conditionnel.
+            Rendu uniquement si hasUnread === true.
+            Dès que l'utilisateur ouvre le panneau, hasUnread passe à false
+            et ce div n'est plus rendu du tout (pas seulement masqué via opacity).
+            Le chiffre affiché correspond au nombre réel de notifs non lues (nonLues).
+          */}
+          {hasUnread && nonLues > 0 && (
             <span
               key={nonLues}
               className="nc-badge-pop nc-badge-pulse"
@@ -523,7 +519,6 @@ function NotificationCloche() {
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {/* Icône fichier dans le header du panneau */}
                 <div
                   style={{
                     width: 26,
@@ -625,7 +620,6 @@ function NotificationCloche() {
                     e.currentTarget.style.color = "var(--text-muted)";
                   }}
                 >
-                  {/* Icône corbeille SVG */}
                   <svg
                     width="11"
                     height="11"
@@ -657,7 +651,6 @@ function NotificationCloche() {
                   gap: 12,
                 }}
               >
-                {/* Cloche vide illustrée */}
                 <div
                   style={{
                     width: 52,
@@ -702,41 +695,28 @@ function NotificationCloche() {
             ) : (
               <div style={{ display: "flex", flexDirection: "column" }}>
                 {notifs.map((n, idx) => {
-                  // Couleurs adaptées selon le type de notification
                   const typeColor =
-                    n.type === "accepte"
-                      ? "#22c55e"
-                      : n.type === "refuse"
-                        ? "#ef4444"
-                        : "#818cf8"; // nouvelle_demande → indigo
+                    n.type === "accepte" ? "#22c55e" : "#ef4444";
 
                   const typeBg =
                     n.type === "accepte"
                       ? "rgba(34,197,94,0.05)"
-                      : n.type === "refuse"
-                        ? "rgba(239,68,68,0.05)"
-                        : "rgba(99,102,241,0.07)";
+                      : "rgba(239,68,68,0.05)";
 
                   const iconBg =
                     n.type === "accepte"
                       ? "rgba(34,197,94,0.10)"
-                      : n.type === "refuse"
-                        ? "rgba(239,68,68,0.10)"
-                        : "rgba(99,102,241,0.12)";
+                      : "rgba(239,68,68,0.10)";
 
                   const iconBorder =
                     n.type === "accepte"
                       ? "rgba(34,197,94,0.3)"
-                      : n.type === "refuse"
-                        ? "rgba(239,68,68,0.3)"
-                        : "rgba(99,102,241,0.35)";
+                      : "rgba(239,68,68,0.3)";
 
                   const tagBg =
                     n.type === "accepte"
                       ? "rgba(34,197,94,0.12)"
-                      : n.type === "refuse"
-                        ? "rgba(239,68,68,0.12)"
-                        : "rgba(99,102,241,0.12)";
+                      : "rgba(239,68,68,0.12)";
 
                   return (
                     <div
@@ -755,7 +735,7 @@ function NotificationCloche() {
                         cursor: "default",
                       }}
                     >
-                      {/* ── Icône selon le type ── */}
+                      {/* Icône selon le type */}
                       <div
                         style={{
                           width: 38,
@@ -776,46 +756,10 @@ function NotificationCloche() {
                         {n.type === "refuse" && (
                           <IconFichierRefuse size={18} color="#ef4444" />
                         )}
-                        {n.type === "nouvelle_demande" && (
-                          <svg
-                            width={18}
-                            height={18}
-                            viewBox="0 0 24 24"
-                            fill="none"
-                          >
-                            <path
-                              d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
-                              fill="rgba(99,102,241,0.2)"
-                              stroke="#818cf8"
-                              strokeWidth="1.8"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                            <polyline
-                              points="14,2 14,8 20,8"
-                              fill="none"
-                              stroke="#818cf8"
-                              strokeWidth="1.8"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                            <line
-                              x1="12"
-                              y1="11"
-                              x2="12"
-                              y2="15"
-                              stroke="#818cf8"
-                              strokeWidth="1.8"
-                              strokeLinecap="round"
-                            />
-                            <circle cx="12" cy="17.5" r="0.8" fill="#818cf8" />
-                          </svg>
-                        )}
                       </div>
 
-                      {/* ── Texte ── */}
+                      {/* Texte */}
                       <div style={{ flex: 1, overflow: "hidden", minWidth: 0 }}>
-                        {/* Tag de statut */}
                         <div
                           style={{
                             display: "inline-flex",
@@ -853,7 +797,6 @@ function NotificationCloche() {
                           )}
                         </div>
 
-                        {/* Nom de l'étudiant */}
                         <div
                           style={{
                             fontWeight: 700,
@@ -868,7 +811,6 @@ function NotificationCloche() {
                           {n.titre}
                         </div>
 
-                        {/* Description */}
                         <div
                           style={{
                             fontSize: 11.5,
@@ -879,7 +821,6 @@ function NotificationCloche() {
                           {n.message}
                         </div>
 
-                        {/* Heure + date */}
                         <div
                           style={{
                             display: "flex",
@@ -912,7 +853,7 @@ function NotificationCloche() {
                         </div>
                       </div>
 
-                      {/* ── Bouton supprimer (corbeille) ── */}
+                      {/* Bouton supprimer */}
                       <button
                         className="nc-del"
                         onClick={() => supprimerNotif(n.id)}
@@ -1339,7 +1280,6 @@ function TransfertModal({ onClose, onSaved }) {
   });
 
   useEffect(() => {
-    // avec_inscription=true : seuls les étudiants ayant une inscription active sont retournés
     api.get("/etudiants?limit=500&page=1&avec_inscription=true").then((r) => {
       const raw = r.data.data || [];
       const seen = new Set();
@@ -1358,12 +1298,16 @@ function TransfertModal({ onClose, onSaved }) {
     form.niveau &&
     form.annee_universitaire;
 
+  // CORRECTION v2 #5 : La création (POST /transferts) n'émet PLUS d'événement
+  // "transfert:nouvelle_demande". La notif admin sera déclenchée lors de la
+  // décision (handleAccepter / handleAfterRefus) uniquement.
   const handleSubmit = async () => {
     if (!isValid) return;
     setLoading(true);
     setError("");
     try {
       await api.post("/transferts", form);
+      // ⛔ Pas d'événement "nouvelle_demande" ici — c'était le bug.
       onSaved();
     } catch (err) {
       setError(err.response?.data?.message || "Erreur lors de la création");
@@ -1560,7 +1504,6 @@ function ChangementFiliereModal({ onClose, onSaved }) {
   });
 
   useEffect(() => {
-    // avec_inscription=true : seuls les étudiants ayant une inscription active
     api.get("/etudiants?limit=500&page=1&avec_inscription=true").then((r) => {
       const raw = r.data.data || [];
       const seen = new Set();
@@ -1827,7 +1770,6 @@ function ChangementStatutModal({ onClose, onSaved }) {
   });
 
   useEffect(() => {
-    // avec_inscription=true : seuls les étudiants ayant une inscription active
     api.get("/etudiants?limit=500&page=1&avec_inscription=true").then((r) => {
       const raw = r.data.data || [];
       const seen = new Set();
@@ -2500,8 +2442,7 @@ export default function TransfertPage() {
   const [annulModal, setAnnulModal] = useState(null);
   const [showActions, setShowActions] = useState(false);
 
-  // FIX 3: Tracker les IDs en cours de traitement pour bloquer les doubles clics
-  // et empêcher un second admin de cliquer pendant qu'un premier traite.
+  // Tracker les IDs en cours de traitement pour bloquer les doubles clics
   const [processingIds, setProcessingIds] = useState(new Set());
 
   const isAdmin = user?.role === "administrateur";
@@ -2522,32 +2463,31 @@ export default function TransfertPage() {
   }, [load]);
 
   /* ─────────────────────────────────────────────────────────────────────
-     POLLING DOUBLE — Détection des changements en temps réel (toutes machines)
+     POLLING — Détection des changements en temps réel
 
+     CORRECTION v2 #5 :
      ┌─────────────────────────────────────────────────────────────┐
-     │  SECRÉTAIRE reçoit :                                        │
-     │    • transfert:accepte  → quand Admin accepte               │
-     │    • transfert:refuse   → quand Admin refuse                 │
+     │  Le polling ne notifie PLUS l'admin des nouvelles demandes. │
+     │  Il ne détecte QUE les décisions prises (accepté/refusé)    │
+     │  pour notifier la SECRÉTAIRE en temps réel.                 │
      │                                                             │
-     │  ADMINISTRATEUR reçoit :                                    │
-     │    • transfert:nouvelle_demande → quand Secrétaire crée     │
-     │      une nouvelle demande (comme une notif Facebook)        │
+     │  SECRÉTAIRE reçoit (polling) :                              │
+     │    • transfert:accepte  → quand Admin accepte               │
+     │    • transfert:refuse   → quand Admin refuse                │
+     │                                                             │
+     │  ADMINISTRATEUR : ses propres actions (handleAccepter,      │
+     │    handleAfterRefus) déclenchent les notifications          │
+     │    directement, sans passer par le polling.                 │
      └─────────────────────────────────────────────────────────────┘
-
-     Toutes les 6 secondes, on compare la liste courante avec celle
-     en mémoire (snapshot via useRef) pour détecter :
-       - Nouveaux transferts apparus (→ notification Admin)
-       - Statuts changés (→ notification Secrétaire)
   ───────────────────────────────────────────────────────────────────── */
   const transfertsRef = useRef([]);
   transfertsRef.current = transferts;
 
   useEffect(() => {
-    // Les deux rôles reçoivent des notifications, mais pas les mêmes
     const role = user?.role;
     if (!["administrateur", "secretaire"].includes(role)) return;
 
-    const POLL_INTERVAL = 6000; // 6 secondes — réactif sans surcharger le serveur
+    const POLL_INTERVAL = 6000;
 
     const poll = async () => {
       try {
@@ -2555,48 +2495,17 @@ export default function TransfertPage() {
         const nouveaux = data.data || [];
         const anciens = transfertsRef.current;
 
-        // ── CAS 1 : ADMINISTRATEUR ──────────────────────────────────────
-        // Détecter les nouvelles demandes créées par le Secrétaire
-        // Un transfert "nouveau" = présent dans nouveaux mais absent de anciens
-        if (role === "administrateur") {
-          nouveaux.forEach((nouveau) => {
-            const existeDeja = anciens.find((a) => a.id === nouveau.id);
-            if (!existeDeja && nouveau.statut === "en_attente") {
-              // Nouvelle demande détectée → notifier l'Admin immédiatement
-              const prenom = nouveau.etudiant_prenom || "";
-              const nom = nouveau.etudiant_nom || "";
-              const filiere = nouveau.filiere_destination || "";
-              const niveau = nouveau.niveau || "";
+        // CORRECTION v2 #5 : Bloc "nouvelle_demande" pour l'admin SUPPRIMÉ.
+        // L'admin n'est plus notifié via polling lors de la création.
+        // Seule la décision finale déclenche une notification (voir handleAccepter
+        // et handleAfterRefus ci-dessous).
 
-              notify.info(
-                `🔔 Nouvelle demande de transfert — ${prenom} ${nom} souhaite rejoindre ${filiere} (${niveau}). Action requise.`,
-                9000,
-              );
-
-              // Animer la cloche + ajouter dans le panneau de notifications
-              window.dispatchEvent(
-                new CustomEvent("transfert:nouvelle_demande", {
-                  detail: {
-                    etudiantPrenom: prenom,
-                    etudiantNom: nom,
-                    filiere,
-                    niveau,
-                    transfertId: nouveau.id,
-                  },
-                }),
-              );
-            }
-          });
-        }
-
-        // ── CAS 2 : SECRÉTAIRE ──────────────────────────────────────────
-        // Détecter les décisions de l'Admin (accepté ou refusé)
+        // ── SECRÉTAIRE uniquement : décisions de l'Admin ──────────────
         if (role === "secretaire") {
           nouveaux.forEach((nouveau) => {
             const ancien = anciens.find((a) => a.id === nouveau.id);
-            if (!ancien) return; // nouvelle entrée, pas une décision
+            if (!ancien) return;
 
-            // Transition en_attente → accepte
             if (
               ancien.statut === "en_attente" &&
               nouveau.statut === "accepte"
@@ -2618,7 +2527,6 @@ export default function TransfertPage() {
               );
             }
 
-            // Transition en_attente → refuse
             if (ancien.statut === "en_attente" && nouveau.statut === "refuse") {
               const prenom = nouveau.etudiant_prenom || "";
               const nom = nouveau.etudiant_nom || "";
@@ -2639,10 +2547,9 @@ export default function TransfertPage() {
           });
         }
 
-        // Mettre à jour la liste silencieusement (sans spinner)
         setTransferts(nouveaux);
       } catch {
-        // Erreur réseau silencieuse — on réessaiera au prochain cycle
+        // Erreur réseau silencieuse
       }
     };
 
@@ -2650,27 +2557,18 @@ export default function TransfertPage() {
     return () => clearInterval(intervalId);
   }, [user?.role, notify]);
 
-  /* ══════════════════════════════════════════════════════════════════════════
-     CORRECTION BUG MATRICULE - handleAccepter corrigé
+  /* ══════════════════════════════════════════════════════════════════════
+     handleAccepter — Acceptation d'un transfert par l'admin
 
-     PROBLEME : Si on accepte un transfert, le matricule devient "2006 H-TOL".
-     Si on accepte à nouveau le même transfert (bug), on obtient "2007 H-2006 H-TOL"
-
-     SOLUTION : Extraire UNIQUEMENT la première année (4 chiffres) du matricule
-     original de l'étudiant, IGNORER toute corruption existante.
-
-     Exemple:
-     - "2006 H-F" → extraire "2006"
-     - "2007 H-2006 H-TOL" (corrompu) → extraire "2007"? NON! On prend le matricule
-       original depuis la base qui est "2006 H-F" grâce au snapshot
-     ══════════════════════════════════════════════════════════════════════════ */
+     CORRECTION v2 #5 : La notification admin est émise ICI (au moment de
+     la décision PUT /transferts/{id}/accepter), et non plus lors de la
+     création de la demande.
+  ══════════════════════════════════════════════════════════════════════ */
   const handleAccepter = async (id, etudiantPrenom, etudiantNom) => {
-    // Vérifier que cet ID n'est pas déjà en cours de traitement
     if (processingIds.has(id)) return;
 
     setProcessingIds((prev) => new Set([...prev, id]));
     try {
-      // 🔧 CORRECTION: Récupérer le transfert pour avoir le bon matricule original
       const transfertActuel = transferts.find((t) => t.id === id);
 
       if (!transfertActuel) {
@@ -2678,60 +2576,42 @@ export default function TransfertPage() {
         return;
       }
 
-      // Extraire l'année (4 premiers chiffres) du matricule original
-      // Le matricule original est stocké dans transfert.matricule (snapshot au moment de la demande)
+      // Extraction robuste de l'année depuis le matricule original
       let matriculeOriginal = transfertActuel.matricule || "";
-
-      // Méthode robuste: extraire le premier nombre à 4 chiffres du début
-      // Cela ignore toute corruption comme "2007 H-2006 H-TOL" et prend le premier bloc
       const matchAnnee = matriculeOriginal.match(/^(\d{4})/);
-      let annee = "2006"; // fallback
+      let annee = "2006";
 
       if (matchAnnee) {
         annee = matchAnnee[1];
       } else {
-        // Fallback: prendre ce qu'il y a avant le premier espace
         const avantEspace = matriculeOriginal.split(" ")[0];
         if (avantEspace && /^\d+$/.test(avantEspace)) {
           annee = avantEspace;
         }
       }
 
-      // Déterminer le code établissement de destination
-      // Soit depuis le transfert, soit depuis la filière destination
       let codeEtab = transfertActuel.etablissement_destination || "";
       if (!codeEtab && transfertActuel.filiere_destination) {
-        // Extraire les 3 premières lettres de la filière destination
         codeEtab = transfertActuel.filiere_destination
           .substring(0, 3)
           .toUpperCase();
       }
-      if (!codeEtab) codeEtab = "TOL"; // fallback par défaut
+      if (!codeEtab) codeEtab = "TOL";
 
-      // Construire le NOUVEAU MATRICULE propre
-      // Format: "2006 H-TOL" au lieu de "2007 H-2006 H-TOL"
       const nouveauMatricule = `${annee} H-${codeEtab}`;
 
-      console.log(
-        `[DEBUG] Ancien matricule: ${matriculeOriginal} → Nouveau: ${nouveauMatricule}`,
-      );
-
-      // Envoyer la requête avec le matricule corrigé
-      // Option 1: Passer le matricule dans le body
+      // Appel API décision finale (PUT)
       await api.put(`/transferts/${id}/accepter`, {
         nouveau_matricule: nouveauMatricule,
       });
 
-      // Option alternative (si votre backend ne supporte pas le body):
-      // await api.put(`/transferts/${id}/accepter?nouveau_matricule=${encodeURIComponent(nouveauMatricule)}`);
-
-      // Notification de succès avec le nouveau matricule
+      // CORRECTION v2 #5 : Notification admin émise ici, après la décision.
       notify.success(
         `✅ Transfert accepté — ${etudiantPrenom} ${etudiantNom} a été transféré avec succès. Nouveau matricule : ${nouveauMatricule}`,
         6000,
       );
 
-      // Émettre un événement global pour que EtudiantsPage retire immédiatement l'étudiant
+      // Événement global pour que EtudiantsPage retire l'étudiant
       window.dispatchEvent(
         new CustomEvent("transfert:accepte", {
           detail: {
@@ -2743,17 +2623,15 @@ export default function TransfertPage() {
         }),
       );
 
-      // Recharge la liste des transferts
       load();
     } catch (err) {
       const msg = err.response?.data?.message || "Erreur lors de l'acceptation";
 
-      // Vérifier si le transfert a déjà été traité par un autre admin (HTTP 409)
       if (err.response?.status === 409) {
         notify.warning(
           `⚠️ Ce transfert a déjà été traité par un autre administrateur.`,
         );
-        load(); // Rafraîchir pour refléter l'état réel
+        load();
       } else {
         notify.error(`❌ ${msg}`);
       }
@@ -2767,11 +2645,16 @@ export default function TransfertPage() {
   };
 
   /* ─────────────────────────────────────────────────────────────────────
-     FIX 2 : Notification après refus
+     handleAfterRefus — Callback après confirmation du refus
+
+     CORRECTION v2 #5 : La notification admin est émise ICI (au moment de
+     la décision PUT /transferts/{id}/refuser), et non plus lors de la
+     création de la demande.
   ───────────────────────────────────────────────────────────────────── */
   const handleAfterRefus = (transfert) => {
     setRefusModal(null);
-    // Émettre l'événement global pour la cloche notification
+
+    // Émettre l'événement global (pour la cloche de la secrétaire si besoin)
     window.dispatchEvent(
       new CustomEvent("transfert:refuse", {
         detail: {
@@ -2781,6 +2664,8 @@ export default function TransfertPage() {
         },
       }),
     );
+
+    // CORRECTION v2 #5 : Notification admin émise ici, après la décision.
     notify.error(
       `🚫 Transfert refusé — La demande de ${transfert.etudiant_prenom} ${transfert.etudiant_nom} a été refusée.`,
       5000,
@@ -3167,7 +3052,6 @@ export default function TransfertPage() {
                     <Td>
                       {t.statut === "en_attente" && (
                         <>
-                          {/* ── ADMINISTRATEUR : Accepter + Refuser ── */}
                           {isAdmin && (
                             <div
                               style={{
@@ -3208,7 +3092,6 @@ export default function TransfertPage() {
                               </Btn>
                             </div>
                           )}
-                          {/* ── SECRÉTAIRE : message uniquement, pas de bouton ── */}
                           {!isAdmin && canEdit && (
                             <span
                               style={{
