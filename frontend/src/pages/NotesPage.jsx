@@ -216,19 +216,23 @@ export default function NotesPage() {
       pdfContent.style.cssText =
         "width:800px;padding:40px 45px;background-color:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#111827;line-height:1.4;";
 
-      // ── Calcul des stats globales ─────────────────────────────────────────────
+      // ── Calcul des stats globales (sessions normale + rattrapage) ─────────────
       let totalPond = 0,
         totalCoeff = 0,
         nbNotes = 0;
       const bulletinObj = bulletin.bulletin || {};
 
       for (const semestreData of Object.values(bulletinObj)) {
-        for (const n of semestreData.notes || []) {
-          const coeff = parseFloat(n.coefficient || n.credit || 0);
-          const note = parseFloat(n.note || 0);
-          totalPond += note * coeff;
-          totalCoeff += coeff;
-          nbNotes++;
+        for (const sessionKey of ["session_normale", "session_rattrapage"]) {
+          const sessionData = semestreData[sessionKey];
+          if (!sessionData?.notes) continue;
+          for (const n of sessionData.notes) {
+            const coeff = parseFloat(n.coefficient || n.credit || 0);
+            const note = parseFloat(n.note || 0);
+            totalPond += note * coeff;
+            totalCoeff += coeff;
+            nbNotes++;
+          }
         }
       }
 
@@ -282,95 +286,113 @@ export default function NotesPage() {
         year: "numeric",
       });
 
-      // En-tête université
+      // ── En-tête université + badge PDF sécurisé ─────────────────────────────
       pdfContent.innerHTML = `
-      <table style="width:100%;border:none;border-collapse:collapse;background-color:#ffffff;margin-bottom:18px;">
+      <table style="width:100%;border:none;border-collapse:collapse;background-color:#ffffff;margin-bottom:14px;">
         <tr>
           <td style="width:60%;border:none;padding:0;background-color:#ffffff;vertical-align:top;">
-            <div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:#1e40af;font-weight:700;margin-bottom:2px;">UNIVERSIT\u00c9</div>
-            <div style="font-size:22px;font-weight:800;color:#1e40af;letter-spacing:0.02em;">Relev\u00e9 de notes</div>
-            <div style="font-size:10px;color:#6b7280;margin-top:2px;">Document officiel de notation</div>
+            <div style="font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:#1e40af;font-weight:800;margin-bottom:4px;">UNIVERSIT\u00c9</div>
+            <div style="font-size:26px;font-weight:900;color:#1e40af;letter-spacing:0.01em;">Relev\u00e9 de notes</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:4px;">Document officiel de notation</div>
           </td>
           <td style="width:40%;border:none;padding:0;background-color:#ffffff;text-align:right;vertical-align:top;">
             <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:0.08em;">Ann\u00e9e universitaire</div>
-            <div style="font-size:14px;font-weight:700;color:#111827;">${bulletin.inscription?.annee_universitaire || "\u2014"}</div>
-            <div style="font-size:10px;color:#94a3b8;margin-top:4px;">\u00c9dit\u00e9 le ${dateStr}</div>
+            <div style="font-size:15px;font-weight:700;color:#111827;margin-bottom:6px;">${bulletin.inscription?.annee_universitaire || "\u2014"}</div>
+            <div style="display:inline-block;padding:4px 14px;border-radius:20px;background-color:#1e40af;color:#ffffff;font-size:10px;font-weight:700;letter-spacing:0.05em;">\ud83d\udcc4 PDF s\u00e9curis\u00e9</div>
+            <div style="font-size:10px;color:#94a3b8;margin-top:6px;">\u00c9dit\u00e9 le ${dateStr}</div>
           </td>
         </tr>
       </table>
-      <hr style="border:none;border-top:3px solid #1e40af;margin:0 0 2px 0;">
-      <hr style="border:none;border-top:1px solid #93c5fd;margin:0 0 20px 0;">
+      <hr style="border:none;border-top:3px solid #1e40af;margin:0 0 3px 0;">
+      <hr style="border:none;border-top:1px solid #93c5fd;margin:0 0 24px 0;">
     `;
 
-      // Infos étudiant
+      // ── Informations étudiant (aérée, bordure gauche bleue) ─────────────────
       pdfContent.innerHTML += `
-      <table style="width:100%;border-collapse:collapse;background-color:#ffffff;margin-bottom:22px;">
+      <table style="width:100%;border-collapse:collapse;background-color:#ffffff;margin-bottom:24px;">
         <tr>
-          <td style="width:8px;background-color:#1e40af;padding:0;border:none;"></td>
-          <td style="border:none;padding:6px 8px;background-color:#f8fafc;font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Informations \u00e9tudiant</td>
+          <td style="width:6px;background-color:#1e40af;padding:0;border:none;"></td>
+          <td style="border:none;padding:8px 12px;background-color:#ffffff;font-size:13px;color:#1e40af;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Informations \u00e9tudiant</td>
         </tr>
       </table>
-      <table style="width:100%;border:none;border-collapse:collapse;background-color:#ffffff;margin-bottom:24px;">
-        <tr>
-          <td style="width:50%;border:none;padding:4px 0;background-color:#ffffff;font-size:13px;">
-            <span style="color:#6b7280;">Nom &amp; Pr\u00e9noms :</span><br>
-            <span style="color:#111827;font-weight:600;">${bulletin.inscription?.etudiant_nom || "\u2014"}</span>
-          </td>
-          <td style="width:50%;border:none;padding:4px 0;background-color:#ffffff;font-size:13px;">
-            <span style="color:#6b7280;">Matricule :</span><br>
-            <span style="color:#111827;font-weight:600;">${bulletin.inscription?.matricule || "\u2014"}</span>
-          </td>
-        </tr>
-        <tr>
-          <td style="width:50%;border:none;padding:4px 0;background-color:#ffffff;font-size:13px;">
-            <span style="color:#6b7280;">Fili\u00e8re :</span><br>
-            <span style="color:#111827;font-weight:600;">${bulletin.inscription?.filiere_nom || "\u2014"}</span>
-          </td>
-          <td style="width:50%;border:none;padding:4px 0;background-color:#ffffff;font-size:13px;">
-            <span style="color:#6b7280;">Niveau :</span><br>
-            <span style="color:#111827;font-weight:600;">${bulletin.inscription?.niveau || "\u2014"}</span>
-          </td>
-        </tr>
-      </table>
+
+      <div style="border-left:4px solid #1e40af;padding:12px 20px;margin-bottom:28px;background-color:#ffffff;">
+        <table style="width:100%;border:none;border-collapse:collapse;background-color:#ffffff;">
+          <tr>
+            <td style="width:50%;border:none;padding:8px 4px;background-color:#ffffff;font-size:14px;vertical-align:top;">
+              <div style="color:#6b7280;font-weight:700;font-size:13px;margin-bottom:2px;">Nom &amp; Pr\u00e9noms</div>
+              <div style="color:#111827;font-weight:600;font-size:15px;">${bulletin.inscription?.etudiant_nom || "\u2014"}</div>
+            </td>
+            <td style="width:50%;border:none;padding:8px 4px;background-color:#ffffff;font-size:14px;vertical-align:top;">
+              <div style="color:#6b7280;font-weight:700;font-size:13px;margin-bottom:2px;">Matricule</div>
+              <div style="color:#111827;font-weight:600;font-size:15px;">${bulletin.inscription?.matricule || "\u2014"}</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="width:50%;border:none;padding:8px 4px;background-color:#ffffff;font-size:14px;vertical-align:top;">
+              <div style="color:#6b7280;font-weight:700;font-size:13px;margin-bottom:2px;">Fili\u00e8re</div>
+              <div style="color:#111827;font-weight:600;font-size:15px;">${bulletin.inscription?.filiere_nom || "\u2014"}</div>
+            </td>
+            <td style="width:50%;border:none;padding:8px 4px;background-color:#ffffff;font-size:14px;vertical-align:top;">
+              <div style="color:#6b7280;font-weight:700;font-size:13px;margin-bottom:2px;">Niveau</div>
+              <div style="color:#111827;font-weight:600;font-size:15px;">${bulletin.inscription?.niveau || "\u2014"}</div>
+            </td>
+          </tr>
+        </table>
+      </div>
     `;
 
-      // ── FIX: Tableaux par semestre → par session ─────────────────────────────
+      // ── Tableaux par semestre → session normale + rattrapage ─────────────
+      const SESSION_PDF_LABELS = {
+        session_normale: "Session Normale",
+        session_rattrapage: "Session Rattrapage",
+      };
+      const SESSION_PDF_COLORS = {
+        session_normale: { color: "#1e40af", bg: "#eff6ff" },
+        session_rattrapage: { color: "#ca8a04", bg: "#fefce8" },
+      };
+
       for (const [semestre, semestreData] of Object.entries(bulletinObj)) {
-        const notes = semestreData.notes || [];
-        if (notes.length === 0) continue;
+        for (const [sessionKey, sessionData] of Object.entries(semestreData)) {
+          const notes = sessionData?.notes || [];
+          if (notes.length === 0) continue;
 
-        let semPond = 0,
-          semCoeff = 0;
+          const label = SESSION_PDF_LABELS[sessionKey] || sessionKey;
+          const { color: sessionColor, bg: sessionBg } = SESSION_PDF_COLORS[
+            sessionKey
+          ] || {
+            color: "#1e40af",
+            bg: "#eff6ff",
+          };
 
-        // Couleur du semestre
-        const sessionColor = "#1e40af";
-        const sessionBg = "#eff6ff";
+          let semPond = 0,
+            semCoeff = 0;
 
-        // Titre semestre
-        pdfContent.innerHTML += `
+          // Titre semestre (section header)
+          pdfContent.innerHTML += `
           <table style="width:100%;border-collapse:collapse;background-color:#ffffff;margin-bottom:6px;">
             <tr>
-              <td style="width:4px;background-color:${sessionColor};padding:0;border:none;"></td>
-              <td style="border:none;padding:4px 8px;background-color:${sessionBg};font-size:13px;font-weight:700;color:${sessionColor};">
-                Semestre ${semestre}
+              <td style="width:5px;background-color:${sessionColor};padding:0;border:none;"></td>
+              <td style="border:none;padding:6px 10px;background-color:${sessionBg};font-size:14px;font-weight:700;color:${sessionColor};">
+                Semestre ${semestre} — ${label}
               </td>
             </tr>
           </table>
         `;
 
-        // Tableau des notes
-        const table = document.createElement("table");
-        table.style.cssText =
-          "width:100%;border-collapse:collapse;margin-bottom:10px;background-color:#ffffff;color:#111827;";
+          // Tableau des notes
+          const table = document.createElement("table");
+          table.style.cssText =
+            "width:100%;border-collapse:collapse;margin-bottom:4px;background-color:#ffffff;color:#111827;";
 
-        table.innerHTML = `
+          table.innerHTML = `
           <thead>
             <tr style="background-color:${sessionColor};">
-              <th style="width:36px;border:1px solid ${sessionColor};padding:8px 6px;text-align:center;color:#ffffff;font-weight:600;font-size:11px;">N\u00b0</th>
-              <th style="border:1px solid ${sessionColor};padding:8px 12px;text-align:left;color:#ffffff;font-weight:600;font-size:11px;">Mati\u00e8re</th>
-              <th style="width:50px;border:1px solid ${sessionColor};padding:8px 6px;text-align:center;color:#ffffff;font-weight:600;font-size:11px;">Coeff.</th>
-              <th style="width:70px;border:1px solid ${sessionColor};padding:8px 6px;text-align:center;color:#ffffff;font-weight:600;font-size:11px;">Note /20</th>
-              <th style="width:65px;border:1px solid ${sessionColor};padding:8px 6px;text-align:center;color:#ffffff;font-weight:600;font-size:11px;">Pond.</th>
+              <th style="width:36px;border:1px solid ${sessionColor};padding:10px 4px;text-align:center;color:#ffffff;font-weight:700;font-size:12px;">N\u00b0</th>
+              <th style="border:1px solid ${sessionColor};padding:10px 14px;text-align:left;color:#ffffff;font-weight:700;font-size:12px;">Mati\u00e8re</th>
+              <th style="width:55px;border:1px solid ${sessionColor};padding:10px 4px;text-align:center;color:#ffffff;font-weight:700;font-size:12px;">Coeff.</th>
+              <th style="width:80px;border:1px solid ${sessionColor};padding:10px 4px;text-align:center;color:#ffffff;font-weight:700;font-size:12px;">Note /20</th>
+              <th style="width:70px;border:1px solid ${sessionColor};padding:10px 4px;text-align:center;color:#ffffff;font-weight:700;font-size:12px;">Coeff * Note /20</th>
             </tr>
           </thead>
           <tbody>
@@ -382,64 +404,68 @@ export default function NotesPage() {
                 semPond += note * coeff;
                 semCoeff += coeff;
                 const bgColor = idx % 2 === 0 ? "#ffffff" : "#f8fafc";
+                const noteColor = note >= 10 ? "#16a34a" : "#dc2626";
+                const noteBg =
+                  note >= 10 ? "rgba(22,163,74,0.10)" : "rgba(220,38,38,0.10)";
                 return `
             <tr style="background-color:${bgColor};">
-              <td style="border:1px solid #e2e8f0;padding:7px 6px;text-align:center;color:#6b7280;background-color:${bgColor};font-size:12px;">${idx + 1}</td>
-              <td style="border:1px solid #e2e8f0;padding:7px 12px;color:#111827;background-color:${bgColor};font-size:12px;">${n.matiere}</td>
-              <td style="border:1px solid #e2e8f0;padding:7px 6px;text-align:center;color:#111827;background-color:${bgColor};font-size:12px;">${coeff}</td>
-              <td style="border:1px solid #e2e8f0;padding:7px 6px;text-align:center;color:#111827;background-color:${bgColor};font-size:12px;font-weight:600;">${note.toFixed(2)}</td>
-              <td style="border:1px solid #e2e8f0;padding:7px 6px;text-align:center;color:#111827;background-color:${bgColor};font-size:12px;">${pond}</td>
+              <td style="border:1px solid #e2e8f0;padding:10px 4px;text-align:center;color:#6b7280;background-color:${bgColor};font-size:13px;">${idx + 1}</td>
+              <td style="border:1px solid #e2e8f0;padding:10px 14px;color:#111827;background-color:${bgColor};font-size:13px;">${n.matiere}</td>
+              <td style="border:1px solid #e2e8f0;padding:10px 4px;text-align:center;color:#111827;background-color:${bgColor};font-size:13px;">${coeff}</td>
+              <td style="border:1px solid #e2e8f0;padding:10px 4px;text-align:center;color:#111827;background-color:${bgColor};font-size:13px;">
+                <span style="display:inline-block;padding:2px 10px;border-radius:6px;font-weight:700;font-size:14px;color:${noteColor};background-color:${noteBg};border:1px solid ${noteColor}40;">${note.toFixed(2)}</span>
+              </td>
+              <td style="border:1px solid #e2e8f0;padding:10px 4px;text-align:center;color:#111827;background-color:${bgColor};font-size:13px;">${pond}</td>
             </tr>`;
               })
               .join("")}
           </tbody>
         `;
-        pdfContent.appendChild(table);
+          pdfContent.appendChild(table);
 
-        // Résumé du semestre
-        const semMoy =
-          semCoeff > 0 ? (semPond / semCoeff).toFixed(2) : "\u2014";
-        const mention = semestreData.mention || "\u2014";
-        const mentionC =
-          mention === "Admis"
-            ? "#16a34a"
-            : mention === "Rattrapage"
-              ? "#ca8a04"
-              : mention === "Ajourn\u00e9"
-                ? "#dc2626"
-                : "#6b7280";
-        const mentionBg =
-          mention === "Admis"
-            ? "#f0fdf4"
-            : mention === "Rattrapage"
-              ? "#fefce8"
-              : mention === "Ajourn\u00e9"
-                ? "#fef2f2"
-                : "#f3f4f6";
+          // Résumé de la session (bordure supérieure + badge agrandi)
+          const semMoy =
+            semCoeff > 0 ? (semPond / semCoeff).toFixed(2) : "\u2014";
+          const mention = sessionData.mention || "\u2014";
+          const mentionC =
+            mention === "Admis"
+              ? "#16a34a"
+              : mention === "Rattrapage"
+                ? "#ca8a04"
+                : mention === "Ajourn\u00e9"
+                  ? "#dc2626"
+                  : "#6b7280";
+          const mentionBg =
+            mention === "Admis"
+              ? "#f0fdf4"
+              : mention === "Rattrapage"
+                ? "#fefce8"
+                : mention === "Ajourn\u00e9"
+                  ? "#fef2f2"
+                  : "#f3f4f6";
 
-        const sumDiv = document.createElement("div");
-        sumDiv.style.cssText =
-          "margin-bottom:22px;padding:10px 14px;border:1px solid #e2e8f0;border-radius:4px;background-color:#f8fafc;color:#111827;";
-        sumDiv.innerHTML = `
-          <table style="width:100%;border:none;border-collapse:collapse;background-color:#f8fafc;">
-            <tr>
-              <td style="border:none;padding:2px 0;background-color:#f8fafc;font-size:12px;color:#374151;">
-                <strong style="color:#111827;">Total coefficient :</strong> ${semCoeff}
-                &nbsp;&nbsp;|&nbsp;&nbsp;
-                <strong style="color:#111827;">Moyenne :</strong> <span style="font-weight:700;color:#111827;">${semMoy}/20</span>
-              </td>
-              <td style="border:none;padding:2px 0;background-color:#f8fafc;text-align:right;">
-                <span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;background-color:${mentionBg};color:${mentionC};border:1px solid ${mentionC}40;">
-                  ${mention}
-                </span>
-              </td>
-            </tr>
-          </table>
+          const sumDiv = document.createElement("div");
+          sumDiv.style.cssText =
+            "margin-bottom:22px;padding:12px 16px;border:1px solid #e2e8f0;border-top:2px solid #e2e8f0;border-radius:0 0 6px 6px;background-color:#f8fafc;color:#111827;";
+          sumDiv.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <div style="font-size:13px;color:#374151;">
+              <strong style="color:#111827;">Total coefficient :</strong> ${semCoeff}
+              &nbsp;&nbsp;|&nbsp;&nbsp;
+              <strong style="color:#111827;">Moyenne :</strong> <span style="font-weight:700;font-size:15px;color:#111827;">${semMoy}/20</span>
+            </div>
+            <div>
+              <span style="display:inline-block;padding:4px 16px;border-radius:20px;font-size:12px;font-weight:700;background-color:${mentionBg};color:${mentionC};border:1px solid ${mentionC}50;">
+                ${mention}
+              </span>
+            </div>
+          </div>
         `;
-        pdfContent.appendChild(sumDiv);
+          pdfContent.appendChild(sumDiv);
+        }
       }
 
-      // ── Résultat général ───────────────────────────────────────────────────────
+      // ── Résultat général (refondu : deux lignes distinctes, sans tableau) ─────
       const mentionGlobale =
         moyenneNum >= 10
           ? "Admis"
@@ -466,77 +492,119 @@ export default function NotesPage() {
               : "#f3f4f6";
 
       pdfContent.innerHTML += `
-      <hr style="border:none;border-top:2px solid #1e40af;margin:26px 0 18px 0;">
+      <hr style="border:none;border-top:2px solid #1e40af;margin:28px 0 20px 0;">
 
-      <table style="width:100%;border-collapse:collapse;background-color:#ffffff;margin-bottom:16px;">
-        <tr>
-          <td style="width:8px;background-color:#1e40af;padding:0;border:none;"></td>
-          <td style="border:none;padding:4px 8px;background-color:#ffffff;font-size:13px;font-weight:700;color:#1e40af;text-transform:uppercase;letter-spacing:0.05em;">R\u00e9sultat g\u00e9n\u00e9ral</td>
-        </tr>
-      </table>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+        <div style="width:6px;height:24px;background-color:#1e40af;border-radius:3px;"></div>
+        <div style="font-size:15px;font-weight:700;color:#1e40af;text-transform:uppercase;letter-spacing:0.06em;">R\u00e9sultat g\u00e9n\u00e9ral</div>
+      </div>
 
-      <table style="width:100%;border:2px solid #e2e8f0;border-collapse:collapse;background-color:#ffffff;margin-bottom:16px;">
-        <tr>
-          <td style="width:55%;border:none;padding:18px 20px;background-color:#ffffff;">
-            <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Moyenne g\u00e9n\u00e9rale</div>
-            <div style="font-size:26px;font-weight:800;color:#111827;">${moyenneGenerale}<span style="font-size:16px;color:#6b7280;">/20</span></div>
-            <div style="font-size:12px;color:#6b7280;margin-top:4px;">${nbNotes} note${nbNotes > 1 ? "s" : ""} \u2022 ${totalCoeff} coefficient${totalCoeff > 1 ? "s" : ""}</div>
-          </td>
-          <td style="width:45%;border:none;padding:18px 20px;background-color:#ffffff;text-align:center;">
-            <div style="display:inline-block;padding:8px 24px;border-radius:30px;font-size:15px;font-weight:700;background-color:${decisionBg};color:${decisionColor};border:2px solid ${decisionColor};">
-              ${decision}
-            </div>
-            <div style="margin-top:8px;">
-              <span style="display:inline-block;padding:3px 14px;border-radius:12px;font-size:11px;font-weight:600;background-color:${globMentionBg};color:${globMentionC};border:1px solid ${globMentionC}40;">
-                ${mentionGlobale}
-              </span>
-            </div>
-          </td>
-        </tr>
-      </table>
+      <!-- Première ligne : moyenne à gauche, décision à droite -->
+      <div style="display:flex;align-items:stretch;gap:0;border:2px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:16px;background-color:#ffffff;">
+        <!-- Bloc moyenne -->
+        <div style="flex:1;padding:22px 28px;background-color:#ffffff;">
+          <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.10em;margin-bottom:6px;font-weight:600;">Moyenne g\u00e9n\u00e9rale</div>
+          <div style="font-size:36px;font-weight:900;color:#111827;line-height:1.1;">${moyenneGenerale}<span style="font-size:18px;color:#6b7280;font-weight:600;">/20</span></div>
+          <div style="font-size:13px;color:#6b7280;margin-top:6px;">${nbNotes} note${nbNotes > 1 ? "s" : ""} \u2022 ${totalCoeff} coefficient${totalCoeff > 1 ? "s" : ""}</div>
+        </div>
+        <!-- Séparateur vertical -->
+        <div style="width:1px;background-color:#e2e8f0;"></div>
+        <!-- Bloc décision -->
+        <div style="flex:1;padding:22px 28px;background-color:#ffffff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;">
+          <div style="display:inline-block;padding:10px 32px;border-radius:40px;font-size:18px;font-weight:800;background-color:${decisionBg};color:${decisionColor};border:3px solid ${decisionColor};">
+            ${decision}
+          </div>
+          <span style="display:inline-block;padding:4px 18px;border-radius:20px;font-size:12px;font-weight:700;background-color:${globMentionBg};color:${globMentionC};border:1px solid ${globMentionC}50;">
+            ${mentionGlobale}
+          </span>
+        </div>
+      </div>
 
-      <div style="border-left:4px solid ${decisionColor};padding:12px 16px;margin-bottom:22px;background-color:#ffffff;color:#374151;font-size:12px;line-height:1.6;">
+      <!-- Deuxième ligne : observation (pleine largeur) -->
+      <div style="border-left:4px solid ${decisionColor};padding:16px 20px;margin-bottom:26px;background-color:#f8fafc;color:#374151;font-size:13px;line-height:1.7;border-radius:0 8px 8px 0;">
         <strong style="color:#111827;">Observation :</strong> ${observation}
       </div>
     `;
 
-      // ── Validation ─────────────────────────────────────────────────────────────
+      // ── Pied de page ────────────────────────────────────────────────────────────
       pdfContent.innerHTML += `
-      <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0 16px 0;">
-      <table style="width:100%;border:none;border-collapse:collapse;background-color:#ffffff;">
-        <tr>
-          <td style="width:50%;border:none;padding:4px 0;background-color:#ffffff;font-size:11px;color:#6b7280;">
-            Fait \u00e0 Fianarantsoa, le ${dateStr}
-          </td>
-          <td style="width:50%;border:none;padding:4px 0;background-color:#ffffff;text-align:right;font-size:11px;color:#6b7280;">
-            Cachet et signature de l'\u00e9tablissement
-          </td>
-        </tr>
-      </table>
-      <div style="margin-top:16px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:9px;color:#94a3b8;text-align:center;">
-        Document g\u00e9n\u00e9r\u00e9 par <strong>UniGest</strong> \u2014 Relev\u00e9 officiel de notes \u2014 Document non contractuel
+      <hr style="border:none;border-top:1px solid #d1d5db;margin:20px 0 14px 0;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+        <div style="font-size:11px;color:#6b7280;">
+          Fait \u00e0 Fianarantsoa, le ${dateStr}
+        </div>
+        <div style="font-size:11px;color:#6b7280;text-align:right;">
+          Cachet et signature de l'\u00e9tablissement
+        </div>
+      </div>
+      <div style="margin-top:14px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:10px;color:#6b7280;text-align:center;">
+        G\u00e9n\u00e9r\u00e9 par <strong>UniGest</strong> \u2014 ${dateStr} \u2014 Relev\u00e9 officiel de notes \u2014 Document non contractuel
       </div>
     `;
 
-      // ── Rendu html2canvas → jsPDF ──────────────────────────────────────────────
-      document.body.appendChild(pdfContent);
-      const canvas = await html2canvas(pdfContent, {
+      // ── Rendu html2canvas → jsPDF (page 1 : tableaux, page 2 : résultat) ────
+      // Extraire le contenu du résultat général dans un conteneur séparé
+      const pdfPage1 = document.createElement("div");
+      pdfPage1.style.cssText = pdfContent.style.cssText;
+      pdfPage1.innerHTML = pdfContent.innerHTML;
+
+      // Créer la page 2 avec uniquement le résultat général + footer
+      const pdfPage2 = document.createElement("div");
+      pdfPage2.style.cssText = pdfContent.style.cssText;
+      // Reprendre depuis le <hr> qui précède "Résultat général"
+      pdfPage2.innerHTML = pdfContent.innerHTML.substring(
+        pdfContent.innerHTML.lastIndexOf(
+          '<hr style="border:none;border-top:2px solid #1e40af;',
+        ),
+      );
+
+      // Supprimer ce bloc de la page 1 (tout depuis le <hr>)
+      pdfPage1.innerHTML = pdfPage1.innerHTML.substring(
+        0,
+        pdfPage1.innerHTML.lastIndexOf(
+          '<hr style="border:none;border-top:2px solid #1e40af;',
+        ),
+      );
+
+      const pdf = new jsPDF("p", "mm", "a4");
+      const imgWidth = 210;
+
+      // ── Page 1 : tableaux des notes ──
+      document.body.appendChild(pdfPage1);
+      const canvas1 = await html2canvas(pdfPage1, {
         scale: 2,
         backgroundColor: "#ffffff",
         useCORS: true,
         logging: false,
-        width: pdfContent.scrollWidth,
-        height: pdfContent.scrollHeight,
+        width: pdfPage1.scrollWidth,
+        height: pdfPage1.scrollHeight,
       });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      const imgWidth = 210;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+      const imgData1 = canvas1.toDataURL("image/png");
+      const imgHeight1 = (canvas1.height * imgWidth) / canvas1.width;
+      pdf.addImage(imgData1, "PNG", 0, 0, imgWidth, imgHeight1);
+      document.body.removeChild(pdfPage1);
+
+      // ── Saut de page ──
+      pdf.addPage();
+
+      // ── Page 2 : résultat général + footer ──
+      document.body.appendChild(pdfPage2);
+      const canvas2 = await html2canvas(pdfPage2, {
+        scale: 2,
+        backgroundColor: "#ffffff",
+        useCORS: true,
+        logging: false,
+        width: pdfPage2.scrollWidth,
+        height: pdfPage2.scrollHeight,
+      });
+      const imgData2 = canvas2.toDataURL("image/png");
+      const imgHeight2 = (canvas2.height * imgWidth) / canvas2.width;
+      pdf.addImage(imgData2, "PNG", 0, 0, imgWidth, imgHeight2);
+      document.body.removeChild(pdfPage2);
+
       pdf.save(
         `releve_notes_${bulletin.inscription?.matricule || "etudiant"}.pdf`,
       );
-      document.body.removeChild(pdfContent);
     } catch (err) {
       console.error("Erreur génération PDF:", err);
       setMsg({ text: "Erreur lors de la génération du PDF.", type: "danger" });
@@ -550,7 +618,8 @@ export default function NotesPage() {
 
   // ── Rendu d'une session d'un semestre ─────────────────────────────────────
   const renderSessionTable = (semestre, sessionKey, sessionData) => {
-    const sessionLabel = "Normal";
+    const sessionLabel =
+      sessionKey === "session_rattrapage" ? "Rattrapage" : "Normal";
     return (
       <div key={`${semestre}-${sessionKey}`} style={{ marginBottom: 24 }}>
         <div
@@ -638,23 +707,25 @@ export default function NotesPage() {
           >
             <thead>
               <tr style={{ background: "var(--surface2)" }}>
-                {["Matière", "Coefficient", "Note /20", "Pondérée"].map((h) => (
-                  <th
-                    key={h}
-                    style={{
-                      padding: "10px 14px",
-                      textAlign: "left",
-                      color: "var(--text-muted)",
-                      fontSize: 11,
-                      fontWeight: 700,
-                      borderBottom: "2px solid var(--border)",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.08em",
-                    }}
-                  >
-                    {h}
-                  </th>
-                ))}
+                {["Matière", "Coefficient", "Note /20", "Coeff * Note /20"].map(
+                  (h) => (
+                    <th
+                      key={h}
+                      style={{
+                        padding: "10px 14px",
+                        textAlign: "left",
+                        color: "var(--text-muted)",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        borderBottom: "2px solid var(--border)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ),
+                )}
               </tr>
             </thead>
             <tbody>
@@ -736,11 +807,14 @@ export default function NotesPage() {
     );
   };
 
-  // ── Rendu d'un semestre (avec ses sessions) ────────────────────────────────
+  // ── Rendu d'un semestre (avec ses sessions normale + rattrapage) ───────────
   const renderSemestre = (semestre, data) => {
     const sessions = [];
-    if (data.notes?.length) {
-      sessions.push(["notes", data]);
+    if (data.session_normale?.notes?.length) {
+      sessions.push(["session_normale", data.session_normale]);
+    }
+    if (data.session_rattrapage?.notes?.length) {
+      sessions.push(["session_rattrapage", data.session_rattrapage]);
     }
     if (sessions.length === 0) return null;
 
@@ -978,21 +1052,23 @@ export default function NotesPage() {
               </Card>
             )}
 
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: "12px",
-              }}
-              className="no-print"
-            >
-              <Btn
-                variant="secondary"
+            <div className="no-print flex items-center justify-end gap-3">
+              <button
+                type="button"
                 onClick={generatePDF}
                 disabled={pdfGenerating || !hasNotes}
+                className="flex items-center justify-center gap-2 bg-transparent border-none cursor-pointer transition-transform duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Télécharger le relevé de notes au format PDF"
               >
-                {pdfGenerating ? "Génération..." : "📄 Télécharger PDF"}
-              </Btn>
+                <img
+                  src="/src/assets/pdf-icon.svg"
+                  alt="Télécharger PDF"
+                  className="w-12 h-12 object-contain"
+                />
+                <span className="text-red dark:text-yellow transition-colors duration-400 ease-in-out text-sm font-semibold">
+                  Télécharger PDF
+                </span>
+              </button>
             </div>
           </div>
         </div>

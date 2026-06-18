@@ -12,6 +12,12 @@ export function ThemeProvider({ children }) {
   useEffect(() => {
     // Appliquer l'attribut data-theme sur <html>
     document.documentElement.setAttribute("data-theme", theme);
+    // Basculer la classe 'dark' pour Tailwind (mode sombre)
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
     localStorage.setItem("theme", theme);
   }, [theme]);
 

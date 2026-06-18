@@ -44,9 +44,9 @@ const getBulletin = async (req, res) => {
         .json({ success: false, message: "Inscription introuvable." });
     }
 
-    // ✅ nom_matiere AS matiere, credit AS coefficient
+    // ✅ Sélection avec session + credit AS coefficient, nom_matiere AS matiere
     const [notes] = await db.query(
-      `SELECT n.note, n.id AS note_id,
+      `SELECT n.note, n.id AS note_id, n.session,
                                   m.id          AS matiere_id,
                                   m.nom_matiere AS matiere,
                                   m.credit      AS coefficient,
@@ -55,32 +55,44 @@ const getBulletin = async (req, res) => {
                            FROM notes n
                            JOIN matieres m ON n.matiere_id = m.id
                            WHERE n.inscription_id = ?
-                           ORDER BY m.semestre, m.nom_matiere`,
+                           ORDER BY m.semestre, n.session, m.nom_matiere`,
       [req.params.inscriptionId],
     );
 
-    // Grouper les notes par semestre
+    // Grouper les notes par semestre ET par session (normale / rattrapage)
     const resultat = {};
     notes.forEach((n) => {
       const sem = n.semestre;
+      const sessionKey =
+        n.session === "rattrapage" ? "session_rattrapage" : "session_normale";
+
       if (!resultat[sem]) {
-        resultat[sem] = { notes: [], totalPonderee: 0, totalCoeff: 0 };
+        resultat[sem] = {};
       }
-      resultat[sem].notes.push(n);
-      resultat[sem].totalPonderee += parseFloat(n.ponderee);
-      resultat[sem].totalCoeff += parseFloat(n.coefficient);
+      if (!resultat[sem][sessionKey]) {
+        resultat[sem][sessionKey] = {
+          notes: [],
+          totalPonderee: 0,
+          totalCoeff: 0,
+        };
+      }
+      resultat[sem][sessionKey].notes.push(n);
+      resultat[sem][sessionKey].totalPonderee += parseFloat(n.ponderee);
+      resultat[sem][sessionKey].totalCoeff += parseFloat(n.coefficient);
     });
 
-    // Calculer moyenne et mention pour chaque semestre
-    Object.values(resultat).forEach((s) => {
-      s.moyenne =
-        s.totalCoeff > 0 ? (s.totalPonderee / s.totalCoeff).toFixed(2) : "—";
-      s.mention =
-        parseFloat(s.moyenne) >= 10
-          ? "Admis"
-          : parseFloat(s.moyenne) >= 8
-            ? "Rattrapage"
-            : "Ajourné";
+    // Calculer moyenne et mention pour chaque session de chaque semestre
+    Object.values(resultat).forEach((sem) => {
+      Object.values(sem).forEach((s) => {
+        s.moyenne =
+          s.totalCoeff > 0 ? (s.totalPonderee / s.totalCoeff).toFixed(2) : "—";
+        s.mention =
+          parseFloat(s.moyenne) >= 10
+            ? "Admis"
+            : parseFloat(s.moyenne) >= 8
+              ? "Rattrapage"
+              : "Ajourné";
+      });
     });
 
     return res.json({
@@ -96,7 +108,8 @@ const getBulletin = async (req, res) => {
 
 // ── POST /notes  (créer ou mettre à jour une note) ────────────────────────────
 const upsertNote = async (req, res) => {
-  const { inscription_id, matiere_id, note } = req.body;
+  const { inscription_id, matiere_id, note, session } = req.body;
+  const sessionValue = session === "rattrapage" ? "rattrapage" : "normale";
 
   if (
     inscription_id === undefined ||
@@ -130,10 +143,10 @@ const upsertNote = async (req, res) => {
     }
 
     await db.query(
-      `INSERT INTO notes (inscription_id, matiere_id, note)
-             VALUES (?, ?, ?)
+      `INSERT INTO notes (inscription_id, matiere_id, note, session)
+             VALUES (?, ?, ?, ?)
              ON DUPLICATE KEY UPDATE note = VALUES(note)`,
-      [inscription_id, matiere_id, noteNum],
+      [inscription_id, matiere_id, noteNum, sessionValue],
     );
 
     return res.json({ success: true, message: "Note enregistrée." });
@@ -147,7 +160,8 @@ const upsertNote = async (req, res) => {
 
 // ── POST /notes/batch  (saisie multiple) ─────────────────────────────────────
 const batchUpsertNotes = async (req, res) => {
-  const { inscription_id, notes } = req.body;
+  const { inscription_id, notes, session } = req.body;
+  const sessionValue = session === "rattrapage" ? "rattrapage" : "normale";
 
   const inscId = parseInt(inscription_id, 10);
   if (!inscId || inscId <= 0) {
@@ -205,10 +219,10 @@ const batchUpsertNotes = async (req, res) => {
       await conn.beginTransaction();
       for (const { matiere_id, note } of notesValidees) {
         await conn.query(
-          `INSERT INTO notes (inscription_id, matiere_id, note)
-                     VALUES (?, ?, ?)
+          `INSERT INTO notes (inscription_id, matiere_id, note, session)
+                     VALUES (?, ?, ?, ?)
                      ON DUPLICATE KEY UPDATE note = VALUES(note)`,
-          [inscId, matiere_id, note],
+          [inscId, matiere_id, note, sessionValue],
         );
       }
       await conn.commit();
