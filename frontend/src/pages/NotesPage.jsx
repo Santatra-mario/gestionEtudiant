@@ -388,11 +388,11 @@ export default function NotesPage() {
           table.innerHTML = `
           <thead>
             <tr style="background-color:${sessionColor};">
-              <th style="width:36px;border:1px solid ${sessionColor};padding:10px 4px;text-align:center;color:#ffffff;font-weight:700;font-size:12px;">N\u00b0</th>
-              <th style="border:1px solid ${sessionColor};padding:10px 14px;text-align:left;color:#ffffff;font-weight:700;font-size:12px;">Mati\u00e8re</th>
-              <th style="width:55px;border:1px solid ${sessionColor};padding:10px 4px;text-align:center;color:#ffffff;font-weight:700;font-size:12px;">Coeff.</th>
-              <th style="width:80px;border:1px solid ${sessionColor};padding:10px 4px;text-align:center;color:#ffffff;font-weight:700;font-size:12px;">Note /20</th>
-              <th style="width:70px;border:1px solid ${sessionColor};padding:10px 4px;text-align:center;color:#ffffff;font-weight:700;font-size:12px;">Coeff * Note /20</th>
+              <th style="width:36px;border:1px solid ${sessionColor};padding:10px 4px;text-align:center;color:black;font-weight:700;font-size:12px;">N\u00b0</th>
+              <th style="border:1px solid ${sessionColor};padding:10px 14px;text-align:left;color:black;font-weight:700;font-size:12px;">Mati\u00e8re</th>
+              <th style="width:55px;border:1px solid ${sessionColor};padding:10px 4px;text-alignblack;color:#black;font-weight:800;font-size:12px;">Coeff.</th>
+              <th style="width:80px;border:1px solid ${sessionColor};padding:10px 4px;text-align:center;color:black;font-weight:800;font-size:12px;">Note /20</th>
+              <th style="width:70px;border:1px solid ${sessionColor};padding:10px 4px;text-align:center;color:black;font-weight:800;font-size:12px;">Coeff * Note.</th>
             </tr>
           </thead>
           <tbody>
@@ -411,11 +411,11 @@ export default function NotesPage() {
             <tr style="background-color:${bgColor};">
               <td style="border:1px solid #e2e8f0;padding:10px 4px;text-align:center;color:#6b7280;background-color:${bgColor};font-size:13px;">${idx + 1}</td>
               <td style="border:1px solid #e2e8f0;padding:10px 14px;color:#111827;background-color:${bgColor};font-size:13px;">${n.matiere}</td>
-              <td style="border:1px solid #e2e8f0;padding:10px 4px;text-align:center;color:#111827;background-color:${bgColor};font-size:13px;">${coeff}</td>
-              <td style="border:1px solid #e2e8f0;padding:10px 4px;text-align:center;color:#111827;background-color:${bgColor};font-size:13px;">
+              <td style="border:1px solid #d1d5db;padding:10px 4px;text-align:center;font-weight:700;font-size:14px;color:#111827;background-color:${bgColor};border-left:2px solid ${sessionColor}40;">${coeff}</td>
+              <td style="border:1px solid #d1d5db;padding:10px 4px;text-align:center;color:#111827;background-color:${bgColor};font-size:13px;">
                 <span style="display:inline-block;padding:2px 10px;border-radius:6px;font-weight:700;font-size:14px;color:${noteColor};background-color:${noteBg};border:1px solid ${noteColor}40;">${note.toFixed(2)}</span>
               </td>
-              <td style="border:1px solid #e2e8f0;padding:10px 4px;text-align:center;color:#111827;background-color:${bgColor};font-size:13px;">${pond}</td>
+              <td style="border:1px solid #d1d5db;padding:10px 4px;text-align:center;font-weight:700;font-size:14px;color:#111827;background-color:${bgColor};border-left:2px solid ${sessionColor}40;">${pond}</td>
             </tr>`;
               })
               .join("")}

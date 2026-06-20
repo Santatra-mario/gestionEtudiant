@@ -32,8 +32,11 @@ export function getPhotoUrl(filename) {
 // ✅ Intercepteur requête : envoie le token JWT à chaque appel
 api.interceptors.request.use(
   (config) => {
-    const token =
-      localStorage.getItem("student_token") || localStorage.getItem("token");
+    // Choisir le bon token selon le type de requête
+    const isStudentRoute = config.url?.includes("/student/");
+    const token = isStudentRoute
+      ? localStorage.getItem("student_token")
+      : localStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
